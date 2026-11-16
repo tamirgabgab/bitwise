@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phase 0 is done. Phase 1 is next.
+Status: Phases 0 and 1 are done. Phase 2 is next.
 
 ## Decisions
 
@@ -71,13 +71,36 @@ license choice open.
 Vite + React + TypeScript, oxlint, Vitest, GitHub Actions CI, MIT license,
 `CLAUDE.md`, and the four-layer folder layout.
 
-### Phase 1: simulation core
+### Phase 1: simulation core (done)
 
-- Netlist model: components, pins, wires.
-- Event queue with gate delays.
-- Gates: AND, OR, NOT, NAND, NOR, XOR, XNOR, Buffer.
-- Unit tests: truth tables for every gate, an SR latch built from two NOR
-  gates that settles, and a ring oscillator that does not hang the engine.
+Built in `src/core`:
+
+- `signal.ts`: the four bit values, bus signals, gate logic per bit, and
+  resolution of several drivers on one net.
+- `component.ts`: the component definition format (ports, integer
+  parameters, a pure `evaluate` function) and the registry.
+- `eventQueue.ts`: a min-heap of scheduled output changes.
+- `simulator.ts`: components, nets, live editing and the event loop.
+- `components/`: AND, OR, NOT, NAND, NOR, XOR, XNOR, Buffer, and an input
+  source that tests and later switches use to drive a circuit.
+
+Choices made with the owner before building:
+
+- **Bus-ready from the start.** Every pin and net has a width. Gates take a
+  `width` parameter and work bit by bit.
+- **A floating input is unknown.** An unattached input reads Z and gates
+  treat it as X, unless the other inputs already decide the output.
+- **A delay per component.** Default 1 tick, minimum 1, changeable at any
+  time.
+- **2 to 8 inputs per gate.** XOR with more than two inputs is odd parity.
+
+Covered by unit tests: full truth tables over 0, 1, X and Z for every gate,
+an SR latch from two NOR gates (set, hold, reset, hold, and the race when
+both inputs are released together), a ring oscillator that the engine stops
+at the tick limit, driver conflicts, buses, and editing a running circuit.
+
+Not built yet, on purpose: a way for a component to wake itself up later.
+The clock in Phase 4 needs it.
 
 ### Phase 2: canvas editor
 
@@ -95,6 +118,7 @@ Vite + React + TypeScript, oxlint, Vitest, GitHub Actions CI, MIT license,
 
 ### Phase 4: sequential logic
 
+- Engine support for a component that schedules its own next evaluation.
 - Clock with adjustable frequency.
 - SR latch, and D, JK and T flip-flops with asynchronous Set/Reset.
 

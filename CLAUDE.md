@@ -21,11 +21,30 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `src/ui` — React panels and app shell. May import `core`, `editor`, `io`.
 - `src/io` — file format, save/load, export. May import `core`.
 
+## Core model
+
+- A bit is 0, 1, X (unknown) or Z (floating). A `Signal` is an array of bits
+  with the least significant bit at index 0. Text form (`parseSignal`,
+  `formatSignal`) puts the most significant bit first.
+- Every pin and net has a width. Width 1 is a plain wire, more is a bus.
+- A net is one electrical node. Several outputs may drive it: Z drivers are
+  ignored, and a 0 against a 1 reads as X and sets the net's `conflict` flag.
+- An unattached input floats (Z), and gates treat Z like X.
+- Time is integer ticks. A component is evaluated when one of its inputs
+  changes, and its outputs take effect `delay` ticks later. Delay is per
+  component and at least 1, which is what keeps oscillating circuits from
+  hanging the engine. Do not allow a delay of 0.
+- An output is X until its first evaluation takes effect.
+- The simulator generates numeric component and net ids. The editor keeps
+  its own ids and maps them.
+
 ## Conventions
 
 - Every behavior in `src/core` gets a unit test next to it (`*.test.ts`).
-- Components (gates, flip-flops, ...) are defined as data plus an evaluation
-  function, one file per component, so adding one does not touch the engine.
+- Components (gates, flip-flops, ...) are defined as data plus a pure
+  `evaluate` function, one file per component family under
+  `src/core/components`, and registered in `components/index.ts`. Adding one
+  must not touch the engine.
 - Saved files carry `FILE_FORMAT_VERSION`. A breaking format change bumps it
   and adds a migration from the previous version.
 - TypeScript runs with `erasableSyntaxOnly`: no enums, namespaces or

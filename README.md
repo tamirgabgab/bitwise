@@ -4,8 +4,9 @@ A digital logic simulator that runs in the browser, inspired by
 [CedarLogic](https://github.com/CedarvilleCS/CedarLogic): build a circuit from
 gates and flip-flops and watch it simulate as you wire it.
 
-The project is at the scaffold stage. The simulator itself is not built yet;
-see [docs/PLAN.md](docs/PLAN.md) for the roadmap.
+The simulation core is in place: four-valued signals, buses, the basic gates
+and an event-driven engine with per-component delays. The circuit editor is
+next; see [docs/PLAN.md](docs/PLAN.md) for the roadmap.
 
 ## Development
 
