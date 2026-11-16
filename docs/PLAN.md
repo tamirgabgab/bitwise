@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0, 1 and 2 are done. Phase 3 is next.
+Status: Phases 0 to 3 are done. Phase 4 (saving and named circuits) is next.
 
 ## Decisions
 
@@ -57,8 +57,10 @@ license choice open.
 - **Engine.** Event-driven, with a time-ordered event queue and an integer
   gate delay (default 1). Delays are what make latches and flip-flops built
   from gates settle correctly.
-- **Signal values.** Four values: 0, 1, X (unknown) and Z (high impedance),
-  plus detection of two outputs driving one wire to different values.
+- **Signal values.** A wire carries one of n digits, 0 to n-1, where the
+  radix n is a setting of the whole circuit (2 to 16, default 2). On top of
+  the digits there are X (unknown) and Z (high impedance), plus detection of
+  two outputs driving one wire to different values.
 - **Component library.** Each component is data (pins, shape) plus an
   evaluation function, so a new component is one file.
 - **File format.** JSON with a `version` field, so old circuits keep loading
@@ -100,7 +102,7 @@ both inputs are released together), a ring oscillator that the engine stops
 at the tick limit, driver conflicts, buses, and editing a running circuit.
 
 Not built yet, on purpose: a way for a component to wake itself up later.
-The clock in Phase 4 needs it.
+The clock in Phase 5 needs it.
 
 ### Phase 2: canvas editor (done)
 
@@ -138,36 +140,113 @@ Known limits, left for later phases:
 
 - Wire layout is greedy: each wire avoids the wires placed before it, and
   nothing routes around parts. A dense drawing can still look crowded.
-- A part's parameters, such as the number of inputs, cannot be changed from
-  the UI yet. That belongs to the properties panel in Phase 6.
 - Mouse and keyboard only. Touch works for single-pointer drags, with no
   pinch zoom.
 
-### Phase 3: live simulation
+### Phase 3: live simulation and n-valued logic (done)
 
-- Inputs and outputs: toggle switch, push button, LED.
-- Wires colored by value while the circuit runs.
-- Run, Pause and Step controls with a speed setting.
+The owner widened this phase: besides showing the simulation on the canvas,
+a wire can now carry n values instead of two. The mathematics, and the
+reasoning behind every gate kit, are in
+[n_ary_logic_sim_spec.md](n_ary_logic_sim_spec.md) (in Hebrew).
 
-### Phase 4: sequential logic
+Built in `src/core`:
+
+- `signal.ts`: a digit is 0 to radix-1, or X, or Z. The gate operations are
+  the usual generalizations: AND is the minimum, OR the maximum, NOT the
+  mirror (n-1)-x, and there are sum and product modulo n.
+- `component.ts`: `evaluate` receives the radix through a fourth argument.
+- `components/`: NAND is min+1 and NOR is max+1 (the Webb function), both
+  modulo n. New parts: Shift (x+k mod n, which is NOT at radix 2), Add, Mul,
+  Is (a detector: n-1 when the input equals a chosen digit, else 0),
+  Constant, Push button and Output.
+- `presets.ts`: the gate kits a project can use, and for which radix each is
+  available and universal.
+- `simulator.ts`: `radix` and `setRadix`, `restart` (a power cycle), `probe`
+  (the resolved value on a pin) and the count of conflicting nets.
+
+Built in `src/editor` and `src/ui`:
+
+- `simRunner.ts`, `simStore.ts` and `session.ts`: the run loop. Wall-clock
+  time becomes ticks at 1, 5, 25 or 100 ticks a second, or everything at
+  once. Time only moves while a change is waiting, and a frame simulates at
+  most 2000 ticks, so an oscillator cannot freeze the page.
+- `liveValues.ts` and `valueStyle.ts`: what each wire carries and how it is
+  drawn.
+- Switches, push buttons, constants and outputs show their value on a face.
+  Click a switch to step it to the next value (Shift-click or right-click
+  steps back). A push button gives n-1 while it is held.
+- Top bar: Run or Pause, Step, Restart and speed. Settings panel: radix,
+  gate kit, colors. Inspector: the parameters of the selected part.
+
+Choices made with the owner before building:
+
+- **One round per part.** This round is live simulation and n values.
+  Saving with named circuits, and then clocks with flip-flops, each get
+  their own round.
+- **X and Z stay** next to the digits. The spec's "an unattached wire is 0"
+  is therefore replaced: an unattached input floats, as in Phase 1.
+- **Kits by default, a sandbox on request.** The palette shows the gates of
+  the chosen kit. A "sandbox" setting shows every gate.
+- **Saving will be both** autosave in the browser and a JSON file.
+
+Choices made while building, open to change:
+
+- The kits are Classic (radix 2 only), NAND, Kleene + Shift, Post
+  (Shift + AND), NOR (Webb), Detectors (Is, AND, OR, Constant), Field (Add,
+  Mul, Constant; prime radix only) and Pure Kleene (not universal above
+  radix 2, and marked so).
+- Radix 2 starts with the Classic kit, a higher radix with NAND. A kit that
+  still fits the new radix is kept when the radix changes.
+- Changing the radix restarts the circuit: switches go back to 0.
+- A switch value lives in the simulator, not in the drawing, so it is not
+  part of undo. Saving will have to store it separately.
+- Colors: at radix 2 the classic CedarLogic look (dark, red, green for Z,
+  blue for X). Above that an editable 10-color palette, and a blue-to-red
+  gradient above 10 values. Z is a dashed line, X dotted, a conflict thick
+  and dashed. A color too close to the canvas gets an outline.
+- Digits next to output pins are on by default above radix 2. An odd radix
+  can be shown balanced (-1, 0, +1); that changes the display only.
+
+Covered by unit tests: tables for every gate at several radixes, De Morgan
+for radix 2 to 16, backward compatibility of every kit at radix 2, and
+universality of each universal kit for radix 2 to 5, shown by building
+mirror, OR, constants, detectors and an arbitrary table from the kit's own
+gates. Also the run loop, live values, value styling and the settings.
+
+Known limits:
+
+- Derived gates from section 4 of the spec (MOD-SUM, threshold, literal
+  gates and others) are not parts of their own yet. They can be built from
+  a kit, and they belong with named circuits in Phase 4.
+- No truth-table view yet.
+- Buses are simulated but cannot be drawn: every part in the editor is one
+  digit wide.
+
+### Phase 4: saving and named circuits
+
+- Save to and load from a JSON file, and autosave in the browser. The file
+  stores the radix, the kit and the palette. A file without a radix loads
+  as radix 2.
+- Named circuits: package a drawing under a name and use it as a part. A
+  named circuit is valid for the radix it was built in.
+- A few ready-made example circuits.
+
+### Phase 5: sequential logic
 
 - Engine support for a component that schedules its own next evaluation.
 - Clock with adjustable frequency.
-- SR latch, and D, JK and T flip-flops with asynchronous Set/Reset.
-
-### Phase 5: save and load
-
-- Save to and load from a JSON file.
-- Autosave in the browser.
-- Export the circuit as an image.
-- A few ready-made example circuits.
+- SR latch, and D, JK and T flip-flops with asynchronous Set/Reset. How a
+  clock edge and a flip-flop behave above radix 2 is a question for the
+  owner at the start of this phase.
 
 ### Phase 6: polish
 
-- Properties panel for the selected component (inputs, width, delay).
+- Width and delay in the inspector, next to the parameters it has now.
 - Text labels on the canvas.
 - Wire routing that goes around parts.
 - Pinch zoom and other touch gestures.
+- Export the circuit as an image.
 
 Dark and light themes and the keyboard shortcuts were planned here and
 arrived early, in Phase 2.
@@ -179,14 +258,13 @@ count, save it, close the browser, and load it back.
 
 ## After the MVP
 
-- **Subcircuits.** Package a circuit as a component (black box). This is the
-  basis for building large architectures.
 - **Buses and larger components.** Multi-bit wires, multiplexer, decoder,
   adder, register, counter, RAM, ROM.
 - **Timing diagram.** Signals over time, oscilloscope style.
 - **State-diagram (FSM) editor.** Draw states and transitions, run them as a
   component, and later convert them to a flip-flop circuit automatically.
-- **Testing and sharing.** Automatic truth table, testbench, share by URL.
+- **Testing and sharing.** Automatic truth table (n^k rows), testbench, share
+  by URL.
 - **Desktop build.** A Tauri wrapper around the same code.
 
 ## Sources

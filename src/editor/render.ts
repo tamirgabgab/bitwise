@@ -1,13 +1,17 @@
-import { builtinComponents, resolveParams } from '../core/index.ts'
+import { builtinComponents, digitChar, resolveParams } from '../core/index.ts'
+import type { Digit } from '../core/index.ts'
 import { junctionDegrees, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
+import type { LiveValues } from './liveValues.ts'
 import { symbolFor } from './symbols.ts'
-import type { ComponentSymbol } from './symbols.ts'
+import type { ComponentSymbol, SymbolFace } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
+import { inkOn } from './valueStyle.ts'
+import type { ValueStyle, WireLook } from './valueStyle.ts'
 import { UNIT } from './view.ts'
 import type { View } from './view.ts'
-import { branchPoints, wirePath } from './wireLayout.ts'
+import { wireBranches, wirePath } from './wireLayout.ts'
 
 /** Everything one frame shows. */
 export interface Scene {
@@ -21,6 +25,9 @@ export interface Scene {
   readonly marquee: Rect | null
   /** A part being dragged in from the palette. */
   readonly ghost: { readonly type: string; readonly pos: Point } | null
+  /** The values of the running circuit, and how to show them. */
+  readonly live: LiveValues
+  readonly style: ValueStyle
 }
 
 const STROKE = 0.13
@@ -28,6 +35,7 @@ const WIRE_STROKE = 0.14
 const PIN_DOT = 0.12
 const CORNER_RADIUS = 0.4
 const JUNCTION_DOT = 0.24
+const FONT = '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif'
 
 function drawGrid(
   ctx: CanvasRenderingContext2D,
@@ -71,21 +79,132 @@ function tracePath(ctx: CanvasRenderingContext2D, points: readonly Point[]): voi
   ctx.lineTo(last.x, last.y)
 }
 
-function drawSymbol(
+function strokeWire(ctx: CanvasRenderingContext2D, path: readonly Point[], look: WireLook): void {
+  if (look.casing) {
+    tracePath(ctx, path)
+    ctx.strokeStyle = look.casing
+    ctx.lineWidth = WIRE_STROKE * look.weight + 0.1
+    ctx.stroke()
+  }
+  tracePath(ctx, path)
+  ctx.setLineDash(look.dash as number[])
+  ctx.strokeStyle = look.color
+  ctx.lineWidth = WIRE_STROKE * look.weight
+  ctx.stroke()
+  ctx.setLineDash([])
+}
+
+function fillDot(ctx: CanvasRenderingContext2D, at: Point, radius: number, look: WireLook): void {
+  if (look.casing) {
+    ctx.beginPath()
+    ctx.arc(at.x, at.y, radius + 0.05, 0, Math.PI * 2)
+    ctx.fillStyle = look.casing
+    ctx.fill()
+  }
+  ctx.beginPath()
+  ctx.arc(at.x, at.y, radius, 0, Math.PI * 2)
+  ctx.fillStyle = look.color
+  ctx.fill()
+}
+
+/**
+ * Writes text centred on a point given in the current coordinates, upright
+ * and at a real pixel size whatever rotation and scale are in effect.
+ */
+function drawText(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  at: Point,
+  size: number,
+  color: string,
+  halo?: string,
+): void {
+  const matrix = ctx.getTransform()
+  const scale = Math.hypot(matrix.a, matrix.b)
+  const x = matrix.a * at.x + matrix.c * at.y + matrix.e
+  const y = matrix.b * at.x + matrix.d * at.y + matrix.f
+  const pixels = size * scale
+  ctx.save()
+  ctx.setTransform(1, 0, 0, 1, 0, 0)
+  ctx.font = `600 ${pixels}px ${FONT}`
+  ctx.textAlign = 'center'
+  ctx.textBaseline = 'middle'
+  // The visual middle of digits and capitals sits a little above the em middle.
+  const baseline = y + pixels * 0.06
+  if (halo) {
+    ctx.lineJoin = 'round'
+    ctx.lineWidth = Math.max(2, pixels * 0.28)
+    ctx.strokeStyle = halo
+    ctx.strokeText(text, x, baseline)
+  }
+  ctx.fillStyle = color
+  ctx.fillText(text, x, baseline)
+  ctx.restore()
+}
+
+function drawFace(
+  ctx: CanvasRenderingContext2D,
+  face: SymbolFace,
+  digit: Digit | undefined,
+  style: ValueStyle | null,
+  theme: CanvasTheme,
+  outline: string,
+): void {
+  const { pos, reach } = face
+  ctx.beginPath()
+  if (face.shape === 'round') ctx.arc(pos.x, pos.y, reach, 0, Math.PI * 2)
+  else ctx.roundRect(pos.x - reach, pos.y - reach, 2 * reach, 2 * reach, 0.16)
+  const fill = digit === undefined ? null : (style?.fill(digit) ?? null)
+  ctx.fillStyle = fill ?? theme.partFill
+  ctx.fill()
+  ctx.strokeStyle = outline
+  ctx.lineWidth = STROKE * 0.75
+  ctx.stroke()
+  if (digit === undefined) return
+  const text = style ? style.text(digit) : digitChar(digit)
+  const size = reach * (text.length > 1 ? 1.05 : 1.4)
+  drawText(ctx, text, pos, size, fill ? inkOn(fill) : theme.ink)
+}
+
+interface PartLook {
+  readonly stroke: string
+  readonly fill: string
+  readonly lineWidth: number
+}
+
+/**
+ * Draws one part where it stands: its outline, the writing on it, and its
+ * face showing `faceDigit` (left blank when undefined).
+ */
+function drawPart(
   ctx: CanvasRenderingContext2D,
   symbol: ComponentSymbol,
-  component: Pick<DocComponent, 'pos' | 'rotation'>,
-  stroke: string,
-  fill: string,
+  placement: Pick<DocComponent, 'pos' | 'rotation'>,
+  look: PartLook,
+  theme: CanvasTheme,
+  style: ValueStyle | null,
+  faceDigit: Digit | undefined,
 ): void {
   ctx.save()
-  ctx.translate(component.pos.x, component.pos.y)
-  ctx.rotate((component.rotation * Math.PI) / 2)
-  ctx.strokeStyle = stroke
-  ctx.fillStyle = fill
-  ctx.lineWidth = STROKE
+  ctx.translate(placement.pos.x, placement.pos.y)
+  ctx.rotate((placement.rotation * Math.PI) / 2)
+  ctx.strokeStyle = look.stroke
+  ctx.fillStyle = look.fill
+  ctx.lineWidth = look.lineWidth
   symbol.draw(ctx)
+  if (symbol.face) drawFace(ctx, symbol.face, faceDigit, style, theme, look.stroke)
+  if (symbol.label) {
+    const { label } = symbol
+    let text = label.text
+    if (label.digit !== undefined) text += style ? style.text(label.digit) : digitChar(label.digit)
+    drawText(ctx, text, label.pos, text.length > 2 ? label.size * 0.82 : label.size, look.stroke)
+  }
   ctx.restore()
+}
+
+/** What a part's face shows before any simulation: only a constant has a value. */
+function restingFace(type: string, params: Readonly<Record<string, number>>): Digit | undefined {
+  return type === 'const' ? params.value : undefined
 }
 
 /** Paints one frame. `width` and `height` are in CSS pixels. */
@@ -97,7 +216,7 @@ export function renderScene(
   theme: CanvasTheme,
   scene: Scene,
 ): void {
-  const { doc, selection, view } = scene
+  const { doc, selection, view, live, style } = scene
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
   ctx.fillStyle = theme.background
   ctx.fillRect(0, 0, width, height)
@@ -128,40 +247,34 @@ export function renderScene(
       ctx.lineWidth = 0.6
       ctx.stroke()
     }
-    tracePath(ctx, path)
-    ctx.strokeStyle = selection.has(wire.id) ? theme.accent : theme.wire
-    ctx.lineWidth = WIRE_STROKE
-    ctx.stroke()
+    const value = live.at(wire.from)
+    strokeWire(ctx, path, style.wire(value.digit, value.conflict))
   }
 
-  ctx.fillStyle = theme.wire
-  for (const point of branchPoints(doc)) {
-    ctx.beginPath()
-    ctx.arc(point.x, point.y, JUNCTION_DOT, 0, Math.PI * 2)
-    ctx.fill()
+  for (const branch of wireBranches(doc)) {
+    const value = live.net(branch.net)
+    fillDot(ctx, branch.pos, JUNCTION_DOT, style.wire(value.digit, value.conflict))
   }
 
   const degrees = junctionDegrees(doc)
   for (const junction of Object.values(doc.junctions)) {
-    const selected = selection.has(junction.id)
     // Three or more wires make a real junction dot. With fewer it is only a
     // bend point, drawn smaller so it does not read as a connection.
     const radius = (degrees.get(junction.id) ?? 0) >= 3 ? JUNCTION_DOT : 0.15
-    if (selected) {
+    if (selection.has(junction.id)) {
       ctx.beginPath()
       ctx.arc(junction.pos.x, junction.pos.y, 0.5, 0, Math.PI * 2)
       ctx.fillStyle = theme.accentSoft
       ctx.fill()
     }
-    ctx.beginPath()
-    ctx.arc(junction.pos.x, junction.pos.y, radius, 0, Math.PI * 2)
-    ctx.fillStyle = selected ? theme.accent : theme.wire
-    ctx.fill()
+    const value = live.at({ kind: 'junction', junction: junction.id })
+    fillDot(ctx, junction.pos, radius, style.wire(value.digit, value.conflict))
   }
 
   for (const component of Object.values(doc.components)) {
     const symbol = symbolFor(component.type, component.params)
     const selected = selection.has(component.id)
+    const outline = selected ? theme.accent : theme.ink
     if (selected) {
       const { x0, y0, x1, y1 } = symbol.bounds
       ctx.save()
@@ -173,19 +286,37 @@ export function renderScene(
       ctx.fill()
       ctx.restore()
     }
-    drawSymbol(ctx, symbol, component, selected ? theme.accent : theme.ink, theme.partFill)
+    drawPart(
+      ctx,
+      symbol,
+      component,
+      { stroke: outline, fill: theme.partFill, lineWidth: STROKE },
+      theme,
+      style,
+      live.face(component.id) ?? restingFace(component.type, component.params),
+    )
 
-    // A dot on every pin that has no wire yet, to show where one can start.
     ctx.save()
     ctx.translate(component.pos.x, component.pos.y)
     ctx.rotate((component.rotation * Math.PI) / 2)
-    ctx.fillStyle = selected ? theme.accent : theme.ink
     for (const pin of symbol.pins) {
+      // A dot on every pin that has no wire yet, to show where one can start.
       const key = terminalKey({ kind: 'pin', component: component.id, port: pin.name })
-      if (wiredPins.has(key)) continue
-      ctx.beginPath()
-      ctx.arc(pin.pos.x, pin.pos.y, PIN_DOT, 0, Math.PI * 2)
-      ctx.fill()
+      if (!wiredPins.has(key)) {
+        ctx.fillStyle = outline
+        ctx.beginPath()
+        ctx.arc(pin.pos.x, pin.pos.y, PIN_DOT, 0, Math.PI * 2)
+        ctx.fill()
+      }
+      // The value a gate puts out, written beside its output pin.
+      if (style.showDigits && pin.direction === 'out' && !symbol.face) {
+        const at = {
+          x: pin.pos.x - 0.45 * pin.dir.x + 0.6 * pin.dir.y,
+          y: pin.pos.y - 0.45 * pin.dir.y - 0.6 * pin.dir.x,
+        }
+        const text = style.text(live.output(component.id, pin.name))
+        drawText(ctx, text, at, text.length > 1 ? 0.6 : 0.72, theme.ink, theme.background)
+      }
     }
     ctx.restore()
   }
@@ -208,9 +339,17 @@ export function renderScene(
   }
 
   if (scene.ghost) {
-    const symbol = symbolFor(scene.ghost.type, defaultParamsOf(scene.ghost.type))
+    const params = defaultParamsOf(scene.ghost.type)
     ctx.globalAlpha = 0.55
-    drawSymbol(ctx, symbol, { pos: scene.ghost.pos, rotation: 0 }, theme.accent, theme.partFill)
+    drawPart(
+      ctx,
+      symbolFor(scene.ghost.type, params),
+      { pos: scene.ghost.pos, rotation: 0 },
+      { stroke: theme.accent, fill: theme.partFill, lineWidth: STROKE },
+      theme,
+      style,
+      restingFace(scene.ghost.type, params),
+    )
     ctx.globalAlpha = 1
   }
 
@@ -238,7 +377,8 @@ export function renderSymbolIcon(
   theme: CanvasTheme,
   type: string,
 ): void {
-  const symbol = symbolFor(type, defaultParamsOf(type))
+  const params = defaultParamsOf(type)
+  const symbol = symbolFor(type, params)
   const { x0, y0, x1, y1 } = symbol.bounds
   const scale = Math.min((width - 8) / (x1 - x0), (height - 8) / (y1 - y0), 9)
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
@@ -253,8 +393,13 @@ export function renderSymbolIcon(
   )
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
-  ctx.strokeStyle = theme.ink
-  ctx.fillStyle = theme.partFill
-  ctx.lineWidth = 1.5 / scale
-  symbol.draw(ctx)
+  drawPart(
+    ctx,
+    symbol,
+    { pos: { x: 0, y: 0 }, rotation: 0 },
+    { stroke: theme.ink, fill: theme.partFill, lineWidth: 1.5 / scale },
+    theme,
+    null,
+    restingFace(type, params),
+  )
 }

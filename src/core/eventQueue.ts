@@ -29,6 +29,10 @@ export class EventQueue {
     return this.heap[0]
   }
 
+  clear(): void {
+    this.heap.length = 0
+  }
+
   push(event: SimEvent): void {
     const heap = this.heap
     let index = heap.length

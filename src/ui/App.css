@@ -77,9 +77,47 @@
   flex: 1;
 }
 
+.speed {
+  height: 28px;
+  margin-left: 4px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--canvas-bg);
+  color: inherit;
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.logic-button {
+  display: flex;
+  gap: 8px;
+  width: auto;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  background: var(--canvas-bg);
+  white-space: nowrap;
+}
+
+.logic-button[aria-expanded='true'] {
+  border-color: var(--accent);
+}
+
+.logic-radix {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.logic-kit {
+  color: var(--text-muted);
+}
+
 /* ---- Workspace ---- */
 
 .workspace {
+  position: relative;
   display: flex;
   min-height: 0;
 }
@@ -169,6 +207,247 @@
   margin: 0;
 }
 
+/* ---- Steppers: a value with a button on each side ---- */
+
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.stepper .tool {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: var(--canvas-bg);
+}
+
+.stepper-label {
+  flex: 1;
+  margin-right: 8px;
+  color: var(--text-muted);
+}
+
+.stepper-value {
+  min-width: 34px;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.stepper-note {
+  margin-left: 8px;
+  color: var(--text-muted);
+}
+
+/* ---- Inspector: the settings of the selected part ---- */
+
+.inspector {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  min-width: 196px;
+  padding: 8px 10px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+}
+
+.inspector h2 {
+  margin: 0 0 6px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.inspector .stepper + .stepper {
+  margin-top: 4px;
+}
+
+/* ---- Logic settings ---- */
+
+.settings {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 5;
+  width: 348px;
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - 16px);
+  padding: 10px 14px 14px;
+  overflow-y: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.settings-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings h2 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.settings section {
+  margin-top: 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.settings h3 {
+  margin: 0 0 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.note {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.kits {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.kit {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.kit:hover {
+  background: var(--hover);
+}
+
+.kit:has(input:checked) {
+  background: var(--accent-soft);
+}
+
+.kit-off {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.kit-off:hover {
+  background: transparent;
+}
+
+.kit input,
+.check input {
+  flex: none;
+  margin: 3px 0 0;
+  accent-color: var(--accent);
+}
+
+.kit-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.kit-name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.kit-summary {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.kit-off .kit-summary {
+  color: var(--text-faint);
+}
+
+.tag {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
+
+.tag-warn {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 10px;
+  cursor: pointer;
+}
+
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.swatch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+label.swatch {
+  cursor: pointer;
+}
+
+label.swatch:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.swatch input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* ---- Status bar ---- */
 
 .statusbar {
@@ -191,14 +470,36 @@
 }
 
 .statusbar .counts {
+  display: flex;
+  gap: 16px;
   font-variant-numeric: tabular-nums;
+}
+
+.statusbar .conflict {
+  color: var(--signal-high);
+  font-weight: 500;
 }
 
 /* ---- Narrow screens: the palette becomes a strip above the canvas ---- */
 
 @media (max-width: 640px) {
+  /* More tools than a phone is wide: the bar scrolls sideways. */
   .topbar {
     padding: 0 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .topbar > * {
+    flex: none;
+  }
+
+  .spacer {
+    display: none;
+  }
+
+  .logic-kit {
+    display: none;
   }
 
   .brand {

@@ -1,16 +1,25 @@
+import { useCallback, useState } from 'react'
 import { CanvasView } from './CanvasView.tsx'
 import { Palette } from './Palette.tsx'
+import { SettingsPanel } from './SettingsPanel.tsx'
 import { StatusBar } from './StatusBar.tsx'
 import { Toolbar } from './Toolbar.tsx'
 import './App.css'
 
 export function App() {
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const closeSettings = useCallback(() => setSettingsOpen(false), [])
+
   return (
     <div className="app">
-      <Toolbar />
+      <Toolbar
+        settingsOpen={settingsOpen}
+        onToggleSettings={() => setSettingsOpen((open) => !open)}
+      />
       <div className="workspace">
         <Palette />
         <CanvasView />
+        {settingsOpen && <SettingsPanel onClose={closeSettings} />}
       </div>
       <StatusBar />
     </div>

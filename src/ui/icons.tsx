@@ -70,6 +70,36 @@ export const MoonIcon = () => (
   </Icon>
 )
 
+export const PlayIcon = () => (
+  <Icon>
+    <path d="M5.5 3.5v11l8.5-5.5Z" />
+  </Icon>
+)
+
+export const PauseIcon = () => (
+  <Icon>
+    <path d="M6 3.5v11M12 3.5v11" />
+  </Icon>
+)
+
+export const StepIcon = () => (
+  <Icon>
+    <path d="M4 3.5v11l7-5.5ZM13.5 3.5v11" />
+  </Icon>
+)
+
+export const RestartIcon = () => (
+  <Icon>
+    <path d="M14 3.5v11L6.5 9ZM4.5 3.5v11" />
+  </Icon>
+)
+
+export const CloseIcon = () => (
+  <Icon>
+    <path d="M4.5 4.5l9 9M13.5 4.5l-9 9" />
+  </Icon>
+)
+
 /** The AND gate that stands for the app itself. */
 export const BrandMark = () => (
   <svg

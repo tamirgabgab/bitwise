@@ -1,8 +1,14 @@
 import { resolveParams, validatePorts } from './component.ts'
-import type { ComponentDef, ComponentRegistry, Params, PortSpec } from './component.ts'
+import type {
+  ComponentDef,
+  ComponentRegistry,
+  EvalEnv,
+  Params,
+  PortSpec,
+} from './component.ts'
 import { builtinComponents } from './components/index.ts'
 import { EventQueue } from './eventQueue.ts'
-import { Bit, MAX_WIDTH, filled, resolve, signalsEqual } from './signal.ts'
+import { MAX_WIDTH, X, Z, checkRadix, filled, resolve, signalsEqual } from './signal.ts'
 import type { Signal } from './signal.ts'
 
 export type ComponentId = number
@@ -33,9 +39,15 @@ export interface NetInfo {
   readonly id: NetId
   readonly width: number
   readonly value: Signal
-  /** True when two outputs drive a bit of this net to different values. */
+  /** True when two outputs drive a digit of this net to different values. */
   readonly conflict: boolean
   readonly pins: readonly PinRef[]
+}
+
+/** What a probe held against a pin reads. */
+export interface Probe {
+  readonly value: Signal
+  readonly conflict: boolean
 }
 
 interface Port {
@@ -84,6 +96,9 @@ function checkDelay(delay: number): void {
  * is one electrical node: every pin on it sees the same value. The circuit
  * can be edited at any time, also while it runs.
  *
+ * Every wire carries digits from 0 to radix - 1 (a radix of 2 is ordinary
+ * binary logic), or X or Z. The radix belongs to the whole circuit.
+ *
  * Time is counted in integer ticks. When an input of a component changes,
  * the component is evaluated at once and its new outputs take effect `delay`
  * ticks later. Because every delay is at least 1, each tick is a bounded
@@ -101,9 +116,58 @@ export class Simulator {
   private batchDepth = 0
   private readonly batchedNets = new Set<NetId>()
   private readonly batchedInstances = new Set<Instance>()
+  private env: EvalEnv
 
-  constructor(registry: ComponentRegistry = builtinComponents) {
+  constructor(registry: ComponentRegistry = builtinComponents, radix = 2) {
+    checkRadix(radix)
     this.registry = registry
+    this.env = { radix }
+  }
+
+  /** How many values a wire can carry. */
+  get radix(): number {
+    return this.env.radix
+  }
+
+  /**
+   * Changes the radix. Values of the old radix mean nothing in the new one,
+   * so the circuit starts over, as `restart` does.
+   */
+  setRadix(radix: number): void {
+    checkRadix(radix)
+    if (radix === this.env.radix) return
+    this.env = { radix }
+    this.restart()
+  }
+
+  /**
+   * Starts the circuit over, like switching the power off and on: time goes
+   * back to 0, every component returns to its initial state, and every
+   * output is unknown until it is evaluated again.
+   */
+  restart(): void {
+    this.queue.clear()
+    this.now = 0
+    for (const instance of this.instances.values()) {
+      instance.state = instance.def.initialState?.(instance.params)
+      for (const port of instance.ports.values()) {
+        const unknown = filled(port.spec.width, X)
+        port.driven = unknown
+        port.scheduled = unknown
+        port.appliedSeq = 0
+      }
+    }
+    this.seq = 0
+    this.propagate(this.nets.keys(), this.instances.values())
+  }
+
+  /** How many nets have two outputs fighting over them right now. */
+  get conflicts(): number {
+    let count = 0
+    for (const net of this.nets.values()) {
+      if (net.conflict) count++
+    }
+    return count
   }
 
   /** The current time, in ticks. */
@@ -129,7 +193,7 @@ export class Simulator {
     const ports = new Map<string, Port>()
     for (const spec of specs) {
       // Until the first evaluation takes effect, an output is unknown.
-      const initial = filled(spec.width, Bit.Unknown)
+      const initial = filled(spec.width, X)
       ports.set(spec.name, {
         spec,
         net: undefined,
@@ -207,6 +271,11 @@ export class Simulator {
     }
   }
 
+  /** A component's internal state, as `setState` or its own evaluation left it. */
+  getState(id: ComponentId): unknown {
+    return this.instance(id).state
+  }
+
   getComponent(id: ComponentId): ComponentInfo {
     const instance = this.instance(id)
     return {
@@ -233,7 +302,7 @@ export class Simulator {
       id: this.nextNetId++,
       width,
       pins: new Map(),
-      value: filled(width, Bit.HiZ),
+      value: filled(width, Z),
       conflict: false,
     }
     this.nets.set(net.id, net)
@@ -264,8 +333,8 @@ export class Simulator {
     }
     if (port.spec.width !== net.width) {
       throw new Error(
-        `Pin ${pinKey(pin)} is ${port.spec.width} bits wide but net ${netId} ` +
-          `is ${net.width} bits wide`,
+        `Pin ${pinKey(pin)} is ${port.spec.width} digits wide but net ${netId} ` +
+          `is ${net.width} digits wide`,
       )
     }
     net.pins.set(pinKey(pin), { component: pin.component, port: pin.port })
@@ -293,8 +362,8 @@ export class Simulator {
     const portB = this.port(this.instance(b.component), b.port)
     if (portA.spec.width !== portB.spec.width) {
       throw new Error(
-        `Cannot connect ${pinKey(a)} (${portA.spec.width} bits) to ` +
-          `${pinKey(b)} (${portB.spec.width} bits)`,
+        `Cannot connect ${pinKey(a)} (${portA.spec.width} digits) to ` +
+          `${pinKey(b)} (${portB.spec.width} digits)`,
       )
     }
     if (portA.net === undefined && portB.net === undefined) {
@@ -342,6 +411,21 @@ export class Simulator {
     const port = this.port(this.instance(pin.component), pin.port)
     if (port.spec.direction === 'out') return port.driven
     return this.inputValue(port)
+  }
+
+  /**
+   * What a probe on the wire at this pin reads: the value of the pin's net,
+   * with all its drivers resolved. A pin on no net reads what it drives, or
+   * floats (Z) if it is an input.
+   */
+  probe(pin: PinRef): Probe {
+    const port = this.port(this.instance(pin.component), pin.port)
+    if (port.net !== undefined) {
+      const net = this.net(port.net)
+      return { value: net.value, conflict: net.conflict }
+    }
+    const value = port.spec.direction === 'out' ? port.driven : filled(port.spec.width, Z)
+    return { value, conflict: false }
   }
 
   // ---- Time ----
@@ -411,7 +495,7 @@ export class Simulator {
   }
 
   private inputValue(port: Port): Signal {
-    if (port.net === undefined) return filled(port.spec.width, Bit.HiZ)
+    if (port.net === undefined) return filled(port.spec.width, Z)
     return this.net(port.net).value
   }
 
@@ -502,7 +586,7 @@ export class Simulator {
     for (const port of instance.ports.values()) {
       if (port.spec.direction === 'in') inputs[port.spec.name] = this.inputValue(port)
     }
-    const result = instance.def.evaluate(inputs, instance.params, instance.state)
+    const result = instance.def.evaluate(inputs, instance.params, instance.state, this.env)
 
     // Check everything before changing anything, so a faulty definition
     // cannot leave the component half updated.

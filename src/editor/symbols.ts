@@ -25,6 +25,26 @@ export interface ComponentSymbol {
    * style and line width first.
    */
   draw(ctx: CanvasRenderingContext2D): void
+  /** Writing on the body. The renderer keeps it upright when the part turns. */
+  readonly label?: SymbolLabel
+  /** A patch that shows a live value: the face of a switch, a lamp. */
+  readonly face?: SymbolFace
+}
+
+export interface SymbolLabel {
+  readonly text: string
+  /** A value written after the text, in the project's way of writing values. */
+  readonly digit?: number
+  readonly pos: Point
+  /** Height of the writing, in grid units. */
+  readonly size: number
+}
+
+export interface SymbolFace {
+  readonly shape: 'round' | 'square'
+  readonly pos: Point
+  /** Half the width of the patch. */
+  readonly reach: number
 }
 
 const LEFT: Point = { x: -1, y: 0 }
@@ -149,11 +169,15 @@ function unarySymbol(inverted: boolean): ComponentSymbol {
   }
 }
 
-/** An input source: a square housing with a round button in it. */
-function inputSymbol(): ComponentSymbol {
+/**
+ * A source set by hand: a square housing around a face that shows its value.
+ * A switch has a square face, a push button a round one.
+ */
+function sourceSymbol(face: SymbolFace['shape']): ComponentSymbol {
   return {
     pins: [{ name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }],
     bounds: { x0: -1, y0: -1, x1: 2, y1: 1 },
+    face: { shape: face, pos: { x: 0, y: 0 }, reach: 0.64 },
     draw(ctx) {
       ctx.beginPath()
       ctx.moveTo(1, 0)
@@ -164,9 +188,120 @@ function inputSymbol(): ComponentSymbol {
       ctx.roundRect(-1, -1, 2, 2, 0.25)
       ctx.fill()
       ctx.stroke()
+    },
+  }
+}
+
+/** A constant: a tag pointing at its output, with the value on it. */
+function constSymbol(): ComponentSymbol {
+  return {
+    pins: [{ name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }],
+    bounds: { x0: -1, y0: -1, x1: 2, y1: 1 },
+    face: { shape: 'square', pos: { x: -0.25, y: 0 }, reach: 0.5 },
+    draw(ctx) {
+      ctx.beginPath()
+      ctx.moveTo(1, 0)
+      ctx.lineTo(2, 0)
+      ctx.stroke()
 
       ctx.beginPath()
-      ctx.arc(0, 0, 0.5, 0, Math.PI * 2)
+      ctx.moveTo(-1, -0.85)
+      ctx.lineTo(0.35, -0.85)
+      ctx.lineTo(1, 0)
+      ctx.lineTo(0.35, 0.85)
+      ctx.lineTo(-1, 0.85)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    },
+  }
+}
+
+/** A lamp: a round body that takes the color of the value it is shown. */
+function outputSymbol(): ComponentSymbol {
+  return {
+    pins: [{ name: 'in', direction: 'in', pos: { x: -2, y: 0 }, dir: LEFT }],
+    bounds: { x0: -2, y0: -1, x1: 1, y1: 1 },
+    face: { shape: 'round', pos: { x: 0, y: 0 }, reach: 0.72 },
+    draw(ctx) {
+      ctx.beginPath()
+      ctx.moveTo(-2, 0)
+      ctx.lineTo(-1, 0)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.arc(0, 0, 1, 0, Math.PI * 2)
+      ctx.fill()
+      ctx.stroke()
+    },
+  }
+}
+
+/**
+ * A one-input gate with something written on it: a wide triangle for Shift,
+ * a rounded bar for an IS detector.
+ */
+function taggedSymbol(shape: 'triangle' | 'bar', label: SymbolLabel): ComponentSymbol {
+  const half = shape === 'triangle' ? 1.5 : 1
+  return {
+    pins: [
+      { name: 'in', direction: 'in', pos: { x: -3, y: 0 }, dir: LEFT },
+      { name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT },
+    ],
+    bounds: { x0: -3, y0: -half, x1: 2, y1: half },
+    label,
+    draw(ctx) {
+      ctx.beginPath()
+      ctx.moveTo(-3, 0)
+      ctx.lineTo(-2, 0)
+      ctx.moveTo(1, 0)
+      ctx.lineTo(2, 0)
+      ctx.stroke()
+
+      ctx.beginPath()
+      if (shape === 'triangle') {
+        ctx.moveTo(-2, -half)
+        ctx.lineTo(1, 0)
+        ctx.lineTo(-2, half)
+        ctx.closePath()
+      } else {
+        ctx.roundRect(-2, -half, 3, 2 * half, half)
+      }
+      ctx.fill()
+      ctx.stroke()
+    },
+  }
+}
+
+/** A gate with 2 to 8 inputs drawn as a rounded box with its operator on it. */
+function operatorSymbol(inputs: number, operator: string): ComponentSymbol {
+  const rows = inputRows(inputs)
+  const half = Math.max(1.5, rows[rows.length - 1] + 0.5)
+  const pins: PinGeometry[] = rows.map((y, index) => ({
+    name: `in${index}`,
+    direction: 'in',
+    pos: { x: -3, y },
+    dir: LEFT,
+  }))
+  pins.push({ name: 'out', direction: 'out', pos: { x: 3, y: 0 }, dir: RIGHT })
+
+  return {
+    pins,
+    bounds: { x0: -3, y0: -half, x1: 3, y1: half },
+    label: { text: operator, pos: { x: 0, y: 0 }, size: 1.5 },
+    draw(ctx) {
+      ctx.beginPath()
+      for (const y of rows) {
+        ctx.moveTo(-3, y)
+        ctx.lineTo(-2, y)
+      }
+      ctx.moveTo(2, 0)
+      ctx.lineTo(3, 0)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.roundRect(-2, -half, 4, 2 * half, 0.6)
+      ctx.fill()
       ctx.stroke()
     },
   }
@@ -233,8 +368,31 @@ function buildSymbol(type: string, params: Readonly<Record<string, number>>): Co
       return unarySymbol(true)
     case 'buffer':
       return unarySymbol(false)
+    case 'shift':
+      return taggedSymbol('triangle', {
+        text: `+${params.by}`,
+        pos: { x: -1.1, y: 0 },
+        size: 0.85,
+      })
+    case 'is':
+      return taggedSymbol('bar', {
+        text: '=',
+        digit: params.match,
+        pos: { x: -0.5, y: 0 },
+        size: 0.95,
+      })
+    case 'add':
+      return operatorSymbol(params.inputs, '+')
+    case 'mul':
+      return operatorSymbol(params.inputs, '×')
     case 'input':
-      return inputSymbol()
+      return sourceSymbol('square')
+    case 'button':
+      return sourceSymbol('round')
+    case 'const':
+      return constSymbol()
+    case 'output':
+      return outputSymbol()
     default:
       return boxSymbol(type, params)
   }

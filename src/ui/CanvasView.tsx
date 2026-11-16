@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { CanvasController, useEditor } from '../editor/index.ts'
+import { Inspector } from './Inspector.tsx'
 
 export function CanvasView() {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -20,6 +21,7 @@ export function CanvasView() {
           <p>Drag a part from the left onto the canvas, or click one to add it here.</p>
         </div>
       )}
+      <Inspector />
     </div>
   )
 }

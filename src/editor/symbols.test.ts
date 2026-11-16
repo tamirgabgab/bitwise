@@ -60,6 +60,38 @@ describe('symbolFor', () => {
     expect(symbolFor('and', params)).not.toBe(symbolFor('nand', params))
   })
 
+  it('gives switches, buttons, constants and lamps a face inside their bounds', () => {
+    for (const type of ['input', 'button', 'const', 'output']) {
+      const symbol = symbolFor(type, resolveParams(builtinComponents.get(type)))
+      const face = symbol.face
+      expect(face).toBeDefined()
+      if (!face) continue
+      const { x0, y0, x1, y1 } = symbol.bounds
+      expect(face.pos.x - face.reach).toBeGreaterThanOrEqual(x0)
+      expect(face.pos.x + face.reach).toBeLessThanOrEqual(x1)
+      expect(face.pos.y - face.reach).toBeGreaterThanOrEqual(y0)
+      expect(face.pos.y + face.reach).toBeLessThanOrEqual(y1)
+    }
+    expect(symbolFor('and', resolveParams(builtinComponents.get('and'))).face).toBeUndefined()
+  })
+
+  it('tells a switch from a push button by the shape of its face', () => {
+    const face = (type: string) =>
+      symbolFor(type, resolveParams(builtinComponents.get(type))).face?.shape
+    expect(face('input')).toBe('square')
+    expect(face('button')).toBe('round')
+  })
+
+  it('writes the setting of a gate on it', () => {
+    const label = (type: string, params: Record<string, number>) =>
+      symbolFor(type, resolveParams(builtinComponents.get(type), params)).label
+    expect(label('shift', { by: 3 })).toMatchObject({ text: '+3' })
+    expect(label('is', { match: 2 })).toMatchObject({ text: '=', digit: 2 })
+    expect(label('add', {})).toMatchObject({ text: '+' })
+    expect(label('mul', {})).toMatchObject({ text: '×' })
+    expect(label('and', {})).toBeUndefined()
+  })
+
   it('grows a gate to fit its inputs', () => {
     const def = builtinComponents.get('or')
     const small = symbolFor('or', resolveParams(def, { inputs: 2 }))

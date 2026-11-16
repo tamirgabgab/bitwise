@@ -23,18 +23,30 @@ Run lint, test and build before calling a change done. CI runs the same three.
 
 ## Core model
 
-- A bit is 0, 1, X (unknown) or Z (floating). A `Signal` is an array of bits
-  with the least significant bit at index 0. Text form (`parseSignal`,
-  `formatSignal`) puts the most significant bit first.
+- A wire carries a digit: 0 to radix-1, or X (unknown), or Z (floating). The
+  radix (2 to 16, default 2) belongs to the whole circuit, `Simulator.radix`.
+  Changing it restarts the circuit. A `Signal` is an array of digits with
+  the least significant at index 0. Text form (`parseSignal`,
+  `formatSignal`) puts the most significant first and uses 0-9, A-F, X, Z.
+- Gates are defined for any radix and must reduce to Boolean logic at radix
+  2: AND is min, OR is max, NOT is (n-1)-x, NAND is min+1 and NOR is max+1
+  modulo n, XOR is the sum modulo n, Shift is x+k modulo n. `evaluate` gets
+  the radix through its fourth argument, `env`. A digit the radix has no
+  room for reads as X.
+- `presets.ts` lists the gate kits and says for which radix each one is
+  available and universal. `presets.test.ts` proves it by construction;
+  the mathematics is in `docs/n_ary_logic_sim_spec.md`.
 - Every pin and net has a width. Width 1 is a plain wire, more is a bus.
 - A net is one electrical node. Several outputs may drive it: Z drivers are
-  ignored, and a 0 against a 1 reads as X and sets the net's `conflict` flag.
+  ignored, and two different digits read as X and set the net's `conflict`
+  flag.
 - An unattached input floats (Z), and gates treat Z like X.
 - Time is integer ticks. A component is evaluated when one of its inputs
   changes, and its outputs take effect `delay` ticks later. Delay is per
   component and at least 1, which is what keeps oscillating circuits from
   hanging the engine. Do not allow a delay of 0.
-- An output is X until its first evaluation takes effect.
+- An output is X until its first evaluation takes effect. `restart()` puts
+  the whole circuit back in that state.
 - The simulator generates numeric component and net ids. The editor keeps
   its own ids and maps them.
 
@@ -57,8 +69,19 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `CanvasController` owns pointer and keyboard input for the canvas. React
   draws only the chrome around it and reaches the editor through the
   `useEditor` store.
+- Project settings (radix, gate kit, sandbox, value colors) live in the
+  `useEditor` store next to the document. They are not part of undo.
+- The value of a switch lives in the simulator, not in the document, so
+  toggling one is not an edit and is not undone.
+- `session.ts` owns the one `SimBridge` and the run loop. `SimRunner` turns
+  wall-clock time into ticks; time moves only while a change is waiting, and
+  a frame simulates at most 2000 ticks. `useSim` holds what the chrome shows
+  (running, speed, tick, conflicts).
+- `liveValues.ts` reads what each wire carries and `valueStyle.ts` decides
+  how it is drawn: the classic look at radix 2, a palette up to 10 values,
+  a gradient above. Z is dashed, X dotted, a conflict thick and dashed.
 - Canvas colors come from CSS variables in `src/index.css`. Amber is the
-  only accent color; red, green and blue are reserved for signal values.
+  only accent color; the other hues are reserved for signal values.
 - Keyboard shortcuts match on `event.code`, so they work on any layout.
 
 ## Conventions

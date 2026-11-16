@@ -71,9 +71,16 @@ export function pathsClash(a: Path, b: Path): boolean {
   return false
 }
 
+/** A dot where wires of one net split, and the net (see `terminalNets`). */
+export interface Branch {
+  readonly pos: Point
+  readonly net: string | undefined
+}
+
 interface Layout {
   readonly paths: ReadonlyMap<string, Path>
-  readonly branches: readonly Point[]
+  readonly branches: readonly Branch[]
+  readonly branchPoints: readonly Point[]
 }
 
 /**
@@ -81,8 +88,10 @@ interface Layout {
  * wires start on the same pin: every corner of one that sits on another,
  * other than at that wire's ends.
  */
-function findBranches(placed: readonly { readonly net: string | undefined; readonly path: Path }[]): Point[] {
-  const branches = new Map<string, Point>()
+function findBranches(
+  placed: readonly { readonly net: string | undefined; readonly path: Path }[],
+): Branch[] {
+  const branches = new Map<string, Branch>()
   for (const a of placed) {
     for (const b of placed) {
       if (a === b || a.net !== b.net) continue
@@ -91,7 +100,9 @@ function findBranches(placed: readonly { readonly net: string | undefined; reado
       for (let i = 1; i < a.path.length - 1; i++) {
         const corner = a.path[i]
         if (samePoint(corner, first) || samePoint(corner, last)) continue
-        if (onPath(corner, b.path)) branches.set(`${corner.x},${corner.y}`, corner)
+        if (onPath(corner, b.path)) {
+          branches.set(`${corner.x},${corner.y}`, { pos: corner, net: a.net })
+        }
       }
     }
   }
@@ -128,7 +139,8 @@ function layoutOf(doc: CircuitDoc): Layout {
     placed.push({ net, path })
     paths.set(wire.id, path)
   }
-  const layout: Layout = { paths, branches: findBranches(placed) }
+  const branches = findBranches(placed)
+  const layout: Layout = { paths, branches, branchPoints: branches.map((branch) => branch.pos) }
   cache.set(doc, layout)
   return layout
 }
@@ -140,6 +152,11 @@ export function wirePaths(doc: CircuitDoc): ReadonlyMap<string, Path> {
 
 /** The points that need a dot to show that wires of one net split there. */
 export function branchPoints(doc: CircuitDoc): readonly Point[] {
+  return layoutOf(doc).branchPoints
+}
+
+/** The same dots as `branchPoints`, each with the net it belongs to. */
+export function wireBranches(doc: CircuitDoc): readonly Branch[] {
   return layoutOf(doc).branches
 }
 

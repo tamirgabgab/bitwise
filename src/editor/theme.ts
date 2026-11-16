@@ -9,6 +9,11 @@ export interface CanvasTheme {
   /** Selection, hover and anything else that marks the user's focus. */
   readonly accent: string
   readonly accentSoft: string
+  /** The classic signal colors: 0, 1, floating and unknown. */
+  readonly signalLow: string
+  readonly signalHigh: string
+  readonly signalHiz: string
+  readonly signalUnknown: string
 }
 
 /** Reads the theme in effect for an element. Call again when it changes. */
@@ -23,5 +28,9 @@ export function readCanvasTheme(element: Element): CanvasTheme {
     wire: read('--wire'),
     accent: read('--accent'),
     accentSoft: read('--accent-soft'),
+    signalLow: read('--signal-low'),
+    signalHigh: read('--signal-high'),
+    signalHiz: read('--signal-hiz'),
+    signalUnknown: read('--signal-unknown'),
   }
 }

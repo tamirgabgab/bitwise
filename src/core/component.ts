@@ -6,7 +6,7 @@ export type PortDirection = 'in' | 'out'
 export interface PortSpec {
   readonly name: string
   readonly direction: PortDirection
-  /** Number of bits. 1 for a plain wire. */
+  /** Number of digits. 1 for a plain wire. */
   readonly width: number
 }
 
@@ -22,6 +22,12 @@ export type Params = Readonly<Record<string, number>>
 /** Signals keyed by port name. */
 export type PortValues = Readonly<Record<string, Signal>>
 
+/** What a component may know about the circuit it sits in. */
+export interface EvalEnv {
+  /** How many values a wire can carry: digits run from 0 to radix - 1. */
+  readonly radix: number
+}
+
 export interface EvalResult<S> {
   /** A value for every output port, each as wide as its port. */
   readonly outputs: PortValues
@@ -34,7 +40,7 @@ export interface EvalResult<S> {
  * adding a component never touches the engine.
  *
  * `S` is the type of the component's internal state (a flip-flop's stored
- * bit, a switch's position). Stateless components leave it out.
+ * digit, a switch's position). Stateless components leave it out.
  */
 export interface ComponentDef<S = unknown> {
   readonly type: string
@@ -45,7 +51,7 @@ export interface ComponentDef<S = unknown> {
    * Computes the outputs from the current inputs. Must be pure: the engine
    * decides when it runs and when the outputs take effect.
    */
-  evaluate(inputs: PortValues, params: Params, state: S): EvalResult<S>
+  evaluate(inputs: PortValues, params: Params, state: S, env: EvalEnv): EvalResult<S>
 }
 
 /** Fills in defaults and rejects unknown, fractional or out-of-range values. */

@@ -1,25 +1,56 @@
 /**
- * Four-valued logic for a single wire bit.
+ * The value of one wire position.
  *
- * - Low / High: a driven 0 or 1.
- * - Unknown (X): driven, but the value cannot be determined.
- * - HiZ (Z): not driven at all (floating).
+ * A wire carries a digit from 0 to radix - 1. With a radix of 2 that is an
+ * ordinary bit. Two more values exist at every radix:
+ *
+ * - X (unknown): driven, but the value cannot be determined.
+ * - Z (high impedance): not driven at all (floating).
  */
-export const Bit = { Low: 0, High: 1, Unknown: 2, HiZ: 3 } as const
+export type Digit = number
+
+export const X = -1
+export const Z = -2
+
+/** The names of the binary values, for code that reads better with them. */
+export const Bit = { Low: 0, High: 1, Unknown: X, HiZ: Z } as const
 export type Bit = (typeof Bit)[keyof typeof Bit]
 
 /**
- * The value on a wire or pin. A plain wire has one bit; a bus has several.
- * Index 0 is the least significant bit.
+ * The value on a wire or pin. A plain wire has one digit; a bus has several.
+ * Index 0 is the least significant digit.
  */
-export type Signal = readonly Bit[]
+export type Signal = readonly Digit[]
 
 /** Widest bus the simulator accepts. */
 export const MAX_WIDTH = 64
 
-/** A signal of `width` bits, all set to `bit`. */
-export function filled(width: number, bit: Bit): Signal {
-  return new Array<Bit>(width).fill(bit)
+export const MIN_RADIX = 2
+/** One written character per digit (0-9, A-F) sets the upper limit. */
+export const MAX_RADIX = 16
+
+export function checkRadix(radix: number): void {
+  if (!Number.isInteger(radix) || radix < MIN_RADIX || radix > MAX_RADIX) {
+    throw new Error(`Radix must be an integer from ${MIN_RADIX} to ${MAX_RADIX}, got ${radix}`)
+  }
+}
+
+/** True for a real digit, false for X and Z. */
+export function isKnown(digit: Digit): boolean {
+  return digit >= 0
+}
+
+export function isPrime(n: number): boolean {
+  if (!Number.isInteger(n) || n < 2) return false
+  for (let d = 2; d * d <= n; d++) {
+    if (n % d === 0) return false
+  }
+  return true
+}
+
+/** A signal of `width` digits, all set to `digit`. */
+export function filled(width: number, digit: Digit): Signal {
+  return new Array<Digit>(width).fill(digit)
 }
 
 export function signalsEqual(a: Signal, b: Signal): boolean {
@@ -30,105 +61,149 @@ export function signalsEqual(a: Signal, b: Signal): boolean {
   return true
 }
 
-const CHAR_TO_BIT: Readonly<Record<string, Bit>> = {
-  '0': Bit.Low,
-  '1': Bit.High,
-  X: Bit.Unknown,
-  x: Bit.Unknown,
-  Z: Bit.HiZ,
-  z: Bit.HiZ,
+const DIGIT_CHARS = '0123456789ABCDEF'
+
+/** The written form of one digit: 0-9, A-F, X or Z. */
+export function digitChar(digit: Digit): string {
+  if (digit === Z) return 'Z'
+  return DIGIT_CHARS[digit] ?? 'X'
 }
 
-const BIT_TO_CHAR = ['0', '1', 'X', 'Z'] as const
+function parseDigit(char: string, radix: number): Digit | undefined {
+  if (char === 'X' || char === 'x') return X
+  if (char === 'Z' || char === 'z') return Z
+  const digit = DIGIT_CHARS.indexOf(char.toUpperCase())
+  return digit >= 0 && digit < radix ? digit : undefined
+}
 
 /**
- * Parses text such as "1", "10XZ" or "0110". The most significant bit comes
- * first, like a written binary number.
+ * Parses text such as "1", "10XZ" or, with a radix of 3, "2101". The most
+ * significant digit comes first, like a written number.
  */
-export function parseSignal(text: string): Signal {
-  if (text.length === 0) throw new Error('A signal needs at least one bit')
-  const bits: Bit[] = []
+export function parseSignal(text: string, radix = 2): Signal {
+  checkRadix(radix)
+  if (text.length === 0) throw new Error('A signal needs at least one digit')
+  const digits: Digit[] = []
   for (let i = text.length - 1; i >= 0; i--) {
-    const bit = CHAR_TO_BIT[text[i]]
-    if (bit === undefined) {
-      throw new Error(`Invalid signal character "${text[i]}" in "${text}"`)
+    const digit = parseDigit(text[i], radix)
+    if (digit === undefined) {
+      throw new Error(`Invalid signal character "${text[i]}" in "${text}" (radix ${radix})`)
     }
-    bits.push(bit)
+    digits.push(digit)
   }
-  return bits
+  return digits
 }
 
-/** The inverse of `parseSignal`: most significant bit first. */
+/** The inverse of `parseSignal`: most significant digit first. */
 export function formatSignal(signal: Signal): string {
   let text = ''
-  for (let i = signal.length - 1; i >= 0; i--) text += BIT_TO_CHAR[signal[i]]
+  for (let i = signal.length - 1; i >= 0; i--) text += digitChar(signal[i])
   return text
 }
 
 /*
- * Gate logic. An input that is X or Z counts as unknown, so the result is X
- * unless the other inputs already decide it (0 AND anything is 0).
+ * Gate logic on one digit. An input that is X or Z counts as unknown, so the
+ * result is X unless the other input already decides it (the smaller of 0
+ * and anything is 0).
  */
 
-export function notBit(a: Bit): Bit {
-  if (a === Bit.Low) return Bit.High
-  if (a === Bit.High) return Bit.Low
-  return Bit.Unknown
+/** AND at any radix: the smaller of the two. */
+export function minDigit(a: Digit, b: Digit): Digit {
+  if (a === 0 || b === 0) return 0
+  if (a < 0 || b < 0) return X
+  return Math.min(a, b)
 }
 
-export function andBit(a: Bit, b: Bit): Bit {
-  if (a === Bit.Low || b === Bit.Low) return Bit.Low
-  if (a === Bit.High && b === Bit.High) return Bit.High
-  return Bit.Unknown
+/** OR at any radix: the larger of the two. */
+export function maxDigit(a: Digit, b: Digit, radix: number): Digit {
+  const top = radix - 1
+  if (a === top || b === top) return top
+  if (a < 0 || b < 0) return X
+  return Math.max(a, b)
 }
 
-export function orBit(a: Bit, b: Bit): Bit {
-  if (a === Bit.High || b === Bit.High) return Bit.High
-  if (a === Bit.Low && b === Bit.Low) return Bit.Low
-  return Bit.Unknown
+/** Logical NOT at any radix: 0 and radix - 1 swap, and so on inwards. */
+export function mirrorDigit(a: Digit, radix: number): Digit {
+  return a < 0 ? X : radix - 1 - a
 }
 
-export function xorBit(a: Bit, b: Bit): Bit {
-  if (a > Bit.High || b > Bit.High) return Bit.Unknown
-  return a === b ? Bit.Low : Bit.High
+/** Adds `by` and wraps around. With a radix of 2 and `by` 1 this is NOT. */
+export function shiftDigit(a: Digit, radix: number, by = 1): Digit {
+  return a < 0 ? X : (a + by) % radix
+}
+
+/** Sum modulo the radix. With a radix of 2 this is XOR. */
+export function addDigit(a: Digit, b: Digit, radix: number): Digit {
+  if (a < 0 || b < 0) return X
+  return (a + b) % radix
+}
+
+/** Product modulo the radix. With a radix of 2 this is AND. */
+export function mulDigit(a: Digit, b: Digit, radix: number): Digit {
+  if (a === 0 || b === 0) return 0
+  if (a < 0 || b < 0) return X
+  return (a * b) % radix
+}
+
+/** radix - 1 (true) when `a` is exactly `target`, otherwise 0. */
+export function isDigit(a: Digit, target: number, radix: number): Digit {
+  if (a < 0) return X
+  return a === target ? radix - 1 : 0
+}
+
+/* The binary gates by their usual names. */
+
+export function notBit(a: Digit): Digit {
+  return mirrorDigit(a, 2)
+}
+
+export function andBit(a: Digit, b: Digit): Digit {
+  return minDigit(a, b)
+}
+
+export function orBit(a: Digit, b: Digit): Digit {
+  return maxDigit(a, b, 2)
+}
+
+export function xorBit(a: Digit, b: Digit): Digit {
+  return addDigit(a, b, 2)
 }
 
 export interface Resolution {
   readonly value: Signal
-  /** True when two drivers force the same bit to 0 and to 1. */
+  /** True when two drivers force the same position to different digits. */
   readonly conflict: boolean
 }
 
 /**
  * Works out the value of a net from everything driving it.
  *
- * Per bit: Z drivers are ignored. If nobody drives the bit it floats (Z). A 0
- * against a 1 is a conflict and reads as X. Any X driver makes the bit X.
+ * Per position: Z drivers are ignored. If nobody drives it, it floats (Z).
+ * Two different digits are a conflict and read as X. Any X driver makes the
+ * position X.
  */
 export function resolve(width: number, drivers: readonly Signal[]): Resolution {
-  const value: Bit[] = []
+  const value: Digit[] = []
   let conflict = false
   for (let i = 0; i < width; i++) {
-    let low = false
-    let high = false
+    let seen: Digit = Z
+    let clash = false
     let unknown = false
     for (const driver of drivers) {
-      const bit = driver[i]
-      if (bit === Bit.Low) low = true
-      else if (bit === Bit.High) high = true
-      else if (bit === Bit.Unknown) unknown = true
+      const digit = driver[i]
+      if (digit === X) unknown = true
+      else if (digit >= 0) {
+        if (seen >= 0 && seen !== digit) clash = true
+        seen = digit
+      }
     }
-    if (low && high) {
+    if (clash) {
       conflict = true
-      value.push(Bit.Unknown)
+      value.push(X)
     } else if (unknown) {
-      value.push(Bit.Unknown)
-    } else if (low) {
-      value.push(Bit.Low)
-    } else if (high) {
-      value.push(Bit.High)
+      value.push(X)
     } else {
-      value.push(Bit.HiZ)
+      value.push(seen)
     }
   }
   return { value, conflict }

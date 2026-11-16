@@ -1,16 +1,23 @@
 import { moveItems, sameTerminal, terminalEnd } from './document.ts'
 import type { CircuitDoc, WireEnd } from './document.ts'
-import { rectFromPoints, snapPoint } from './geometry.ts'
-import type { Point } from './geometry.ts'
+import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
+import type { Point, Rotation } from './geometry.ts'
 import { hitTest, itemsInRect } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
+import { isPokeable, readLiveValues } from './liveValues.ts'
 import { renderScene } from './render.ts'
 import { routeWire } from './routing.ts'
 import type { RouteEnd } from './routing.ts'
 import { canvasRuntime } from './runtime.ts'
+import { holdButton, pokeInput, simBridge } from './session.ts'
+import { useSim } from './simStore.ts'
 import { useEditor } from './store.ts'
+import type { ProjectSettings } from './store.ts'
+import { symbolFor } from './symbols.ts'
 import { readCanvasTheme } from './theme.ts'
 import type { CanvasTheme } from './theme.ts'
+import { makeValueStyle } from './valueStyle.ts'
+import type { ValueStyle } from './valueStyle.ts'
 import { screenToWorld } from './view.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
@@ -27,7 +34,11 @@ type Mode =
       readonly startY: number
       readonly world: Point
       readonly shift: boolean
+      /** The press landed on the face of a switch: a click changes its value. */
+      readonly poke: boolean
     }
+  /** A push button is being held down. */
+  | { readonly kind: 'hold'; readonly id: string }
   | { readonly kind: 'move'; readonly start: Point; dx: number; dy: number }
   | { readonly kind: 'marquee'; readonly start: Point; current: Point; readonly additive: boolean }
   | {
@@ -53,9 +64,13 @@ export class CanvasController {
   private readonly cleanups: (() => void)[] = []
   private mode: Mode = { kind: 'idle' }
   private hover: Hit | null = null
+  /** The pointer rests on the face of a switch or button. */
+  private hoverPoke = false
   /** The document as it would look if the drag in progress ended now. */
   private previewDoc: CircuitDoc | null = null
   private theme: CanvasTheme
+  private style: ValueStyle | null = null
+  private styleSettings: ProjectSettings | null = null
   private width = 0
   private height = 0
   private pixelRatio = 1
@@ -76,6 +91,7 @@ export class CanvasController {
     this.listen(canvas, 'pointercancel', this.onPointerCancel)
     this.listen(canvas, 'pointerleave', this.onPointerLeave)
     this.listen(canvas, 'wheel', this.onWheel, { passive: false })
+    this.listen(canvas, 'contextmenu', this.onContextMenu)
     this.listen(window, 'keydown', this.onKeyDown)
     this.listen(window, 'keyup', this.onKeyUp)
 
@@ -90,6 +106,10 @@ export class CanvasController {
       useEditor.subscribe((state, previous) => {
         if (state.theme !== previous.theme) this.refreshTheme()
         this.requestDraw()
+      }),
+      // The simulator moved: wires and lamps may show new values.
+      useSim.subscribe((state, previous) => {
+        if (state.revision !== previous.revision) this.requestDraw()
       }),
     )
 
@@ -132,7 +152,17 @@ export class CanvasController {
 
   private refreshTheme(): void {
     this.theme = readCanvasTheme(this.canvas)
+    this.style = null
     this.requestDraw()
+  }
+
+  /** The way values look now, rebuilt only when the settings or theme change. */
+  private valueStyle(settings: ProjectSettings): ValueStyle {
+    if (!this.style || this.styleSettings !== settings) {
+      this.style = makeValueStyle(settings, this.theme)
+      this.styleSettings = settings
+    }
+    return this.style
   }
 
   private resize(): void {
@@ -181,18 +211,40 @@ export class CanvasController {
       wirePreview,
       marquee: mode.kind === 'marquee' ? rectFromPoints(mode.start, mode.current) : null,
       ghost: state.placing?.pos ? { type: state.placing.type, pos: state.placing.pos } : null,
+      live: readLiveValues(doc, simBridge),
+      style: this.valueStyle(state.settings),
     })
   }
 
   // ---- Helpers ----
 
-  private toWorld(event: PointerEvent | WheelEvent): Point {
+  private toWorld(event: MouseEvent): Point {
     const rect = this.canvas.getBoundingClientRect()
     return screenToWorld(
       useEditor.getState().view,
       event.clientX - rect.left,
       event.clientY - rect.top,
     )
+  }
+
+  /**
+   * The switch or push button whose face is under `world`, if any. The face
+   * answers clicks; the housing around it is for selecting and dragging.
+   */
+  private pokeTarget(doc: CircuitDoc, hit: Hit | null, world: Point): string | null {
+    if (hit?.kind !== 'component') return null
+    const component = doc.components[hit.id]
+    if (!component || !isPokeable(component.type)) return null
+    const face = symbolFor(component.type, component.params).face
+    if (!face) return null
+    const local = rotatePoint(
+      { x: world.x - component.pos.x, y: world.y - component.pos.y },
+      ((4 - component.rotation) % 4) as Rotation,
+    )
+    const reach = face.reach + 0.08
+    const inside =
+      Math.abs(local.x - face.pos.x) <= reach && Math.abs(local.y - face.pos.y) <= reach
+    return inside ? hit.id : null
   }
 
   private endOfHit(doc: CircuitDoc, hit: Hit): RouteEnd | undefined {
@@ -233,6 +285,7 @@ export class CanvasController {
     else if (this.spaceDown) cursor = 'grab'
     else if (this.mode.kind === 'wire') cursor = 'crosshair'
     else if (this.mode.kind === 'move') cursor = 'move'
+    else if (this.mode.kind === 'hold' || this.hoverPoke) cursor = 'pointer'
     else if (this.hover?.kind === 'pin' || this.hover?.kind === 'wire') cursor = 'crosshair'
     else if (this.hover) cursor = 'move'
     this.canvas.style.cursor = cursor
@@ -278,7 +331,17 @@ export class CanvasController {
       return
     }
 
-    if (hit?.kind === 'component' || hit?.kind === 'junction') {
+    const poked = this.pokeTarget(state.doc, hit, world)
+    if (poked !== null && state.doc.components[poked].type === 'button') {
+      // A push button acts the moment it goes down and lets go on release.
+      holdButton(poked, true)
+      this.mode = { kind: 'hold', id: poked }
+      this.setCursor()
+      return
+    }
+
+    // On a switch face Shift means "step backwards", not "add to selection".
+    if (poked === null && (hit?.kind === 'component' || hit?.kind === 'junction')) {
       if (event.shiftKey) state.toggleSelected(hit.id)
       else if (!state.selection.has(hit.id)) state.setSelection([hit.id])
     }
@@ -289,6 +352,7 @@ export class CanvasController {
       startY: event.clientY,
       world,
       shift: event.shiftKey,
+      poke: poked !== null,
     }
   }
 
@@ -335,10 +399,13 @@ export class CanvasController {
         mode.target = this.wireTarget(mode.from, world)
         this.requestDraw()
         return
+      case 'hold':
+        return
       case 'idle': {
         const hover = hitTest(state.doc, world)
         const changed = JSON.stringify(hover) !== JSON.stringify(this.hover)
         this.hover = hover
+        this.hoverPoke = this.pokeTarget(state.doc, hover, world) !== null
         this.setCursor()
         if (changed) this.requestDraw()
       }
@@ -365,7 +432,9 @@ export class CanvasController {
         current: press.world,
         target: null,
       }
-    } else if (hit.kind !== 'pin' && state.selection.has(hit.id)) {
+    } else if (hit.kind !== 'pin' && (press.poke || state.selection.has(hit.id))) {
+      // Dragging a switch by its face moves it like any other part.
+      if (!state.selection.has(hit.id)) state.setSelection([hit.id])
       this.mode = { kind: 'move', start: press.world, dx: 0, dy: 0 }
     } else {
       // Shift-click just took this item out of the selection: nothing to drag.
@@ -382,9 +451,14 @@ export class CanvasController {
     const mode = this.mode
 
     switch (mode.kind) {
+      case 'hold':
+        holdButton(mode.id, false)
+        break
       case 'press': {
         const hit = mode.hit
-        if (hit === null) {
+        if (mode.poke && hit?.kind === 'component') {
+          pokeInput(hit.id, mode.shift ? -1 : 1)
+        } else if (hit === null) {
           if (!mode.shift) state.setSelection([])
         } else if (hit.kind === 'wire') {
           if (mode.shift) state.toggleSelected(hit.id)
@@ -410,17 +484,31 @@ export class CanvasController {
       default:
         break
     }
-    this.hover = hitTest(useEditor.getState().doc, this.toWorld(event))
+    const world = this.toWorld(event)
+    this.hover = hitTest(useEditor.getState().doc, world)
+    this.hoverPoke = this.pokeTarget(useEditor.getState().doc, this.hover, world) !== null
     this.finish()
   }
 
   private readonly onPointerCancel = (): void => {
+    if (this.mode.kind === 'hold') holdButton(this.mode.id, false)
     this.finish()
+  }
+
+  /** A right-click on a switch steps it backwards instead of opening a menu. */
+  private readonly onContextMenu = (event: MouseEvent): void => {
+    const doc = useEditor.getState().doc
+    const world = this.toWorld(event)
+    const poked = this.pokeTarget(doc, hitTest(doc, world), world)
+    if (poked === null) return
+    event.preventDefault()
+    if (doc.components[poked].type === 'input') pokeInput(poked, -1)
   }
 
   private readonly onPointerLeave = (): void => {
     if (this.mode.kind !== 'idle' || this.hover === null) return
     this.hover = null
+    this.hoverPoke = false
     this.setCursor()
     this.requestDraw()
   }

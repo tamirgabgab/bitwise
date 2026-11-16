@@ -1,5 +1,12 @@
 import { create } from 'zustand'
 import {
+  MAX_RADIX,
+  MIN_RADIX,
+  defaultPresetId,
+  findPreset,
+  presetAvailable,
+} from '../core/index.ts'
+import {
   addComponent,
   connectEnds,
   copyItems,
@@ -8,10 +15,12 @@ import {
   moveItems,
   pasteFragment,
   rotateComponents,
+  setComponentParams,
 } from './document.ts'
 import type { CircuitDoc, Fragment, WireEnd } from './document.ts'
 import { samePoint } from './geometry.ts'
 import type { Point } from './geometry.ts'
+import { DEFAULT_PALETTE } from './valueStyle.ts'
 import { DEFAULT_VIEW, zoomAt } from './view.ts'
 import type { View } from './view.ts'
 
@@ -22,6 +31,37 @@ export interface Placing {
   readonly type: string
   /** Grid position under the pointer, or null while it is off the canvas. */
   readonly pos: Point | null
+}
+
+/**
+ * What belongs to the project as a whole rather than to one part: the radix
+ * its wires work in, the gates it is built from, and how values are shown.
+ */
+export interface ProjectSettings {
+  /** How many values a wire can carry: 2 for ordinary binary logic. */
+  readonly radix: number
+  /** Id of the gate kit (see `GATE_PRESETS`) the palette offers. */
+  readonly preset: string
+  /** Offer every gate, whatever the kit. */
+  readonly sandbox: boolean
+  /** Wire colors for the values 0 to 9. */
+  readonly palette: readonly string[]
+  /** At radix 2, use the classic off and on colors instead of the palette. */
+  readonly classicColors: boolean
+  /** Write each output's value next to its pin. */
+  readonly showDigits: boolean
+  /** Write the values of an odd radix around zero: -1, 0, +1. */
+  readonly balanced: boolean
+}
+
+export const DEFAULT_SETTINGS: ProjectSettings = {
+  radix: 2,
+  preset: defaultPresetId(2),
+  sandbox: false,
+  palette: DEFAULT_PALETTE,
+  classicColors: true,
+  showDigits: false,
+  balanced: false,
 }
 
 const HISTORY_LIMIT = 200
@@ -76,6 +116,7 @@ export interface EditorState {
   readonly pasteCount: number
   readonly placing: Placing | null
   readonly theme: ThemeChoice
+  readonly settings: ProjectSettings
 
   /** Adds a part at `pos`, nudging it along if that exact spot is taken. */
   addComponent(type: string, pos: Point): void
@@ -84,6 +125,8 @@ export interface EditorState {
   moveSelection(dx: number, dy: number): void
   rotateSelection(): void
   deleteSelection(): void
+  /** Changes parameters of one part, such as its number of inputs. */
+  setParams(id: string, changes: Readonly<Record<string, number>>): void
   setSelection(ids: Iterable<string>): void
   toggleSelected(id: string): void
   selectAll(): void
@@ -96,11 +139,31 @@ export interface EditorState {
   zoomAt(factor: number, x: number, y: number): void
   setPlacing(placing: Placing | null): void
   setTheme(theme: ThemeChoice): void
+  /**
+   * Changes the radix. The kit changes with it if it does not fit the new
+   * radix, and digits on wires turn on when there are more than two values.
+   */
+  setRadix(radix: number): void
+  /** Picks a gate kit. Ignored if the kit does not fit the radix. */
+  setPreset(id: string): void
+  updateSettings(
+    changes: Partial<Pick<ProjectSettings, 'sandbox' | 'classicColors' | 'showDigits' | 'balanced'>>,
+  ): void
+  setPaletteColor(value: number, color: string): void
+  resetPalette(): void
 }
 
 type Data = Pick<
   EditorState,
-  'doc' | 'past' | 'future' | 'selection' | 'view' | 'clipboard' | 'pasteCount' | 'placing'
+  | 'doc'
+  | 'past'
+  | 'future'
+  | 'selection'
+  | 'view'
+  | 'clipboard'
+  | 'pasteCount'
+  | 'placing'
+  | 'settings'
 >
 
 function initialData(): Data {
@@ -113,6 +176,7 @@ function initialData(): Data {
     clipboard: null,
     pasteCount: 0,
     placing: null,
+    settings: DEFAULT_SETTINGS,
   }
 }
 
@@ -163,6 +227,10 @@ export const useEditor = create<EditorState>()((set, get) => {
     deleteSelection() {
       const { doc, selection } = get()
       commit(deleteItems(doc, selection))
+    },
+
+    setParams(id, changes) {
+      commit(setComponentParams(get().doc, id, changes))
     },
 
     setSelection(ids) {
@@ -247,6 +315,42 @@ export const useEditor = create<EditorState>()((set, get) => {
       saveTheme(theme)
       applyTheme(theme)
       set({ theme })
+    },
+
+    setRadix(radix) {
+      const { settings } = get()
+      if (!Number.isInteger(radix) || radix < MIN_RADIX || radix > MAX_RADIX) return
+      if (radix === settings.radix) return
+      const current = findPreset(settings.preset)
+      const preset =
+        current && presetAvailable(current, radix) ? current.id : defaultPresetId(radix)
+      // Crossing between two values and more is when the look should follow.
+      const crossed = radix > 2 !== settings.radix > 2
+      const showDigits = crossed ? radix > 2 : settings.showDigits
+      set({ settings: { ...settings, radix, preset, showDigits } })
+    },
+
+    setPreset(id) {
+      const { settings } = get()
+      const preset = findPreset(id)
+      if (!preset || !presetAvailable(preset, settings.radix)) return
+      set({ settings: { ...settings, preset: id } })
+    },
+
+    updateSettings(changes) {
+      set({ settings: { ...get().settings, ...changes } })
+    },
+
+    setPaletteColor(value, color) {
+      const { settings } = get()
+      if (value < 0 || value >= settings.palette.length) return
+      const palette = [...settings.palette]
+      palette[value] = color
+      set({ settings: { ...settings, palette } })
+    },
+
+    resetPalette() {
+      set({ settings: { ...get().settings, palette: DEFAULT_PALETTE } })
     },
   }
 })

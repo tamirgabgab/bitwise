@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Terminal, WireEnd } from './document.ts'
-import { resetEditor, useEditor } from './store.ts'
+import { DEFAULT_SETTINGS, resetEditor, useEditor } from './store.ts'
 
 const editor = () => useEditor.getState()
 const at = (component: string, port: string): WireEnd => {
@@ -199,5 +199,97 @@ describe('view', () => {
     expect(editor().view.zoom).toBe(4)
     editor().zoomAt(0.000001, 0, 0)
     expect(editor().view.zoom).toBe(0.25)
+  })
+})
+
+describe('part parameters', () => {
+  it('changes a parameter as one undoable edit', () => {
+    editor().addComponent('and', { x: 0, y: 0 })
+    editor().setParams('c1', { inputs: 4 })
+    expect(editor().doc.components.c1.params.inputs).toBe(4)
+    editor().undo()
+    expect(editor().doc.components.c1.params.inputs).toBe(2)
+  })
+
+  it('records nothing when the value is the same', () => {
+    editor().addComponent('and', { x: 0, y: 0 })
+    const past = editor().past.length
+    editor().setParams('c1', { inputs: 2 })
+    expect(editor().past).toHaveLength(past)
+  })
+})
+
+describe('project settings', () => {
+  it('starts as a binary project with the classic kit and colors', () => {
+    expect(editor().settings).toEqual(DEFAULT_SETTINGS)
+    expect(editor().settings.radix).toBe(2)
+    expect(editor().settings.preset).toBe('classic')
+    expect(editor().settings.classicColors).toBe(true)
+    expect(editor().settings.showDigits).toBe(false)
+  })
+
+  it('moves off the classic kit and turns digits on above radix 2', () => {
+    editor().setRadix(3)
+    expect(editor().settings.radix).toBe(3)
+    expect(editor().settings.preset).toBe('nand')
+    expect(editor().settings.showDigits).toBe(true)
+  })
+
+  it('keeps a kit that still fits the new radix', () => {
+    editor().setRadix(3)
+    editor().setPreset('kleene')
+    editor().setRadix(4)
+    expect(editor().settings.preset).toBe('kleene')
+    editor().setRadix(2)
+    expect(editor().settings.preset).toBe('kleene')
+    expect(editor().settings.showDigits).toBe(false)
+  })
+
+  it('drops field arithmetic when the radix stops being prime', () => {
+    editor().setRadix(5)
+    editor().setPreset('field')
+    expect(editor().settings.preset).toBe('field')
+    editor().setRadix(6)
+    expect(editor().settings.preset).toBe('nand')
+  })
+
+  it('refuses a kit that does not fit the radix, and unknown kits', () => {
+    editor().setRadix(4)
+    editor().setPreset('field')
+    editor().setPreset('classic')
+    editor().setPreset('nope')
+    expect(editor().settings.preset).toBe('nand')
+  })
+
+  it('refuses a radix outside 2 to 16', () => {
+    editor().setRadix(1)
+    editor().setRadix(17)
+    editor().setRadix(2.5)
+    expect(editor().settings.radix).toBe(2)
+  })
+
+  it('leaves the digits setting alone once the user chose it', () => {
+    editor().setRadix(3)
+    editor().updateSettings({ showDigits: false })
+    editor().setRadix(4)
+    expect(editor().settings.showDigits).toBe(false)
+  })
+
+  it('edits one palette color and restores the defaults', () => {
+    editor().setPaletteColor(2, '#123456')
+    expect(editor().settings.palette[2]).toBe('#123456')
+    expect(editor().settings.palette[1]).toBe(DEFAULT_SETTINGS.palette[1])
+    editor().setPaletteColor(99, '#000000')
+    expect(editor().settings.palette).toHaveLength(10)
+    editor().resetPalette()
+    expect(editor().settings.palette).toEqual(DEFAULT_SETTINGS.palette)
+  })
+
+  it('does not put settings in the undo history', () => {
+    editor().addComponent('and', { x: 0, y: 0 })
+    editor().setRadix(3)
+    editor().undo()
+    expect(editor().settings.radix).toBe(3)
+    expect(editor().doc.components.c1).toBeUndefined()
   })
 })

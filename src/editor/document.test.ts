@@ -10,6 +10,7 @@ import {
   moveItems,
   pasteFragment,
   rotateComponents,
+  setComponentParams,
   terminalEnd,
 } from './document.ts'
 import type { CircuitDoc, Terminal, WireEnd } from './document.ts'
@@ -212,5 +213,44 @@ describe('copy and paste', () => {
     // The original is untouched.
     expect(pasted.doc.components.c1).toBe(doc.components.c1)
     expect(Object.keys(pasted.doc.wires)).toHaveLength(3)
+  })
+})
+
+describe('setComponentParams', () => {
+  it('changes a parameter and keeps the rest', () => {
+    const doc = andCircuit()
+    const next = setComponentParams(doc, 'c3', { inputs: 4 })
+    expect(next.components.c3.params).toEqual({ inputs: 4, width: 1 })
+    expect(next.components.c3.pos).toEqual(doc.components.c3.pos)
+    expect(next.components.c1).toBe(doc.components.c1)
+    // The document it started from is untouched.
+    expect(doc.components.c3.params.inputs).toBe(2)
+  })
+
+  it('keeps the wires of pins that are still there', () => {
+    const next = setComponentParams(andCircuit(), 'c3', { inputs: 5 })
+    expect(Object.keys(next.wires)).toEqual(['w4', 'w5'])
+  })
+
+  it('removes the wires of pins that are gone', () => {
+    let doc = setComponentParams(andCircuit(), 'c3', { inputs: 3 })
+    doc = addComponent(doc, 'input', { x: 0, y: 12 }).doc
+    doc = addWire(doc, pin('c6', 'out'), pin('c3', 'in2'))!.doc
+    expect(Object.keys(doc.wires)).toHaveLength(3)
+
+    const fewer = setComponentParams(doc, 'c3', { inputs: 2 })
+    expect(Object.keys(fewer.wires)).toEqual(['w4', 'w5'])
+    expect(terminalEnd(fewer, pin('c3', 'in2'))).toBeUndefined()
+  })
+
+  it('returns the same document when nothing changes', () => {
+    const doc = andCircuit()
+    expect(setComponentParams(doc, 'c3', { inputs: 2 })).toBe(doc)
+    expect(setComponentParams(doc, 'nope', { inputs: 3 })).toBe(doc)
+  })
+
+  it('rejects a value the part does not allow', () => {
+    expect(() => setComponentParams(andCircuit(), 'c3', { inputs: 9 })).toThrow()
+    expect(() => setComponentParams(andCircuit(), 'c3', { speed: 1 })).toThrow()
   })
 })

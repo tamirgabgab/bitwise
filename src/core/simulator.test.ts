@@ -487,3 +487,145 @@ describe('errors and lookups', () => {
     expect(info.ports.map((port) => port.name)).toEqual(['in0', 'in1', 'in2', 'out'])
   })
 })
+
+describe('radix', () => {
+  /** Two inputs into one two-input gate, at the given radix. */
+  function twoInputs(type: string, radix: number) {
+    const sim = new Simulator(undefined, radix)
+    const a = sim.addComponent('input')
+    const b = sim.addComponent('input')
+    const gate = sim.addComponent(type)
+    sim.connect(pin(a, 'out'), pin(gate, 'in0'))
+    sim.connect(pin(b, 'out'), pin(gate, 'in1'))
+    const apply = (x: number, y: number): string => {
+      sim.setState(a, [x])
+      sim.setState(b, [y])
+      sim.settle()
+      return read(sim, gate)
+    }
+    return { sim, a, b, gate, apply }
+  }
+
+  it('is 2 unless asked otherwise, and must be from 2 to 16', () => {
+    expect(new Simulator().radix).toBe(2)
+    expect(new Simulator(undefined, 5).radix).toBe(5)
+    expect(() => new Simulator(undefined, 1)).toThrow()
+    expect(() => new Simulator(undefined, 17)).toThrow()
+  })
+
+  it('runs gates on the digits of its radix', () => {
+    const { apply } = twoInputs('nand', 3)
+    expect(apply(2, 2)).toBe('0')
+    expect(apply(1, 2)).toBe('2')
+    expect(apply(0, 2)).toBe('1')
+  })
+
+  it('flags two different digits driving one net', () => {
+    const sim = new Simulator(undefined, 4)
+    const a = sim.addComponent('input')
+    const b = sim.addComponent('input')
+    const net = sim.connect(pin(a, 'out'), pin(b, 'out'))
+    sim.setState(a, [3])
+    sim.setState(b, [3])
+    sim.settle()
+    expect(formatSignal(sim.getNet(net).value)).toBe('3')
+    expect(sim.conflicts).toBe(0)
+    sim.setState(b, [1])
+    sim.settle()
+    expect(formatSignal(sim.getNet(net).value)).toBe('X')
+    expect(sim.getNet(net).conflict).toBe(true)
+    expect(sim.conflicts).toBe(1)
+  })
+
+  it('starts the circuit over when the radix changes', () => {
+    const { sim, a, gate, apply } = twoInputs('and', 2)
+    expect(apply(1, 1)).toBe('1')
+    sim.setRadix(3)
+    expect(sim.radix).toBe(3)
+    expect(sim.time).toBe(0)
+    expect(read(sim, gate)).toBe('X')
+    expect(sim.getComponent(a).state).toEqual([0])
+    sim.settle()
+    expect(read(sim, gate)).toBe('0')
+    expect(apply(2, 1)).toBe('1')
+  })
+
+  it('leaves a running circuit alone when the radix is set to what it already is', () => {
+    const { sim, gate, apply } = twoInputs('or', 3)
+    expect(apply(1, 2)).toBe('2')
+    const time = sim.time
+    sim.setRadix(3)
+    expect(sim.time).toBe(time)
+    expect(read(sim, gate)).toBe('2')
+  })
+
+  it('keeps Boolean circuits unchanged at radix 2', () => {
+    for (const [type, expected] of Object.entries({
+      and: '0001',
+      or: '0111',
+      nand: '1110',
+      nor: '1000',
+      xor: '0110',
+      xnor: '1001',
+      add: '0110',
+      mul: '0001',
+    })) {
+      const { apply } = twoInputs(type, 2)
+      expect([apply(0, 0), apply(0, 1), apply(1, 0), apply(1, 1)].join('')).toBe(expected)
+    }
+  })
+})
+
+describe('restart', () => {
+  it('goes back to time 0 with every state reset and every output unknown', () => {
+    const sim = new Simulator()
+    const input = sim.addComponent('input')
+    const gate = sim.addComponent('not')
+    sim.connect(pin(input, 'out'), pin(gate, 'in'))
+    set(sim, input, '1')
+    sim.settle()
+    expect(read(sim, gate)).toBe('0')
+
+    sim.restart()
+    expect(sim.time).toBe(0)
+    expect(read(sim, input)).toBe('X')
+    expect(read(sim, gate)).toBe('X')
+    sim.settle()
+    expect(read(sim, input)).toBe('0')
+    expect(read(sim, gate)).toBe('1')
+  })
+
+  it('drops changes that were still on their way', () => {
+    const sim = new Simulator()
+    const input = sim.addComponent('input')
+    sim.settle()
+    set(sim, input, '1')
+    sim.restart()
+    sim.settle()
+    expect(read(sim, input)).toBe('0')
+  })
+})
+
+describe('probe', () => {
+  it('reads the resolved net at an attached pin', () => {
+    const sim = new Simulator()
+    const a = sim.addComponent('input')
+    const b = sim.addComponent('input')
+    sim.connect(pin(a, 'out'), pin(b, 'out'))
+    set(sim, a, '1')
+    sim.settle()
+    expect(formatSignal(sim.probe(pin(a, 'out')).value)).toBe('X')
+    expect(sim.probe(pin(a, 'out')).conflict).toBe(true)
+    // The pin itself still drives what its component says.
+    expect(read(sim, a)).toBe('1')
+  })
+
+  it('reads what an unattached output drives, and Z at an unattached input', () => {
+    const sim = new Simulator()
+    const input = sim.addComponent('input')
+    const gate = sim.addComponent('not')
+    sim.settle()
+    expect(sim.probe(pin(input, 'out'))).toEqual({ value: [0], conflict: false })
+    expect(formatSignal(sim.probe(pin(gate, 'in')).value)).toBe('Z')
+  })
+})

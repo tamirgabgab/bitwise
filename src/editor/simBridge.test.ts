@@ -7,6 +7,7 @@ import {
   deleteItems,
   emptyDoc,
   moveItems,
+  setComponentParams,
 } from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
 import { SimBridge } from './simBridge.ts'
@@ -194,5 +195,83 @@ describe('SimBridge', () => {
     bridge.sync(doc)
     expect(bridge.sim.netOf({ component: c1, port: 'out' })).toBe(net)
     expect(bridge.sim.getNet(net!).pins).toHaveLength(3)
+  })
+
+  it('replaces a part whose parameters changed and rewires it', () => {
+    const bridge = new SimBridge()
+    let doc = andCircuit()
+    bridge.sync(doc)
+    set(bridge, 'c1', '1')
+    set(bridge, 'c2', '1')
+    bridge.sim.settle()
+    expect(read(bridge, 'c3')).toBe('1')
+
+    doc = setComponentParams(doc, 'c3', { inputs: 3 })
+    bridge.sync(doc)
+    bridge.sim.settle()
+    // The third input floats, so the AND can no longer tell.
+    expect(read(bridge, 'c3')).toBe('X')
+    expect(read(bridge, 'c1')).toBe('1')
+  })
+})
+
+describe('switches and push buttons', () => {
+  /** Switch c1 and push button c2, with nothing attached. */
+  function sources(radix: number): SimBridge {
+    const bridge = new SimBridge()
+    bridge.sim.setRadix(radix)
+    bridge.sync(build([['input', 0, 0], ['button', 0, 6]], []))
+    bridge.sim.settle()
+    return bridge
+  }
+
+  it('steps a switch forwards through the values and round again', () => {
+    const bridge = sources(3)
+    const seen: string[] = []
+    for (let i = 0; i < 4; i++) {
+      expect(bridge.cycleInput('c1', 1)).toBe(true)
+      bridge.sim.settle()
+      seen.push(read(bridge, 'c1'))
+    }
+    expect(seen).toEqual(['1', '2', '0', '1'])
+  })
+
+  it('steps a switch backwards', () => {
+    const bridge = sources(4)
+    bridge.cycleInput('c1', -1)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('3')
+    bridge.cycleInput('c1', -1)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('2')
+  })
+
+  it('toggles a switch at radix 2', () => {
+    const bridge = sources(2)
+    bridge.cycleInput('c1', 1)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('1')
+    bridge.cycleInput('c1', 1)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('0')
+  })
+
+  it('gives the top value while a button is held and 0 after', () => {
+    const bridge = sources(5)
+    expect(bridge.setButton('c2', true)).toBe(true)
+    bridge.sim.settle()
+    expect(read(bridge, 'c2')).toBe('4')
+    bridge.setButton('c2', false)
+    bridge.sim.settle()
+    expect(read(bridge, 'c2')).toBe('0')
+  })
+
+  it('leaves other parts alone', () => {
+    const bridge = sources(3)
+    expect(bridge.cycleInput('c2', 1)).toBe(false)
+    expect(bridge.setButton('c1', true)).toBe(false)
+    expect(bridge.cycleInput('nope', 1)).toBe(false)
+    bridge.sim.settle()
+    expect([read(bridge, 'c1'), read(bridge, 'c2')]).toEqual(['0', '0'])
   })
 })

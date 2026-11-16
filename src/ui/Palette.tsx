@@ -1,32 +1,11 @@
 import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
+import { findPreset, sandboxGates } from '../core/index.ts'
 import { canvasRuntime, readCanvasTheme, renderSymbolIcon, useEditor } from '../editor/index.ts'
+import { partHint, partName } from './parts.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
-interface PaletteItem {
-  readonly type: string
-  readonly name: string
-}
-
-const SECTIONS: readonly { readonly title: string; readonly items: readonly PaletteItem[] }[] = [
-  {
-    title: 'Gates',
-    items: [
-      { type: 'and', name: 'AND' },
-      { type: 'or', name: 'OR' },
-      { type: 'not', name: 'NOT' },
-      { type: 'nand', name: 'NAND' },
-      { type: 'nor', name: 'NOR' },
-      { type: 'xor', name: 'XOR' },
-      { type: 'xnor', name: 'XNOR' },
-      { type: 'buffer', name: 'Buffer' },
-    ],
-  },
-  {
-    title: 'Sources',
-    items: [{ type: 'input', name: 'Input' }],
-  },
-]
+const IO_PARTS: readonly string[] = ['input', 'button', 'output']
 
 const ICON_WIDTH = 64
 const ICON_HEIGHT = 40
@@ -84,23 +63,36 @@ function placeAtCenter(type: string): void {
 }
 
 export function Palette() {
+  const radix = useEditor((state) => state.settings.radix)
+  const presetId = useEditor((state) => state.settings.preset)
+  const sandbox = useEditor((state) => state.settings.sandbox)
+
+  const preset = findPreset(presetId)
+  const sections = [
+    {
+      title: sandbox ? 'All gates' : (preset?.name ?? 'Gates'),
+      types: sandbox ? sandboxGates(radix) : (preset?.gates ?? []),
+    },
+    { title: 'Inputs and outputs', types: IO_PARTS },
+  ]
+
   return (
     <nav className="palette" aria-label="Parts">
-      {SECTIONS.map((section) => (
+      {sections.map((section) => (
         <section key={section.title}>
           <h2>{section.title}</h2>
           <div className="palette-grid">
-            {section.items.map((item) => (
+            {section.types.map((type) => (
               <button
-                key={item.type}
+                key={type}
                 type="button"
                 className="part"
-                title={`Add ${item.name}: drag onto the canvas, or click`}
-                onPointerDown={(event) => beginPlacing(item.type, event)}
-                onClick={() => placeAtCenter(item.type)}
+                title={`${partName(type)}: ${partHint(type, radix)}. Drag onto the canvas, or click.`}
+                onPointerDown={(event) => beginPlacing(type, event)}
+                onClick={() => placeAtCenter(type)}
               >
-                <SymbolIcon type={item.type} />
-                {item.name}
+                <SymbolIcon type={type} />
+                {partName(type)}
               </button>
             ))}
           </div>

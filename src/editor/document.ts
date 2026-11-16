@@ -127,6 +127,37 @@ export function addComponent(
   }
 }
 
+/**
+ * Changes some parameters of a part, such as its number of inputs. Wires on
+ * pins the part no longer has are removed. Throws if a value is not valid.
+ */
+export function setComponentParams(
+  doc: CircuitDoc,
+  id: string,
+  changes: Readonly<Record<string, number>>,
+): CircuitDoc {
+  const component = doc.components[id]
+  if (!component) return doc
+  const params = resolveParams(builtinComponents.get(component.type), {
+    ...component.params,
+    ...changes,
+  })
+  if (Object.keys(params).every((name) => params[name] === component.params[name])) return doc
+
+  const pins = new Set(symbolFor(component.type, params).pins.map((pin) => pin.name))
+  const orphaned = (terminal: Terminal): boolean =>
+    terminal.kind === 'pin' && terminal.component === id && !pins.has(terminal.port)
+  const stale = Object.values(doc.wires)
+    .filter((wire) => orphaned(wire.from) || orphaned(wire.to))
+    .map((wire) => wire.id)
+
+  const next: CircuitDoc = {
+    ...doc,
+    components: { ...doc.components, [id]: { ...component, params } },
+  }
+  return stale.length > 0 ? deleteItems(next, stale) : next
+}
+
 function addJunction(doc: CircuitDoc, pos: Point): { doc: CircuitDoc; id: string } {
   const id = `j${doc.nextId}`
   return {

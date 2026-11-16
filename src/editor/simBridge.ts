@@ -35,6 +35,34 @@ export class SimBridge {
     return this.mirrored.get(docId)?.simId
   }
 
+  /**
+   * Steps a switch to its next value, or its previous one for a negative
+   * `step`, going round the radix. Returns false if the part is no switch.
+   */
+  cycleInput(docId: string, step: number): boolean {
+    const entry = this.mirrored.get(docId)
+    if (!entry || entry.type !== 'input') return false
+    const radix = this.sim.radix
+    const state = this.sim.getState(entry.simId) as readonly number[]
+    this.sim.setState(
+      entry.simId,
+      state.map((digit) => (((digit < 0 ? 0 : digit) + step) % radix + radix) % radix),
+    )
+    return true
+  }
+
+  /**
+   * Presses a push button (it gives the top value) or lets go of it (0).
+   * Returns false if the part is no button.
+   */
+  setButton(docId: string, pressed: boolean): boolean {
+    const entry = this.mirrored.get(docId)
+    if (!entry || entry.type !== 'button') return false
+    const state = this.sim.getState(entry.simId) as readonly number[]
+    this.sim.setState(entry.simId, state.map(() => (pressed ? this.sim.radix - 1 : 0)))
+    return true
+  }
+
   sync(doc: CircuitDoc): void {
     this.sim.batch(() => {
       const componentsChanged = this.syncComponents(doc)

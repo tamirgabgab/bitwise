@@ -1,15 +1,20 @@
 import { ComponentRegistry } from '../component.ts'
 import {
+  addGate,
   andGate,
   bufferGate,
+  isGate,
+  mulGate,
   nandGate,
   norGate,
   notGate,
   orGate,
+  shiftGate,
   xnorGate,
   xorGate,
 } from './gates.ts'
-import { inputSource } from './input.ts'
+import { buttonSource, constSource, inputSource } from './input.ts'
+import { outputSink } from './output.ts'
 
 /** A fresh registry holding every built-in component type. */
 export function createBuiltinRegistry(): ComponentRegistry {
@@ -22,7 +27,14 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(xorGate)
     .register(xnorGate)
     .register(bufferGate)
+    .register(shiftGate)
+    .register(addGate)
+    .register(mulGate)
+    .register(isGate)
     .register(inputSource)
+    .register(buttonSource)
+    .register(constSource)
+    .register(outputSink)
 }
 
 /** The registry a simulator uses unless it is given another one. */
