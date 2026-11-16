@@ -32,6 +32,17 @@ Run lint, test and build before calling a change done. CI runs the same three.
   parameter properties. Use union types and `as const` objects.
 - Relative imports include the `.ts` / `.tsx` extension.
 
+## Git workflow
+
+- Work directly on `main` and push to `origin/main` after every completed
+  change. No feature branches or pull requests unless the owner asks.
+- Push only when everything is green: `npm run lint`, `npm test` and
+  `npm run build` all pass with no errors or warnings that indicate a real
+  problem. If anything fails, fix it first or stop and report. Never push a
+  failing tree.
+- Keep `HANDOFF.md` (written in Hebrew) current at the end of a work session,
+  and update the status line in `docs/PLAN.md` when a phase is finished.
+
 ## Licensing
 
 This project is MIT. CedarLogic, Logisim Evolution and Digital are GPL: take
