@@ -1,10 +1,10 @@
 import { builtinComponents, digitChar, resolveParams } from '../core/index.ts'
 import type { Digit } from '../core/index.ts'
-import { junctionDegrees, terminalKey } from './document.ts'
-import type { CircuitDoc, DocComponent } from './document.ts'
+import { SUB_TYPE, junctionDegrees, terminalKey } from './document.ts'
+import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues } from './liveValues.ts'
-import { symbolFor } from './symbols.ts'
+import { symbolFor, symbolOf } from './symbols.ts'
 import type { ComponentSymbol, SymbolFace } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { inkOn } from './valueStyle.ts'
@@ -24,7 +24,7 @@ export interface Scene {
   readonly wirePreview: readonly Point[] | null
   readonly marquee: Rect | null
   /** A part being dragged in from the palette. */
-  readonly ghost: { readonly type: string; readonly pos: Point } | null
+  readonly ghost: { readonly type: string; readonly pos: Point; readonly sub?: SubRef } | null
   /** The values of the running circuit, and how to show them. */
   readonly live: LiveValues
   readonly style: ValueStyle
@@ -184,6 +184,7 @@ function drawPart(
   theme: CanvasTheme,
   style: ValueStyle | null,
   faceDigit: Digit | undefined,
+  name?: string,
 ): void {
   ctx.save()
   ctx.translate(placement.pos.x, placement.pos.y)
@@ -198,6 +199,14 @@ function drawPart(
     let text = label.text
     if (label.digit !== undefined) text += style ? style.text(label.digit) : digitChar(label.digit)
     drawText(ctx, text, label.pos, text.length > 2 ? label.size * 0.82 : label.size, look.stroke)
+  }
+  for (const note of symbol.notes ?? []) {
+    drawText(ctx, note.text, note.pos, note.size, look.stroke)
+  }
+  if (name) {
+    // The name of the part, just above it.
+    const { x0, x1, y0 } = symbol.bounds
+    drawText(ctx, name, { x: (x0 + x1) / 2, y: y0 - 0.55 }, 0.68, theme.ink, theme.background)
   }
   ctx.restore()
 }
@@ -272,7 +281,7 @@ export function renderScene(
   }
 
   for (const component of Object.values(doc.components)) {
-    const symbol = symbolFor(component.type, component.params)
+    const symbol = symbolOf(component)
     const selected = selection.has(component.id)
     const outline = selected ? theme.accent : theme.ink
     if (selected) {
@@ -294,6 +303,7 @@ export function renderScene(
       theme,
       style,
       live.face(component.id) ?? restingFace(component.type, component.params),
+      component.label,
     )
 
     ctx.save()
@@ -339,11 +349,12 @@ export function renderScene(
   }
 
   if (scene.ghost) {
-    const params = defaultParamsOf(scene.ghost.type)
+    const { ghost } = scene
+    const params = ghost.type === SUB_TYPE ? {} : defaultParamsOf(ghost.type)
     ctx.globalAlpha = 0.55
     drawPart(
       ctx,
-      symbolFor(scene.ghost.type, params),
+      symbolOf({ type: ghost.type, params, sub: ghost.sub }),
       { pos: scene.ghost.pos, rotation: 0 },
       { stroke: theme.accent, fill: theme.partFill, lineWidth: STROKE },
       theme,

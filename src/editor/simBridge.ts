@@ -1,7 +1,8 @@
 import { Simulator } from '../core/index.ts'
-import type { ComponentId, NetId, PinRef } from '../core/index.ts'
-import { pinGroups } from './connectivity.ts'
-import type { CircuitDoc, DocComponent } from './document.ts'
+import type { ComponentId, NetId, PinRef, Probe } from '../core/index.ts'
+import type { CircuitDoc } from './document.ts'
+import { flatten } from './flatten.ts'
+import type { Library, Netlist } from './flatten.ts'
 
 interface Mirrored {
   readonly simId: ComponentId
@@ -20,19 +21,24 @@ function pinKey(pin: PinRef): string {
  * keeps its simulator component, and a pin whose connections did not change
  * is never detached. That is what lets a circuit keep running, and a latch
  * keep its value, while the user edits somewhere else.
+ *
+ * Parts that stand for a named circuit are flattened first (`flatten.ts`),
+ * so the simulator only ever holds built-in components. A part is known here
+ * by its path, which for a part of the drawing itself is simply its id.
  */
 export class SimBridge {
   readonly sim: Simulator
   private readonly mirrored = new Map<string, Mirrored>()
-  private lastWires: CircuitDoc['wires'] | undefined
+  private netlist: Netlist | undefined
+  private last: { readonly doc: CircuitDoc; readonly library: Library } | undefined
 
   constructor(sim: Simulator = new Simulator()) {
     this.sim = sim
   }
 
-  /** The simulator component standing in for a part of the drawing. */
-  simComponent(docId: string): ComponentId | undefined {
-    return this.mirrored.get(docId)?.simId
+  /** The simulator component standing in for a part, by its path. */
+  simComponent(key: string): ComponentId | undefined {
+    return this.mirrored.get(key)?.simId
   }
 
   /**
@@ -63,51 +69,94 @@ export class SimBridge {
     return true
   }
 
-  sync(doc: CircuitDoc): void {
-    this.sim.batch(() => {
-      const componentsChanged = this.syncComponents(doc)
-      if (componentsChanged || doc.wires !== this.lastWires) this.syncNets(doc)
-      this.lastWires = doc.wires
-    })
+  /**
+   * Puts a switch on a value. Returns false if the part is no switch or the
+   * radix has no such value.
+   */
+  setInput(docId: string, digit: number): boolean {
+    const entry = this.mirrored.get(docId)
+    if (!entry || entry.type !== 'input') return false
+    if (!Number.isInteger(digit) || digit < 0 || digit >= this.sim.radix) return false
+    const state = this.sim.getState(entry.simId) as readonly number[]
+    this.sim.setState(entry.simId, state.map(() => digit))
+    return true
   }
 
-  private syncComponents(doc: CircuitDoc): boolean {
-    let changed = false
-    for (const [docId, entry] of this.mirrored) {
-      const component: DocComponent | undefined = doc.components[docId]
-      // An id can come back as a different part after undo and a new edit.
-      if (component && component.type === entry.type && component.params === entry.params) {
-        continue
-      }
-      this.sim.removeComponent(entry.simId)
-      this.mirrored.delete(docId)
-      changed = true
+  /** The value of every switch of the drawing itself, by part id. */
+  inputValues(): Record<string, number> {
+    const values: Record<string, number> = {}
+    for (const [key, entry] of this.mirrored) {
+      if (entry.type !== 'input' || key.includes('/')) continue
+      const digit = (this.sim.getState(entry.simId) as readonly number[])[0]
+      values[key] = digit >= 0 && digit < this.sim.radix ? digit : 0
     }
-    for (const component of Object.values(doc.components)) {
-      const entry = this.mirrored.get(component.id)
+    return values
+  }
+
+  /**
+   * What the wires at a terminal of the drawing carry, by `terminalKey`.
+   * Undefined when no part drives or reads that node at all.
+   */
+  probeTerminal(key: string): Probe | undefined {
+    const pin = this.netlist?.probes.get(key)
+    if (pin === undefined) return undefined
+    const simId = this.simComponent(pin.part)
+    if (simId === undefined) return undefined
+    return this.sim.probe({ component: simId, port: pin.port })
+  }
+
+  /**
+   * Brings the simulator in step with `doc`. `library` holds the drawings
+   * that its named-circuit parts stand for.
+   */
+  sync(doc: CircuitDoc, library: Library = {}): void {
+    const last = this.last
+    if (
+      last &&
+      last.library === library &&
+      last.doc.components === doc.components &&
+      last.doc.wires === doc.wires &&
+      last.doc.junctions === doc.junctions
+    ) {
+      return
+    }
+    const netlist = flatten(doc, library)
+    this.sim.batch(() => {
+      this.syncComponents(netlist)
+      this.syncNets(netlist)
+    })
+    this.netlist = netlist
+    this.last = { doc, library }
+  }
+
+  private syncComponents(netlist: Netlist): void {
+    for (const [key, entry] of this.mirrored) {
+      const part = netlist.parts.get(key)
+      // An id can come back as a different part after undo and a new edit.
+      if (part && part.type === entry.type && part.params === entry.params) continue
+      this.sim.removeComponent(entry.simId)
+      this.mirrored.delete(key)
+    }
+    for (const part of netlist.parts.values()) {
+      const entry = this.mirrored.get(part.key)
       if (entry) {
-        if (this.sim.getComponent(entry.simId).delay !== component.delay) {
-          this.sim.setDelay(entry.simId, component.delay)
+        if (this.sim.getComponent(entry.simId).delay !== part.delay) {
+          this.sim.setDelay(entry.simId, part.delay)
         }
         continue
       }
-      const simId = this.sim.addComponent(component.type, {
-        params: component.params,
-        delay: component.delay,
-      })
-      this.mirrored.set(component.id, { simId, type: component.type, params: component.params })
-      changed = true
+      const simId = this.sim.addComponent(part.type, { params: part.params, delay: part.delay })
+      this.mirrored.set(part.key, { simId, type: part.type, params: part.params })
     }
-    return changed
   }
 
-  private syncNets(doc: CircuitDoc): void {
+  private syncNets(netlist: Netlist): void {
     const sim = this.sim
     const groups: PinRef[][] = []
-    for (const group of pinGroups(doc)) {
+    for (const group of netlist.groups) {
       const pins: PinRef[] = []
       for (const pin of group) {
-        const simId = this.simComponent(pin.component)
+        const simId = this.simComponent(pin.part)
         if (simId !== undefined) pins.push({ component: simId, port: pin.port })
       }
       if (pins.length >= 2) groups.push(pins)

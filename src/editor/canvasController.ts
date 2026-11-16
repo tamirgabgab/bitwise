@@ -6,14 +6,16 @@ import { hitTest, itemsInRect } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
 import { isPokeable, readLiveValues } from './liveValues.ts'
 import { renderScene } from './render.ts'
+import type { Scene } from './render.ts'
 import { routeWire } from './routing.ts'
 import type { RouteEnd } from './routing.ts'
 import { canvasRuntime } from './runtime.ts'
-import { holdButton, pokeInput, simBridge } from './session.ts'
+import { currentBridge, holdButton, pokeInput } from './session.ts'
 import { useSim } from './simStore.ts'
 import { useEditor } from './store.ts'
-import type { ProjectSettings } from './store.ts'
-import { symbolFor } from './symbols.ts'
+import type { EditorState, ProjectSettings } from './store.ts'
+import { subRefOf } from './subcircuit.ts'
+import { symbolOf } from './symbols.ts'
 import { readCanvasTheme } from './theme.ts'
 import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
@@ -92,6 +94,7 @@ export class CanvasController {
     this.listen(canvas, 'pointerleave', this.onPointerLeave)
     this.listen(canvas, 'wheel', this.onWheel, { passive: false })
     this.listen(canvas, 'contextmenu', this.onContextMenu)
+    this.listen(canvas, 'dblclick', this.onDoubleClick)
     this.listen(window, 'keydown', this.onKeyDown)
     this.listen(window, 'keyup', this.onKeyUp)
 
@@ -105,6 +108,15 @@ export class CanvasController {
     this.cleanups.push(
       useEditor.subscribe((state, previous) => {
         if (state.theme !== previous.theme) this.refreshTheme()
+        if (state.active !== previous.active || state.epoch !== previous.epoch) {
+          // Another drawing is on screen: whatever was being dragged is gone.
+          this.mode = { kind: 'idle' }
+          this.previewDoc = null
+          this.hover = null
+          this.hoverPoke = false
+          this.setCursor()
+          this.frameCircuit()
+        }
         this.requestDraw()
       }),
       // The simulator moved: wires and lamps may show new values.
@@ -165,6 +177,11 @@ export class CanvasController {
     return this.style
   }
 
+  /** Brings a circuit that is on screen for the first time into view. */
+  private frameCircuit(): void {
+    if (this.width > 0 && this.height > 0) useEditor.getState().frame(this.width, this.height)
+  }
+
   private resize(): void {
     const rect = this.canvas.getBoundingClientRect()
     this.width = rect.width
@@ -179,6 +196,7 @@ export class CanvasController {
       if (view.panX === 0 && view.panY === 0) {
         setView({ ...view, panX: Math.round(rect.width / 2), panY: Math.round(rect.height / 2) })
       }
+      this.frameCircuit()
     }
     this.draw()
   }
@@ -210,13 +228,21 @@ export class CanvasController {
       highlight,
       wirePreview,
       marquee: mode.kind === 'marquee' ? rectFromPoints(mode.start, mode.current) : null,
-      ghost: state.placing?.pos ? { type: state.placing.type, pos: state.placing.pos } : null,
-      live: readLiveValues(doc, simBridge),
+      ghost: this.ghostOf(state),
+      live: readLiveValues(doc, currentBridge()),
       style: this.valueStyle(state.settings),
     })
   }
 
   // ---- Helpers ----
+
+  /** The part being carried in from the palette, if it is over the canvas. */
+  private ghostOf(state: EditorState): Scene['ghost'] {
+    const placing = state.placing
+    if (!placing?.pos) return null
+    const circuit = placing.circuit === undefined ? undefined : state.circuits[placing.circuit]
+    return { type: placing.type, pos: placing.pos, sub: circuit ? subRefOf(circuit) : undefined }
+  }
 
   private toWorld(event: MouseEvent): Point {
     const rect = this.canvas.getBoundingClientRect()
@@ -235,7 +261,7 @@ export class CanvasController {
     if (hit?.kind !== 'component') return null
     const component = doc.components[hit.id]
     if (!component || !isPokeable(component.type)) return null
-    const face = symbolFor(component.type, component.params).face
+    const face = symbolOf(component).face
     if (!face) return null
     const local = rotatePoint(
       { x: world.x - component.pos.x, y: world.y - component.pos.y },
@@ -503,6 +529,15 @@ export class CanvasController {
     if (poked === null) return
     event.preventDefault()
     if (doc.components[poked].type === 'input') pokeInput(poked, -1)
+  }
+
+  /** A double click on a part that stands for a named circuit opens it. */
+  private readonly onDoubleClick = (event: MouseEvent): void => {
+    const state = useEditor.getState()
+    const hit = hitTest(state.doc, this.toWorld(event))
+    if (hit?.kind !== 'component') return
+    const circuit = state.doc.components[hit.id]?.sub?.circuit
+    if (circuit !== undefined) state.selectCircuit(circuit)
   }
 
   private readonly onPointerLeave = (): void => {

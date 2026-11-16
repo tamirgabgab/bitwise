@@ -2,7 +2,11 @@ import { builtinComponents, resolveParams } from '../core/index.ts'
 import { add, rotatePoint, samePoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
 import type { RouteEnd } from './routing.ts'
-import { symbolFor } from './symbols.ts'
+import { SUB_TYPE, symbolOf } from './symbols.ts'
+import type { SubRef } from './symbols.ts'
+
+export { SUB_TYPE }
+export type { SubPin, SubRef } from './symbols.ts'
 
 /*
  * The circuit as the user draws it: parts with a position, junctions, and
@@ -20,7 +24,17 @@ export interface DocComponent {
   readonly delay: number
   readonly pos: Point
   readonly rotation: Rotation
+  /**
+   * A name the user gave the part. On a switch or an output it is also the
+   * name of the pin when the circuit is used as a part of another one.
+   */
+  readonly label?: string
+  /** Set on a part that stands for a named circuit; its type is `SUB_TYPE`. */
+  readonly sub?: SubRef
 }
+
+/** The longest label a part can have. */
+export const MAX_LABEL = 16
 
 /** A dot where wires meet. Also usable as a bend point for a single wire. */
 export interface DocJunction {
@@ -88,7 +102,7 @@ export function terminalEnd(doc: CircuitDoc, terminal: Terminal): RouteEnd | und
   }
   const component = doc.components[terminal.component]
   if (!component) return undefined
-  const pin = symbolFor(component.type, component.params).pins.find(
+  const pin = symbolOf(component).pins.find(
     (candidate) => candidate.name === terminal.port,
   )
   if (!pin) return undefined
@@ -99,6 +113,7 @@ export function terminalEnd(doc: CircuitDoc, terminal: Terminal): RouteEnd | und
 }
 
 export interface AddComponentOptions {
+  readonly label?: string
   readonly params?: Readonly<Record<string, number>>
   readonly delay?: number
   readonly rotation?: Rotation
@@ -120,11 +135,46 @@ export function addComponent(
     delay: options.delay ?? 1,
     pos,
     rotation: options.rotation ?? 0,
+    ...(options.label?.trim() ? { label: options.label.trim().slice(0, MAX_LABEL) } : {}),
   }
   return {
     doc: { ...doc, components: { ...doc.components, [id]: component }, nextId: doc.nextId + 1 },
     id,
   }
+}
+
+/** Adds a part that stands for a named circuit. */
+export function addSubcircuit(
+  doc: CircuitDoc,
+  sub: SubRef,
+  pos: Point,
+  options: Pick<AddComponentOptions, 'rotation'> = {},
+): { doc: CircuitDoc; id: string } {
+  const id = `c${doc.nextId}`
+  const component: DocComponent = {
+    id,
+    type: SUB_TYPE,
+    params: {},
+    delay: 1,
+    pos,
+    rotation: options.rotation ?? 0,
+    sub,
+  }
+  return {
+    doc: { ...doc, components: { ...doc.components, [id]: component }, nextId: doc.nextId + 1 },
+    id,
+  }
+}
+
+/** Names a part, or takes its name away when `label` is blank. */
+export function setComponentLabel(doc: CircuitDoc, id: string, label: string): CircuitDoc {
+  const component = doc.components[id]
+  if (!component) return doc
+  const text = label.trim().slice(0, MAX_LABEL)
+  if (text === (component.label ?? '')) return doc
+  const next: DocComponent = { ...component, label: text }
+  if (text === '') delete (next as { label?: string }).label
+  return { ...doc, components: { ...doc.components, [id]: next } }
 }
 
 /**
@@ -137,14 +187,14 @@ export function setComponentParams(
   changes: Readonly<Record<string, number>>,
 ): CircuitDoc {
   const component = doc.components[id]
-  if (!component) return doc
+  if (!component || component.type === SUB_TYPE) return doc
   const params = resolveParams(builtinComponents.get(component.type), {
     ...component.params,
     ...changes,
   })
   if (Object.keys(params).every((name) => params[name] === component.params[name])) return doc
 
-  const pins = new Set(symbolFor(component.type, params).pins.map((pin) => pin.name))
+  const pins = new Set(symbolOf({ type: component.type, params }).pins.map((pin) => pin.name))
   const orphaned = (terminal: Terminal): boolean =>
     terminal.kind === 'pin' && terminal.component === id && !pins.has(terminal.port)
   const stale = Object.values(doc.wires)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { addComponent, addWire, connectEnds, emptyDoc } from './document.ts'
+import { addComponent, addWire, connectEnds, emptyDoc, moveItems } from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
-import { componentBounds, hitTest, itemsInRect } from './hitTest.ts'
+import { componentBounds, docBounds, hitTest, itemsInRect } from './hitTest.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 
@@ -76,5 +76,37 @@ describe('itemsInRect', () => {
     expect(itemsInRect(doc, { x0: -2, y0: -2, x1: 15, y1: 2 }).sort()).toEqual(['c1', 'c2', 'w3'])
     expect(itemsInRect(doc, { x0: -2, y0: -2, x1: 9, y1: 2 })).toEqual(['c1'])
     expect(itemsInRect(doc, { x0: 3, y0: -2, x1: 9, y1: 2 })).toEqual([])
+  })
+})
+
+describe('docBounds', () => {
+  it('has nothing to give for an empty drawing', () => {
+    expect(docBounds(emptyDoc())).toBeUndefined()
+  })
+
+  it('surrounds every part', () => {
+    const doc = inverter()
+    const bounds = docBounds(doc)!
+    for (const id of ['c1', 'c2']) {
+      const part = componentBounds(doc, id)!
+      expect(bounds.x0).toBeLessThanOrEqual(part.x0)
+      expect(bounds.y0).toBeLessThanOrEqual(part.y0)
+      expect(bounds.x1).toBeGreaterThanOrEqual(part.x1)
+      expect(bounds.y1).toBeGreaterThanOrEqual(part.y1)
+    }
+    expect(bounds.x0).toBe(componentBounds(doc, 'c1')!.x0)
+    expect(bounds.x1).toBe(componentBounds(doc, 'c2')!.x1)
+  })
+
+  it('reaches out to a junction away from the parts', () => {
+    const lamp = addComponent(inverter(), 'output', { x: 12, y: 6 })
+    const doc = connectEnds(
+      lamp.doc,
+      { kind: 'wire', wire: 'w3', pos: { x: 6, y: 0 } },
+      { kind: 'terminal', terminal: pin(lamp.id, 'in') },
+    )!
+    const junction = Object.keys(doc.junctions)[0]
+    const moved = moveItems(doc, [junction], 0, 30)
+    expect(docBounds(moved)!.y1).toBe(30)
   })
 })

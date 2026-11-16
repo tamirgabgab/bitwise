@@ -1,10 +1,19 @@
 import { describe, expect, it } from 'vitest'
 import { X, Z } from '../core/index.ts'
 import { terminalNets } from './connectivity.ts'
-import { addComponent, addWire, connectEnds, emptyDoc, terminalKey } from './document.ts'
+import {
+  addComponent,
+  addSubcircuit,
+  addWire,
+  connectEnds,
+  emptyDoc,
+  terminalKey,
+} from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
 import { isPokeable, readLiveValues } from './liveValues.ts'
 import { SimBridge } from './simBridge.ts'
+import { subRefOf } from './subcircuit.ts'
+import type { Circuit } from './subcircuit.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 
@@ -154,5 +163,55 @@ describe('isPokeable', () => {
       false,
       false,
     ])
+  })
+})
+
+describe('readLiveValues with a named circuit', () => {
+  const inner: Circuit = { id: 'k2', name: 'Inverter', doc: inverter() }
+
+  /** Part c1 stands for the inverter, between switch c2 and lamp c3. */
+  function host(): CircuitDoc {
+    let doc = addSubcircuit(emptyDoc(), subRefOf(inner), { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'input', { x: -12, y: 0 }).doc
+    doc = addComponent(doc, 'output', { x: 12, y: 0 }).doc
+    doc = addWire(doc, pin('c2', 'out'), pin('c1', 'c1'))!.doc
+    return addWire(doc, pin('c1', 'c3'), pin('c3', 'in'))!.doc
+  }
+
+  function runningHost(doc: CircuitDoc): SimBridge {
+    const bridge = new SimBridge()
+    bridge.sync(doc, { k2: inner })
+    bridge.sim.settle()
+    return bridge
+  }
+
+  it('reads the wires on both sides of the part', () => {
+    const doc = host()
+    const live = readLiveValues(doc, runningHost(doc))
+    expect(live.at(pin('c1', 'c1'))).toEqual({ digit: 0, conflict: false })
+    expect(live.at(pin('c1', 'c3'))).toEqual({ digit: 1, conflict: false })
+    expect(live.at(pin('c3', 'in'))).toEqual({ digit: 1, conflict: false })
+  })
+
+  it('reads what the part drives, as for any output pin', () => {
+    const doc = host()
+    const live = readLiveValues(doc, runningHost(doc))
+    expect(live.output('c1', 'c3')).toBe(1)
+    expect(live.face('c3')).toBe(1)
+    expect(live.face('c1')).toBeUndefined()
+  })
+
+  it('reads an output of the part that no wire is on', () => {
+    const doc = addSubcircuit(emptyDoc(), subRefOf(inner), { x: 0, y: 0 }).doc
+    const live = readLiveValues(doc, runningHost(doc))
+    // Its input floats, so the NOT inside gives unknown.
+    expect(live.output('c1', 'c3')).toBe(X)
+    expect(live.at(pin('c1', 'c3'))).toEqual({ digit: X, conflict: false })
+  })
+
+  it('gives unknown for a pin with nothing behind it', () => {
+    const doc = host()
+    const live = readLiveValues(doc, runningHost(doc))
+    expect(live.output('c1', 'gone')).toBe(X)
   })
 })

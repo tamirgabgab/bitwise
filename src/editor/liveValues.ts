@@ -35,22 +35,16 @@ export function readLiveValues(doc: CircuitDoc, bridge: SimBridge): LiveValues {
   const netOf = terminalNets(doc)
   const nets = new Map<string, WireValue>()
 
-  const probe = (component: string, port: string): WireValue | undefined => {
-    const simId = bridge.simComponent(component)
-    if (simId === undefined) return undefined
-    const { value, conflict } = sim.probe({ component: simId, port })
-    return { digit: value[0], conflict }
+  const probe = (key: string): WireValue | undefined => {
+    const found = bridge.probeTerminal(key)
+    return found ? { digit: found.value[0], conflict: found.conflict } : undefined
   }
 
-  // One pin is enough to read a whole net: every pin on it sees the same.
-  for (const wire of Object.values(doc.wires)) {
-    for (const end of [wire.from, wire.to]) {
-      if (end.kind !== 'pin') continue
-      const net = netOf.get(terminalKey(end))
-      if (net === undefined || nets.has(net)) continue
-      const value = probe(end.component, end.port)
-      if (value) nets.set(net, value)
-    }
+  // One terminal is enough to read a whole net: all of it carries the same.
+  for (const [key, name] of netOf) {
+    if (nets.has(name)) continue
+    const value = probe(key)
+    if (value) nets.set(name, value)
   }
 
   const net = (name: string | undefined): WireValue =>
@@ -59,10 +53,9 @@ export function readLiveValues(doc: CircuitDoc, bridge: SimBridge): LiveValues {
   return {
     net,
     at(terminal) {
-      const name = netOf.get(terminalKey(terminal))
-      if (name !== undefined) return net(name)
-      if (terminal.kind === 'junction') return FLOATING
-      return probe(terminal.component, terminal.port) ?? FLOATING
+      const key = terminalKey(terminal)
+      const name = netOf.get(key)
+      return name !== undefined ? net(name) : (probe(key) ?? FLOATING)
     },
     face(componentId) {
       const component = doc.components[componentId]
@@ -78,15 +71,17 @@ export function readLiveValues(doc: CircuitDoc, bridge: SimBridge): LiveValues {
         case 'const':
           return component.params.value < sim.radix ? component.params.value : X
         case 'output':
-          return probe(componentId, 'in')?.digit
+          return probe(terminalKey({ kind: 'pin', component: componentId, port: 'in' }))?.digit
         default:
           return undefined
       }
     },
     output(componentId, port) {
       const simId = bridge.simComponent(componentId)
-      if (simId === undefined) return X
-      return sim.readPin({ component: simId, port })[0]
+      if (simId !== undefined) return sim.readPin({ component: simId, port })[0]
+      // A named circuit has no pin of its own: read the node behind it.
+      const inside = probe(terminalKey({ kind: 'pin', component: componentId, port }))
+      return inside ? inside.digit : X
     },
   }
 }

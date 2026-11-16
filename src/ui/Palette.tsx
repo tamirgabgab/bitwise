@@ -1,7 +1,16 @@
 import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { findPreset, sandboxGates } from '../core/index.ts'
-import { canvasRuntime, readCanvasTheme, renderSymbolIcon, useEditor } from '../editor/index.ts'
+import {
+  SUB_TYPE,
+  canPlace,
+  canvasRuntime,
+  interfaceOf,
+  readCanvasTheme,
+  renderSymbolIcon,
+  useEditor,
+} from '../editor/index.ts'
+import { ChipIcon } from './icons.tsx'
 import { partHint, partName } from './parts.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
@@ -30,14 +39,15 @@ function SymbolIcon({ type }: { type: string }) {
 /**
  * Starts carrying a part from the palette. It follows the pointer as a ghost
  * and is placed where the button is released, if that is over the canvas.
+ * For a named circuit, `type` is `SUB_TYPE` and `circuit` says which one.
  */
-function beginPlacing(type: string, event: ReactPointerEvent): void {
+function beginPlacing(type: string, event: ReactPointerEvent, circuit?: string): void {
   if (event.button !== 0) return
   const { setPlacing, addComponent } = useEditor.getState()
   const gridAt = (e: PointerEvent) =>
     canvasRuntime.current?.clientToGrid(e.clientX, e.clientY) ?? null
 
-  const move = (e: PointerEvent) => setPlacing({ type, pos: gridAt(e) })
+  const move = (e: PointerEvent) => setPlacing({ type, circuit, pos: gridAt(e) })
   const stop = () => {
     window.removeEventListener('pointermove', move)
     window.removeEventListener('pointerup', up)
@@ -47,19 +57,74 @@ function beginPlacing(type: string, event: ReactPointerEvent): void {
   const up = (e: PointerEvent) => {
     const pos = gridAt(e)
     stop()
-    if (pos) addComponent(type, pos)
+    if (pos) addComponent(type, pos, circuit)
   }
 
-  setPlacing({ type, pos: null })
+  setPlacing({ type, circuit, pos: null })
   window.addEventListener('pointermove', move)
   window.addEventListener('pointerup', up)
   window.addEventListener('pointercancel', stop)
 }
 
 /** A plain click, or Enter on the keyboard, drops the part mid-canvas. */
-function placeAtCenter(type: string): void {
+function placeAtCenter(type: string, circuit?: string): void {
   const center = canvasRuntime.current?.gridCenter() ?? { x: 0, y: 0 }
-  useEditor.getState().addComponent(type, center)
+  useEditor.getState().addComponent(type, center, circuit)
+}
+
+function count(amount: number, noun: string): string {
+  return `${amount} ${noun}${amount === 1 ? '' : 's'}`
+}
+
+/** The other circuits of the project, each ready to be used as a part. */
+function CircuitParts() {
+  const circuits = useEditor((state) => state.circuits)
+  const order = useEditor((state) => state.order)
+  const active = useEditor((state) => state.active)
+  const others = order.filter((id) => id !== active)
+
+  return (
+    <section>
+      <h2>Circuits</h2>
+      {others.length === 0 ? (
+        <p className="palette-note">
+          Add a circuit with + above the canvas. It shows up here as a part you can use.
+        </p>
+      ) : (
+        <div className="palette-list">
+          {others.map((id) => {
+            const circuit = circuits[id]
+            const pins = interfaceOf(circuit.doc)
+            const allowed = canPlace(circuits, active, id)
+            const shape = `${count(pins.inputs.length, 'input')}, ${count(pins.outputs.length, 'output')}`
+            return (
+              <button
+                key={id}
+                type="button"
+                className={allowed ? 'part part-circuit' : 'part part-circuit part-off'}
+                // Not `disabled`, so the reason can still be read and focused.
+                aria-disabled={!allowed}
+                title={
+                  allowed
+                    ? `${circuit.name}: ${shape}. Drag onto the canvas, or click.`
+                    : `${circuit.name} has ${circuits[active].name} inside it, so it cannot go in here.`
+                }
+                onPointerDown={(event) => {
+                  if (allowed) beginPlacing(SUB_TYPE, event, id)
+                }}
+                onClick={() => {
+                  if (allowed) placeAtCenter(SUB_TYPE, id)
+                }}
+              >
+                <ChipIcon />
+                <span className="part-circuit-name">{circuit.name}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </section>
+  )
 }
 
 export function Palette() {
@@ -98,6 +163,7 @@ export function Palette() {
           </div>
         </section>
       ))}
+      <CircuitParts />
     </nav>
   )
 }

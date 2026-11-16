@@ -14,6 +14,8 @@ export interface SimState {
   readonly conflicts: number
   /** Goes up whenever values may have changed, so the canvas repaints. */
   readonly revision: number
+  /** Goes up whenever a switch is put on another value. */
+  readonly pokes: number
 
   setRunning(running: boolean): void
   setSpeed(speed: SimSpeed): void
@@ -26,6 +28,7 @@ export const useSim = create<SimState>()((set) => ({
   stable: true,
   conflicts: 0,
   revision: 0,
+  pokes: 0,
 
   setRunning(running) {
     set({ running })

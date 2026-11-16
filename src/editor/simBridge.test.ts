@@ -2,15 +2,19 @@ import { describe, expect, it } from 'vitest'
 import { formatSignal, parseSignal } from '../core/index.ts'
 import {
   addComponent,
+  addSubcircuit,
   addWire,
   connectEnds,
   deleteItems,
   emptyDoc,
   moveItems,
   setComponentParams,
+  terminalKey,
 } from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
 import { SimBridge } from './simBridge.ts'
+import { subRefOf } from './subcircuit.ts'
+import type { Circuit } from './subcircuit.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 
@@ -273,5 +277,126 @@ describe('switches and push buttons', () => {
     expect(bridge.cycleInput('nope', 1)).toBe(false)
     bridge.sim.settle()
     expect([read(bridge, 'c1'), read(bridge, 'c2')]).toEqual(['0', '0'])
+  })
+})
+
+describe('SimBridge with named circuits', () => {
+  /** Switch c1 "A" into NOT c2 into output c3 "Y". */
+  function inverterCircuit(type = 'not'): Circuit {
+    let doc = emptyDoc()
+    doc = addComponent(doc, 'input', { x: 0, y: 0 }, { label: 'A' }).doc
+    doc = addComponent(doc, type, { x: 8, y: 0 }).doc
+    doc = addComponent(doc, 'output', { x: 16, y: 0 }, { label: 'Y' }).doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c2', 'in'))!.doc
+    doc = addWire(doc, pin('c2', 'out'), pin('c3', 'in'))!.doc
+    return { id: 'k2', name: 'Inverter', doc }
+  }
+
+  /** Part c1 stands for `inner`, between switch c2 and lamp c3. */
+  function host(inner: Circuit): CircuitDoc {
+    let doc = addSubcircuit(emptyDoc(), subRefOf(inner), { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'input', { x: -12, y: 0 }).doc
+    doc = addComponent(doc, 'output', { x: 12, y: 0 }).doc
+    doc = addWire(doc, pin('c2', 'out'), pin('c1', 'c1'))!.doc
+    return addWire(doc, pin('c1', 'c3'), pin('c3', 'in'))!.doc
+  }
+
+  const lamp = (bridge: SimBridge): string =>
+    formatSignal(bridge.probeTerminal(terminalKey(pin('c3', 'in')))!.value)
+
+  it('simulates what is inside a named circuit', () => {
+    const inner = inverterCircuit()
+    const bridge = new SimBridge()
+    bridge.sync(host(inner), { k2: inner })
+    bridge.sim.settle()
+    expect(lamp(bridge)).toBe('1')
+    set(bridge, 'c2', '1')
+    bridge.sim.settle()
+    expect(lamp(bridge)).toBe('0')
+  })
+
+  it('holds the inner parts under their path, and no part for the circuit itself', () => {
+    const inner = inverterCircuit()
+    const bridge = new SimBridge()
+    bridge.sync(host(inner), { k2: inner })
+    expect(bridge.simComponent('c1/c2')).toBeDefined()
+    expect(bridge.simComponent('c1')).toBeUndefined()
+    expect(bridge.simComponent('c1/c1')).toBeUndefined()
+    expect(bridge.sim.componentIds()).toHaveLength(3)
+  })
+
+  it('follows a change inside the circuit and keeps the rest running', () => {
+    const inner = inverterCircuit()
+    const doc = host(inner)
+    const bridge = new SimBridge()
+    bridge.sync(doc, { k2: inner })
+    set(bridge, 'c2', '1')
+    bridge.sim.settle()
+    const switchId = bridge.simComponent('c2')
+
+    bridge.sync(doc, { k2: inverterCircuit('buffer') })
+    bridge.sim.settle()
+    expect(lamp(bridge)).toBe('1')
+    expect(bridge.simComponent('c2')).toBe(switchId)
+    expect(bridge.inputValues()).toEqual({ c2: 1 })
+  })
+
+  it('keeps the inner parts in place while the drawing around them is edited', () => {
+    const inner = inverterCircuit()
+    const library = { k2: inner }
+    const doc = host(inner)
+    const bridge = new SimBridge()
+    bridge.sync(doc, library)
+    const before = bridge.simComponent('c1/c2')
+    bridge.sync(addComponent(moveItems(doc, ['c1'], 0, 6), 'and', { x: 0, y: 20 }).doc, library)
+    expect(bridge.simComponent('c1/c2')).toBe(before)
+  })
+
+  it('takes the inner parts away with the part that stood for them', () => {
+    const inner = inverterCircuit()
+    const bridge = new SimBridge()
+    bridge.sync(host(inner), { k2: inner })
+    bridge.sync(deleteItems(host(inner), ['c1']), { k2: inner })
+    expect(bridge.simComponent('c1/c2')).toBeUndefined()
+    expect(bridge.sim.componentIds()).toHaveLength(2)
+    expect(bridge.sim.netIds()).toHaveLength(0)
+  })
+
+  it('runs two uses of one circuit apart from each other', () => {
+    const inner = inverterCircuit()
+    let doc = addSubcircuit(emptyDoc(), subRefOf(inner), { x: 0, y: 0 }).doc
+    doc = addSubcircuit(doc, subRefOf(inner), { x: 0, y: 8 }).doc
+    doc = addComponent(doc, 'input', { x: -12, y: 0 }).doc
+    doc = addWire(doc, pin('c3', 'out'), pin('c1', 'c1'))!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc, { k2: inner })
+    set(bridge, 'c3', '1')
+    bridge.sim.settle()
+    expect(read(bridge, 'c1/c2')).toBe('0')
+    // Nothing drives the second one, and NOT of nothing is unknown.
+    expect(read(bridge, 'c2/c2')).toBe('X')
+  })
+
+  it('puts a switch on a value and reports the values of the switches', () => {
+    const inner = inverterCircuit()
+    const bridge = new SimBridge()
+    bridge.sim.setRadix(3)
+    bridge.sync(host(inner), { k2: inner })
+    expect(bridge.setInput('c2', 2)).toBe(true)
+    // Only the switches of the drawing itself: the one inside is a pin.
+    expect(bridge.inputValues()).toEqual({ c2: 2 })
+    expect(bridge.setInput('c2', 3)).toBe(false)
+    expect(bridge.setInput('c2', -1)).toBe(false)
+    expect(bridge.setInput('c3', 1)).toBe(false)
+    expect(bridge.setInput('nope', 1)).toBe(false)
+    expect(bridge.inputValues()).toEqual({ c2: 2 })
+  })
+
+  it('has nothing to read at a terminal it does not know', () => {
+    const bridge = new SimBridge()
+    expect(bridge.probeTerminal('nope')).toBeUndefined()
+    bridge.sync(andCircuit())
+    expect(bridge.probeTerminal('nope')).toBeUndefined()
+    expect(bridge.probeTerminal(terminalKey(pin('c3', 'in0')))).toBeDefined()
   })
 })

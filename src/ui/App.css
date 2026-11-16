@@ -3,7 +3,7 @@
   /* minmax(0, ...) keeps wide content, like the palette strip on a phone,
      from stretching the page past the screen. */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
   height: 100%;
 }
 
@@ -114,6 +114,168 @@
   color: var(--text-muted);
 }
 
+/* ---- Buttons with words on them ---- */
+
+.button {
+  height: 28px;
+  padding: 0 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--canvas-bg);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--hover);
+}
+
+.button-main {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.button-main:hover {
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* Red is the color of a conflict on a wire; here it marks the one button
+   that cannot be taken back. */
+.button-danger {
+  border-color: var(--signal-high);
+  color: var(--signal-high);
+}
+
+/* ---- Menu that drops from a tool ---- */
+
+.menu {
+  position: fixed;
+  top: 46px;
+  z-index: 20;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+}
+
+.menu-item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: 100%;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+}
+
+.menu-item:hover {
+  background: var(--hover);
+}
+
+.menu-name {
+  font-weight: 500;
+}
+
+.menu-summary {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+/* ---- Circuit tabs ---- */
+
+.tabs {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 32px;
+  padding: 0 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.tab {
+  display: flex;
+  flex: none;
+  align-items: center;
+  border-bottom: 2px solid transparent;
+  color: var(--text-muted);
+}
+
+.tab-open {
+  border-bottom-color: var(--accent);
+  color: var(--text);
+}
+
+.tab-name {
+  height: 100%;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 6px 6px 0 0;
+  background: transparent;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.tab-name:hover {
+  background: var(--hover);
+}
+
+.tab-input {
+  box-sizing: content-box;
+  height: 22px;
+  margin: 0 3px;
+  padding: 0 6px;
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  background: var(--canvas-bg);
+  color: var(--text);
+  font: inherit;
+  font-weight: 500;
+}
+
+.tab-close {
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  margin: 0 2px 0 -6px;
+  padding: 0;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.tab-close:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.tab-close svg {
+  width: 13px;
+  height: 13px;
+}
+
+.tab-add {
+  flex: none;
+  align-self: center;
+  width: 26px;
+  height: 26px;
+  margin-left: 2px;
+}
+
 /* ---- Workspace ---- */
 
 .workspace {
@@ -168,6 +330,50 @@
   display: block;
   width: 64px;
   height: 40px;
+}
+
+.palette-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.part-circuit {
+  flex-direction: row;
+  gap: 6px;
+  padding: 6px 8px;
+  text-align: left;
+}
+
+.part-circuit svg {
+  flex: none;
+  color: var(--text-muted);
+}
+
+.part-circuit-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.part-off {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.part-off:hover {
+  border-color: var(--border);
+}
+
+.part-off svg {
+  color: var(--text-faint);
+}
+
+.palette-note {
+  margin: 0 2px 16px;
+  color: var(--text-muted);
+  font-size: 12px;
 }
 
 .canvas-wrap {
@@ -264,6 +470,98 @@
 
 .inspector .stepper + .stepper {
   margin-top: 4px;
+}
+
+.inspector .note {
+  max-width: 26ch;
+  margin: 4px 0 8px;
+}
+
+.inspector .note:last-child {
+  margin-bottom: 0;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.field label {
+  flex: 1;
+  color: var(--text-muted);
+}
+
+.field input {
+  width: 124px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--canvas-bg);
+  color: inherit;
+  font: inherit;
+}
+
+/* ---- Dialog: a question that has to be answered first ---- */
+
+.dialog {
+  width: 400px;
+  max-width: calc(100vw - 32px);
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+}
+
+.dialog[open] {
+  animation: dialog-in 140ms ease-out;
+}
+
+.dialog::backdrop {
+  background: rgba(10, 16, 14, 0.45);
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dialog[open] {
+    animation: none;
+  }
+}
+
+.dialog-box {
+  padding: 18px 20px 16px;
+}
+
+.dialog h2 {
+  margin: 0 0 8px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.dialog p {
+  margin: 0 0 6px;
+  color: var(--text-muted);
+}
+
+.dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.dialog .button {
+  height: 32px;
 }
 
 /* ---- Logic settings ---- */
@@ -480,12 +778,11 @@ label.swatch:focus-within {
   font-weight: 500;
 }
 
-/* ---- Narrow screens: the palette becomes a strip above the canvas ---- */
+/* ---- Mid-width screens: the top bar gives up what it can spare ---- */
 
-@media (max-width: 640px) {
-  /* More tools than a phone is wide: the bar scrolls sideways. */
+@media (max-width: 960px) {
+  /* More tools than the bar is wide: it scrolls sideways. */
   .topbar {
-    padding: 0 8px;
     overflow-x: auto;
     scrollbar-width: none;
   }
@@ -494,11 +791,23 @@ label.swatch:focus-within {
     flex: none;
   }
 
-  .spacer {
+  .logic-kit {
     display: none;
   }
 
-  .logic-kit {
+  .tool-group {
+    padding: 0 5px;
+  }
+}
+
+/* ---- Narrow screens: the palette becomes a strip above the canvas ---- */
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0 8px;
+  }
+
+  .spacer {
     display: none;
   }
 
@@ -537,14 +846,33 @@ label.swatch:focus-within {
     display: none;
   }
 
-  .palette-grid {
+  .palette-grid,
+  .palette-list {
     display: flex;
+    flex-direction: row;
     margin-bottom: 0;
+  }
+
+  .palette-note {
+    display: none;
+  }
+
+  .tabs {
+    padding: 0 8px;
   }
 
   .part {
     flex: none;
     width: 72px;
+  }
+
+  .part-circuit {
+    width: auto;
+    max-width: 148px;
+  }
+
+  .statusbar .stored {
+    display: none;
   }
 
   .statusbar .hint {

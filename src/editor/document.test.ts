@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_LABEL,
+  SUB_TYPE,
   addComponent,
+  addSubcircuit,
   addWire,
   connectEnds,
   copyItems,
@@ -10,10 +13,11 @@ import {
   moveItems,
   pasteFragment,
   rotateComponents,
+  setComponentLabel,
   setComponentParams,
   terminalEnd,
 } from './document.ts'
-import type { CircuitDoc, Terminal, WireEnd } from './document.ts'
+import type { CircuitDoc, SubRef, Terminal, WireEnd } from './document.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 const at = (terminal: Terminal): WireEnd => ({ kind: 'terminal', terminal })
@@ -252,5 +256,90 @@ describe('setComponentParams', () => {
   it('rejects a value the part does not allow', () => {
     expect(() => setComponentParams(andCircuit(), 'c3', { inputs: 9 })).toThrow()
     expect(() => setComponentParams(andCircuit(), 'c3', { speed: 1 })).toThrow()
+  })
+})
+
+describe('labels', () => {
+  it('names a part when it is added', () => {
+    const added = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { label: '  Carry in  ' })
+    expect(added.doc.components[added.id].label).toBe('Carry in')
+  })
+
+  it('adds a part without a label when the label is blank', () => {
+    const added = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { label: '   ' })
+    expect('label' in added.doc.components[added.id]).toBe(false)
+  })
+
+  it('names a part later, trimmed and cut to length', () => {
+    const doc = setComponentLabel(andCircuit(), 'c1', `  ${'x'.repeat(40)}  `)
+    expect(doc.components.c1.label).toBe('x'.repeat(MAX_LABEL))
+  })
+
+  it('takes the name away for a blank label', () => {
+    const named = setComponentLabel(andCircuit(), 'c1', 'A')
+    const bare = setComponentLabel(named, 'c1', ' ')
+    expect('label' in bare.components.c1).toBe(false)
+  })
+
+  it('returns the same drawing when the name does not change', () => {
+    const named = setComponentLabel(andCircuit(), 'c1', 'A')
+    expect(setComponentLabel(named, 'c1', ' A ')).toBe(named)
+    expect(setComponentLabel(named, 'nope', 'B')).toBe(named)
+  })
+
+  it('keeps the name through a move, a rotation and a copy', () => {
+    let doc = setComponentLabel(andCircuit(), 'c1', 'A')
+    doc = rotateComponents(moveItems(doc, ['c1'], 2, 2), ['c1'])
+    expect(doc.components.c1.label).toBe('A')
+    const pasted = pasteFragment(doc, copyItems(doc, ['c1']), { x: 4, y: 4 })
+    const copy = pasted.ids.find((id) => id in pasted.doc.components)!
+    expect(pasted.doc.components[copy].label).toBe('A')
+  })
+})
+
+describe('parts that stand for a named circuit', () => {
+  const sub: SubRef = {
+    circuit: 'k2',
+    name: 'Half adder',
+    inputs: [
+      { port: 'c1', label: 'A' },
+      { port: 'c2', label: 'B' },
+    ],
+    outputs: [{ port: 'c5', label: 'S' }],
+  }
+
+  it('adds one with the pins of its circuit', () => {
+    const added = addSubcircuit(emptyDoc(), sub, { x: 3, y: 4 })
+    const part = added.doc.components[added.id]
+    expect(part).toMatchObject({ type: SUB_TYPE, params: {}, pos: { x: 3, y: 4 }, rotation: 0 })
+    expect(part.sub).toBe(sub)
+    expect(added.doc.nextId).toBe(2)
+  })
+
+  it('finds its pins by the id of the part behind each one', () => {
+    const { doc, id } = addSubcircuit(emptyDoc(), sub, { x: 10, y: 10 })
+    expect(terminalEnd(doc, pin(id, 'c1'))?.pos).toEqual({ x: 5, y: 9 })
+    expect(terminalEnd(doc, pin(id, 'c2'))?.pos).toEqual({ x: 5, y: 11 })
+    expect(terminalEnd(doc, pin(id, 'c5'))?.pos).toEqual({ x: 15, y: 10 })
+    expect(terminalEnd(doc, pin(id, 'A'))).toBeUndefined()
+  })
+
+  it('wires to its pins like to any other', () => {
+    let { doc } = addSubcircuit(emptyDoc(), sub, { x: 10, y: 10 })
+    doc = addComponent(doc, 'input', { x: 0, y: 9 }).doc
+    expect(addWire(doc, pin('c2', 'out'), pin('c1', 'c1'))).toBeDefined()
+    expect(addWire(doc, pin('c2', 'out'), pin('c1', 'c9'))).toBeUndefined()
+  })
+
+  it('has no parameters to set', () => {
+    const { doc, id } = addSubcircuit(emptyDoc(), sub, { x: 0, y: 0 })
+    expect(setComponentParams(doc, id, { inputs: 3 })).toBe(doc)
+  })
+
+  it('keeps what it stands for through a copy', () => {
+    const { doc, id } = addSubcircuit(emptyDoc(), sub, { x: 0, y: 0 })
+    const pasted = pasteFragment(doc, copyItems(doc, [id]), { x: 12, y: 0 })
+    const copy = pasted.ids.find((other) => other in pasted.doc.components)!
+    expect(pasted.doc.components[copy].sub).toBe(sub)
   })
 })

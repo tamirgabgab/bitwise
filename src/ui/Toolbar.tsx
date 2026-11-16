@@ -1,6 +1,8 @@
+import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import { findPreset } from '../core/index.ts'
 import {
+  EXAMPLES,
   MAX_ZOOM,
   MIN_ZOOM,
   SIM_SPEEDS,
@@ -14,18 +16,23 @@ import type { SimSpeed } from '../editor/index.ts'
 import {
   BrandMark,
   DeleteIcon,
+  ExamplesIcon,
   MoonIcon,
+  NewIcon,
+  OpenIcon,
   PauseIcon,
   PlayIcon,
   RedoIcon,
   RestartIcon,
   RotateIcon,
+  SaveIcon,
   StepIcon,
   SunIcon,
   UndoIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from './icons.tsx'
+import { openExample, openProjectFile, saveProjectFile, startNewProject } from './persistence.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
 interface ToolButtonProps {
@@ -105,6 +112,97 @@ function SimControls() {
   )
 }
 
+/** The ready-made projects, in a menu that drops from its button. */
+function ExamplesMenu() {
+  const [left, setLeft] = useState<number | null>(null)
+  const button = useRef<HTMLButtonElement>(null)
+  const menu = useRef<HTMLDivElement>(null)
+  const open = left !== null
+
+  useEffect(() => {
+    if (!open) return
+    menu.current?.querySelector<HTMLElement>('[role="menuitem"]')?.focus()
+    const close = (): void => setLeft(null)
+    const onPointer = (event: PointerEvent): void => {
+      const target = event.target as Node
+      if (!menu.current?.contains(target) && !button.current?.contains(target)) close()
+    }
+    const onKey = (event: KeyboardEvent): void => {
+      if (event.code !== 'Escape') return
+      close()
+      button.current?.focus()
+    }
+    window.addEventListener('pointerdown', onPointer)
+    window.addEventListener('keydown', onKey)
+    window.addEventListener('resize', close)
+    return () => {
+      window.removeEventListener('pointerdown', onPointer)
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('resize', close)
+    }
+  }, [open])
+
+  /** Moves the focus along the menu with the arrow keys. */
+  const step = (by: number): void => {
+    const items = [...(menu.current?.querySelectorAll<HTMLElement>('[role="menuitem"]') ?? [])]
+    const index = items.indexOf(document.activeElement as HTMLElement)
+    items[(index + by + items.length) % items.length]?.focus()
+  }
+
+  return (
+    <>
+      <button
+        ref={button}
+        type="button"
+        className="tool"
+        aria-label="Open an example"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        title="Open an example"
+        onClick={() => {
+          // The bar can scroll sideways on a phone, so the menu is placed on
+          // the screen and not inside the bar.
+          const rect = button.current?.getBoundingClientRect()
+          setLeft(open || !rect ? null : Math.max(8, Math.min(rect.left, window.innerWidth - 308)))
+        }}
+      >
+        <ExamplesIcon />
+      </button>
+      {open && (
+        <div
+          ref={menu}
+          className="menu"
+          role="menu"
+          aria-label="Examples"
+          style={{ left }}
+          onKeyDown={(event) => {
+            if (event.code === 'ArrowDown') step(1)
+            else if (event.code === 'ArrowUp') step(-1)
+            else return
+            event.preventDefault()
+          }}
+        >
+          {EXAMPLES.map((example) => (
+            <button
+              key={example.id}
+              type="button"
+              role="menuitem"
+              className="menu-item"
+              onClick={() => {
+                setLeft(null)
+                void openExample(example)
+              }}
+            >
+              <span className="menu-name">{example.name}</span>
+              <span className="menu-summary">{example.summary}</span>
+            </button>
+          ))}
+        </div>
+      )}
+    </>
+  )
+}
+
 interface ToolbarProps {
   settingsOpen: boolean
   onToggleSettings: () => void
@@ -134,6 +232,19 @@ export function Toolbar({ settingsOpen, onToggleSettings }: ToolbarProps) {
         <BrandMark />
         <span className="brand-name">Cedar Logic</span>
       </h1>
+
+      <div className="tool-group">
+        <ToolButton label="New project" onClick={() => void startNewProject()}>
+          <NewIcon />
+        </ToolButton>
+        <ToolButton label="Open a project file" shortcut="Ctrl+O" onClick={() => void openProjectFile()}>
+          <OpenIcon />
+        </ToolButton>
+        <ToolButton label="Save the project as a file" shortcut="Ctrl+S" onClick={saveProjectFile}>
+          <SaveIcon />
+        </ToolButton>
+        <ExamplesMenu />
+      </div>
 
       <div className="tool-group">
         <ToolButton label="Undo" shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo}>

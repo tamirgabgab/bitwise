@@ -29,6 +29,27 @@ export interface ComponentSymbol {
   readonly label?: SymbolLabel
   /** A patch that shows a live value: the face of a switch, a lamp. */
   readonly face?: SymbolFace
+  /** More writing on the body, such as the pin names of a named circuit. */
+  readonly notes?: readonly SymbolLabel[]
+}
+
+/** The type of a part that stands for a named circuit. */
+export const SUB_TYPE = 'circuit'
+
+/** One pin of a named circuit, as a part that stands for it shows it. */
+export interface SubPin {
+  /** The port name: the id of the switch or output inside the circuit. */
+  readonly port: string
+  readonly label: string
+}
+
+/** What a part that stands for a named circuit knows about that circuit. */
+export interface SubRef {
+  /** Id of the circuit. */
+  readonly circuit: string
+  readonly name: string
+  readonly inputs: readonly SubPin[]
+  readonly outputs: readonly SubPin[]
 }
 
 export interface SymbolLabel {
@@ -396,6 +417,92 @@ function buildSymbol(type: string, params: Readonly<Record<string, number>>): Co
     default:
       return boxSymbol(type, params)
   }
+}
+
+/** Shortens writing that would not fit, marking the cut. */
+function clip(text: string, max: number): string {
+  return text.length > max ? `${text.slice(0, max - 1)}…` : text
+}
+
+/**
+ * A named circuit used as a part: a box with the circuit's name on top, its
+ * inputs down the left side and its outputs down the right.
+ */
+function chipSymbol(sub: SubRef): ComponentSymbol {
+  const inRows = inputRows(Math.max(sub.inputs.length, 1))
+  const outRows = inputRows(Math.max(sub.outputs.length, 1))
+  const half = Math.max(1, inRows[inRows.length - 1], outRows[outRows.length - 1]) + 0.5
+  // The name gets a strip of its own above the pin rows.
+  const top = 0 - half - 1.5
+
+  const pins: PinGeometry[] = [
+    ...sub.inputs.map((pin, index): PinGeometry => ({
+      name: pin.port,
+      direction: 'in',
+      pos: { x: -5, y: inRows[index] },
+      dir: LEFT,
+    })),
+    ...sub.outputs.map((pin, index): PinGeometry => ({
+      name: pin.port,
+      direction: 'out',
+      pos: { x: 5, y: outRows[index] },
+      dir: RIGHT,
+    })),
+  ]
+  const notes: SymbolLabel[] = [
+    { text: clip(sub.name, 14), pos: { x: 0, y: top + 0.8 }, size: 0.78 },
+    ...sub.inputs.map((pin, index): SymbolLabel => ({
+      text: clip(pin.label, 5),
+      pos: { x: -2.9, y: inRows[index] },
+      size: 0.6,
+    })),
+    ...sub.outputs.map((pin, index): SymbolLabel => ({
+      text: clip(pin.label, 5),
+      pos: { x: 2.9, y: outRows[index] },
+      size: 0.6,
+    })),
+  ]
+
+  return {
+    pins,
+    notes,
+    bounds: { x0: -5, y0: top, x1: 5, y1: half },
+    draw(ctx) {
+      ctx.beginPath()
+      for (const pin of pins) {
+        ctx.moveTo(pin.pos.x, pin.pos.y)
+        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y)
+      }
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.roundRect(-4, top, 8, half - top, 0.3)
+      ctx.fill()
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(-4, top + 1.5)
+      ctx.lineTo(4, top + 1.5)
+      ctx.stroke()
+    },
+  }
+}
+
+const UNKNOWN_CIRCUIT: SubRef = { circuit: '', name: '?', inputs: [], outputs: [] }
+const chips = new WeakMap<SubRef, ComponentSymbol>()
+
+/** The symbol of a part of the drawing, whether built in or a named circuit. */
+export function symbolOf(part: {
+  readonly type: string
+  readonly params: Readonly<Record<string, number>>
+  readonly sub?: SubRef
+}): ComponentSymbol {
+  if (part.type !== SUB_TYPE) return symbolFor(part.type, part.params)
+  const sub = part.sub ?? UNKNOWN_CIRCUIT
+  let symbol = chips.get(sub)
+  if (!symbol) {
+    symbol = chipSymbol(sub)
+    chips.set(sub, symbol)
+  }
+  return symbol
 }
 
 const cache = new Map<string, ComponentSymbol>()

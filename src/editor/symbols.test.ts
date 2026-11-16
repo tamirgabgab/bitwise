@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { builtinComponents, resolveParams } from '../core/index.ts'
 import { rectContainsPoint } from './geometry.ts'
-import { inputRows, symbolFor } from './symbols.ts'
+import { SUB_TYPE, inputRows, symbolFor, symbolOf } from './symbols.ts'
+import type { SubRef } from './symbols.ts'
 
 /** Every built-in type, and every input count a gate can have. */
 function allVariants(): { type: string; params: Readonly<Record<string, number>> }[] {
@@ -97,5 +98,77 @@ describe('symbolFor', () => {
     const small = symbolFor('or', resolveParams(def, { inputs: 2 }))
     const large = symbolFor('or', resolveParams(def, { inputs: 8 }))
     expect(large.bounds.y1).toBeGreaterThan(small.bounds.y1)
+  })
+})
+
+describe('symbolOf', () => {
+  const sub: SubRef = {
+    circuit: 'k2',
+    name: 'Full adder',
+    inputs: [
+      { port: 'c1', label: 'A' },
+      { port: 'c2', label: 'B' },
+      { port: 'c3', label: 'Carry in' },
+    ],
+    outputs: [
+      { port: 'c7', label: 'S' },
+      { port: 'c8', label: 'Cout' },
+    ],
+  }
+  const chip = symbolOf({ type: SUB_TYPE, params: {}, sub })
+
+  it('is the built-in symbol for a built-in part', () => {
+    const params = resolveParams(builtinComponents.get('and'))
+    expect(symbolOf({ type: 'and', params })).toBe(symbolFor('and', params))
+  })
+
+  it('gives a named circuit a pin for each of its inputs and outputs', () => {
+    expect(chip.pins.map((pin) => [pin.name, pin.direction])).toEqual([
+      ['c1', 'in'],
+      ['c2', 'in'],
+      ['c3', 'in'],
+      ['c7', 'out'],
+      ['c8', 'out'],
+    ])
+  })
+
+  it('puts inputs on the left and outputs on the right, each on a grid point', () => {
+    const seen = new Set<string>()
+    for (const pin of chip.pins) {
+      expect(pin.pos.x).toBe(pin.direction === 'in' ? -5 : 5)
+      expect(Number.isInteger(pin.pos.y)).toBe(true)
+      expect(rectContainsPoint(chip.bounds, pin.pos)).toBe(true)
+      seen.add(`${pin.pos.x},${pin.pos.y}`)
+    }
+    expect(seen.size).toBe(chip.pins.length)
+  })
+
+  it('writes the name of the circuit and of every pin, shortened to fit', () => {
+    expect(chip.notes?.map((note) => note.text)).toEqual([
+      'Full adder',
+      'A',
+      'B',
+      'Carr…',
+      'S',
+      'Cout',
+    ])
+    const long = symbolOf({ type: SUB_TYPE, params: {}, sub: { ...sub, name: 'x'.repeat(24) } })
+    expect(long.notes?.[0].text).toBe(`${'x'.repeat(13)}…`)
+  })
+
+  it('grows with the number of pins', () => {
+    const small = symbolOf({ type: SUB_TYPE, params: {}, sub: { ...sub, inputs: [], outputs: [] } })
+    const many = Array.from({ length: 6 }, (_, i) => ({ port: `c${i + 10}`, label: `I${i}` }))
+    const large = symbolOf({ type: SUB_TYPE, params: {}, sub: { ...sub, inputs: many } })
+    expect(large.bounds.y1).toBeGreaterThan(small.bounds.y1)
+    expect(small.pins).toEqual([])
+  })
+
+  it('returns the same symbol for the same reference', () => {
+    expect(symbolOf({ type: SUB_TYPE, params: {}, sub })).toBe(chip)
+  })
+
+  it('still draws a part that has lost its reference', () => {
+    expect(symbolOf({ type: SUB_TYPE, params: {} }).pins).toEqual([])
   })
 })

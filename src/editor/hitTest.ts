@@ -9,7 +9,7 @@ import {
   snapPoint,
 } from './geometry.ts'
 import type { Point, Rect } from './geometry.ts'
-import { symbolFor } from './symbols.ts'
+import { symbolOf } from './symbols.ts'
 import { wirePath } from './wireLayout.ts'
 
 /** What the pointer is over. */
@@ -27,8 +27,27 @@ const WIRE_REACH = 0.35
 export function componentBounds(doc: CircuitDoc, id: string): Rect | undefined {
   const component = doc.components[id]
   if (!component) return undefined
-  const symbol = symbolFor(component.type, component.params)
+  const symbol = symbolOf(component)
   return placeRect(symbol.bounds, component.pos, component.rotation)
+}
+
+/** The smallest rectangle around everything drawn, or undefined if empty. */
+export function docBounds(doc: CircuitDoc): Rect | undefined {
+  let x0 = Infinity
+  let y0 = Infinity
+  let x1 = -Infinity
+  let y1 = -Infinity
+  const grow = (rect: Rect): void => {
+    x0 = Math.min(x0, rect.x0)
+    y0 = Math.min(y0, rect.y0)
+    x1 = Math.max(x1, rect.x1)
+    y1 = Math.max(y1, rect.y1)
+  }
+  for (const id of Object.keys(doc.components)) grow(componentBounds(doc, id)!)
+  for (const { pos } of Object.values(doc.junctions)) {
+    grow({ x0: pos.x, y0: pos.y, x1: pos.x, y1: pos.y })
+  }
+  return x0 === Infinity ? undefined : { x0, y0, x1, y1 }
 }
 
 /**
@@ -42,7 +61,7 @@ export function hitTest(doc: CircuitDoc, p: Point): Hit | null {
     }
   }
   for (const component of Object.values(doc.components)) {
-    const symbol = symbolFor(component.type, component.params)
+    const symbol = symbolOf(component)
     for (const pin of symbol.pins) {
       const terminal: Terminal = { kind: 'pin', component: component.id, port: pin.name }
       const end = terminalEnd(doc, terminal)

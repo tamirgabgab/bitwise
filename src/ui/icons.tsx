@@ -100,6 +100,41 @@ export const CloseIcon = () => (
   </Icon>
 )
 
+export const PlusIcon = ZoomInIcon
+
+export const NewIcon = () => (
+  <Icon>
+    <path d="M10.5 2.5H5v13h9V6Z" />
+    <path d="M10.5 2.5V6H14M9.5 8.8v4M7.5 10.8h4" />
+  </Icon>
+)
+
+export const OpenIcon = () => (
+  <Icon>
+    <path d="M2.5 14.5v-10h4.2l1.5 1.8h7.3v8.2Z" />
+  </Icon>
+)
+
+export const SaveIcon = () => (
+  <Icon>
+    <path d="M9 2.5v8.5M5.5 7.6 9 11l3.5-3.4M3 12.5v3h12v-3" />
+  </Icon>
+)
+
+export const ExamplesIcon = () => (
+  <Icon>
+    <path d="M9 5v10M9 5a2 2 0 0 0-2-1.5H2.5v10H7A2 2 0 0 1 9 15M9 5a2 2 0 0 1 2-1.5h4.5v10H11A2 2 0 0 0 9 15" />
+  </Icon>
+)
+
+/** A box with pins: a circuit used as a part. */
+export const ChipIcon = () => (
+  <Icon>
+    <path d="M5.5 3.5h7v11h-7Z" />
+    <path d="M2.5 6.5h3M2.5 11.5h3M12.5 9h3" />
+  </Icon>
+)
+
 /** The AND gate that stands for the app itself. */
 export const BrandMark = () => (
   <svg

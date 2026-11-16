@@ -1,4 +1,4 @@
-import type { Point } from './geometry.ts'
+import type { Point, Rect } from './geometry.ts'
 
 /** Screen pixels per grid unit at 100% zoom. */
 export const UNIT = 16
@@ -23,6 +23,26 @@ export function screenToWorld(view: View, x: number, y: number): Point {
 export function worldToScreen(view: View, p: Point): Point {
   const scale = UNIT * view.zoom
   return { x: p.x * scale + view.panX, y: p.y * scale + view.panY }
+}
+
+/** Screen pixels left free around a drawing that is fitted to the canvas. */
+const FIT_MARGIN = 40
+
+/**
+ * The view that shows all of `bounds`, centred, on a canvas of the given
+ * size. It zooms out as far as needed but never in past 100%.
+ */
+export function fitView(bounds: Rect, width: number, height: number): View {
+  const spanX = Math.max(bounds.x1 - bounds.x0, 1) * UNIT
+  const spanY = Math.max(bounds.y1 - bounds.y0, 1) * UNIT
+  const room = (size: number): number => Math.max(size - 2 * FIT_MARGIN, 1)
+  const zoom = Math.min(1, Math.max(MIN_ZOOM, Math.min(room(width) / spanX, room(height) / spanY)))
+  const scale = UNIT * zoom
+  return {
+    zoom,
+    panX: Math.round(width / 2 - ((bounds.x0 + bounds.x1) / 2) * scale),
+    panY: Math.round(height / 2 - ((bounds.y0 + bounds.y1) / 2) * scale),
+  }
 }
 
 /** Zooms by `factor`, keeping the world point under screen (x, y) in place. */
