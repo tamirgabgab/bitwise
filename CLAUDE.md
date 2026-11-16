@@ -98,6 +98,13 @@ Run lint, test and build before calling a change done. CI runs the same three.
   parameter properties. Use union types and `as const` objects.
 - Relative imports include the `.ts` / `.tsx` extension.
 
+## Starting a session
+
+- Each task usually starts in a fresh session. Before starting work, read
+  `HANDOFF.md` from the top through the end of section 2 (goals and current
+  state). Read the decisions log after it only when the task touches those
+  areas. Do not load the whole file by default; it is long.
+
 ## Git workflow
 
 - Work directly on `main` and push to `origin/main` after every completed
