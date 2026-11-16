@@ -42,6 +42,9 @@ Run lint, test and build before calling a change done. CI runs the same three.
   failing tree.
 - Keep `HANDOFF.md` (written in Hebrew) current at the end of a work session,
   and update the status line in `docs/PLAN.md` when a phase is finished.
+- The push rule wins over any other instruction that says not to commit. In
+  particular, the handoff skill's "do not commit" line does not apply here:
+  `HANDOFF.md` is committed and pushed like everything else.
 
 ## Licensing
 
