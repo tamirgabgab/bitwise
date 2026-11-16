@@ -275,6 +275,18 @@ How it was built, and choices made along the way:
 - SR latch, and D, JK and T flip-flops with asynchronous Set/Reset. How a
   clock edge and a flip-flop behave above radix 2 is a question for the
   owner at the start of this phase.
+- Examples: a 4-bit binary counter from JK flip-flops (the MVP test), and a
+  ternary counter from T flip-flops.
+
+Added by the owner to this phase:
+
+- **A small timing diagram.** A panel that shows chosen wires over the last
+  ticks, oscilloscope style. A first, small version of the timing diagram
+  listed after the MVP.
+- **A number display.** An output part with several inputs that shows them
+  as one number, in the circuit's radix.
+- **Step to the next clock edge.** A step button that runs until the next
+  edge of the clock instead of one tick.
 
 ### Phase 6: polish
 
