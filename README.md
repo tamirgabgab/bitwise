@@ -18,12 +18,17 @@ What works today:
   choose the kit of universal gates to build with: NAND, NOR (Webb),
   Post (Shift + AND), Kleene + Shift, detectors, or field arithmetic when n
   is prime. At radix 2 every kit behaves exactly like Boolean logic.
+- **Named circuits.** A project holds several circuits in tabs. Any circuit
+  can be used as a part of another: its switches become input pins and its
+  outputs output pins. A change to a circuit shows everywhere it is used.
+- **Saving.** The project is kept in the browser as you work, and can be
+  saved to and opened from a JSON file. Two ready-made examples are in the
+  top bar.
 - **Simulation core.** Unknown (X) and floating (Z) values next to the
   digits, driver conflicts, and an event-driven engine with per-component
   delays.
 
-Saving a project and reusing named circuits is next, then clocks and
-flip-flops; see [docs/PLAN.md](docs/PLAN.md) for the roadmap and
+Clocks and flip-flops are next; see [docs/PLAN.md](docs/PLAN.md) for the roadmap and
 [docs/n_ary_logic_sim_spec.md](docs/n_ary_logic_sim_spec.md) (in Hebrew) for
 the mathematics behind the gate kits.
 

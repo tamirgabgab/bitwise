@@ -49,6 +49,8 @@ Run lint, test and build before calling a change done. CI runs the same three.
   the whole circuit back in that state.
 - The simulator generates numeric component and net ids. The editor keeps
   its own ids and maps them.
+- The core knows nothing about named circuits. The editor flattens them
+  first (`flatten.ts`), so do not add hierarchy to the engine.
 
 ## Editor model
 
@@ -71,9 +73,18 @@ Run lint, test and build before calling a change done. CI runs the same three.
   `useEditor` store.
 - Project settings (radix, gate kit, sandbox, value colors) live in the
   `useEditor` store next to the document. They are not part of undo.
+- A project holds several circuits (`circuits`, `order`, `active`). The open
+  one's drawing is `doc`, and `circuits[active].doc` is always the same
+  object. Each circuit has its own undo history and view.
+- A part of type `SUB_TYPE` stands for another circuit of the project. It
+  caches that circuit's name and pins as a `SubRef`; `reconcileAll`
+  (`subcircuit.ts`) brings every drawing up to date after each edit. Its
+  pins are the circuit's switches and output parts, by part id. A circuit
+  must never contain itself: check `canPlace` before adding one.
 - The value of a switch lives in the simulator, not in the document, so
   toggling one is not an edit and is not undone.
-- `session.ts` owns the one `SimBridge` and the run loop. `SimRunner` turns
+- `session.ts` owns one `SimBridge` per circuit and the run loop; only the
+  open circuit runs. `SimRunner` turns
   wall-clock time into ticks; time moves only while a change is waiting, and
   a frame simulates at most 2000 ticks. `useSim` holds what the chrome shows
   (running, speed, tick, conflicts).
@@ -94,6 +105,10 @@ Run lint, test and build before calling a change done. CI runs the same three.
   must not touch the engine.
 - Saved files carry `FILE_FORMAT_VERSION`. A breaking format change bumps it
   and adds a migration from the previous version.
+- The file shape is described twice: `src/io/projectFile.ts` (strict parse
+  with user-facing errors) and `src/editor/project.ts` (lenient load). They
+  do not import each other and meet in `src/ui` (`persistence.ts`); change
+  both together, and `projectRoundTrip.test.ts` checks they still match.
 - TypeScript runs with `erasableSyntaxOnly`: no enums, namespaces or
   parameter properties. Use union types and `as const` objects.
 - Relative imports include the `.ts` / `.tsx` extension.

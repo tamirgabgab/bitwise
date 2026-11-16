@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 3 are done. Phase 4 (saving and named circuits) is next.
+Status: Phases 0 to 4 are done. Phase 5 (sequential logic) is next.
 
 ## Decisions
 
@@ -223,7 +223,7 @@ Known limits:
 - Buses are simulated but cannot be drawn: every part in the editor is one
   digit wide.
 
-### Phase 4: saving and named circuits
+### Phase 4: saving and named circuits (done)
 
 - Save to and load from a JSON file, and autosave in the browser. The file
   stores the radix, the kit and the palette. A file without a radix loads
@@ -231,6 +231,42 @@ Known limits:
 - Named circuits: package a drawing under a name and use it as a part. A
   named circuit is valid for the radix it was built in.
 - A few ready-made example circuits.
+
+The owner's decisions, asked before the work started:
+
+- A project holds several circuits, each in its own tab. Every other circuit
+  of the project shows in the palette and can be dragged in as a part.
+- A circuit's pins are its switches (inputs) and its output parts
+  (outputs), named by the labels the user gives them.
+- Every use is a reference to the original: a change to the circuit shows
+  everywhere it is used. A wire on a pin that is deleted is disconnected.
+- Named circuits live inside the project file; one file holds everything.
+
+How it was built, and choices made along the way:
+
+- The core is untouched. `src/editor/flatten.ts` expands every named-circuit
+  part, as deep as it goes, into plain parts keyed by path (`c7/c3`) before
+  `SimBridge` diffs it into the simulator. Inside a circuit, its switches
+  and outputs are nodes, not parts.
+- A named-circuit part caches its circuit's name and pins (`SubRef`) in the
+  document, and `reconcileAll` updates every drawing after each edit, so
+  the symbol of a part stays a pure function of the part.
+- A circuit can never contain itself, directly or through others: placing,
+  pasting and loading all check it.
+- A push button inside a circuit stays inside; only switches become pins.
+  Unlabeled pins are named `in1`, `out1` and so on, ordered top to bottom,
+  then left to right.
+- Each circuit has its own simulator, undo history and view; only the open
+  one runs. Changing the radix restarts every circuit.
+- Deleting a circuit removes its uses elsewhere and cannot be undone, so it
+  asks first. Circuit names and project settings are not part of undo.
+- The file (format version 1) also keeps each circuit's view and switch
+  values. `src/io` parses strictly with messages meant for the user; the
+  editor loads leniently. The two describe the same shapes without importing
+  each other and meet in `src/ui`, where a test holds them together.
+- Two examples: a two-bit binary adder built from half and full adders, and
+  ternary Max, Is zero and Equal built from the Kleene + Shift kit, each
+  checked against its truth table.
 
 ### Phase 5: sequential logic
 
