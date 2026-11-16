@@ -98,6 +98,9 @@ export class Simulator {
   private seq = 0
   private nextComponentId = 1
   private nextNetId = 1
+  private batchDepth = 0
+  private readonly batchedNets = new Set<NetId>()
+  private readonly batchedInstances = new Set<Instance>()
 
   constructor(registry: ComponentRegistry = builtinComponents) {
     this.registry = registry
@@ -144,8 +147,30 @@ export class Simulator {
       ports,
     }
     this.instances.set(instance.id, instance)
-    this.evaluate(instance)
+    this.propagate([], [instance])
     return instance.id
+  }
+
+  /**
+   * Applies several edits as one. Nets are recomputed and components are
+   * evaluated once, after the last edit, so no component ever sees a
+   * half-finished circuit (a pin that is detached only to be attached to
+   * another net a moment later never reads as floating).
+   */
+  batch(edit: () => void): void {
+    this.batchDepth++
+    try {
+      edit()
+    } finally {
+      this.batchDepth--
+      if (this.batchDepth === 0) {
+        const nets = [...this.batchedNets]
+        const instances = [...this.batchedInstances]
+        this.batchedNets.clear()
+        this.batchedInstances.clear()
+        this.propagate(nets, instances)
+      }
+    }
   }
 
   removeComponent(id: ComponentId): void {
@@ -434,6 +459,11 @@ export class Simulator {
    * every component reading a net whose value changed, plus `also`.
    */
   private propagate(netIds: Iterable<NetId>, also: Iterable<Instance> = []): void {
+    if (this.batchDepth > 0) {
+      for (const id of netIds) this.batchedNets.add(id)
+      for (const instance of also) this.batchedInstances.add(instance)
+      return
+    }
     const dirty = new Set<Instance>(also)
     for (const id of netIds) {
       const net = this.nets.get(id)
@@ -443,7 +473,10 @@ export class Simulator {
         if (this.port(instance, pin.port).spec.direction === 'in') dirty.add(instance)
       }
     }
-    for (const instance of dirty) this.evaluate(instance)
+    for (const instance of dirty) {
+      // A batch may have removed a component after queueing it.
+      if (this.instances.get(instance.id) === instance) this.evaluate(instance)
+    }
   }
 
   /** Recomputes a net from its drivers. Returns true if its value changed. */

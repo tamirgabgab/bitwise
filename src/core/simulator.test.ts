@@ -394,6 +394,73 @@ describe('editing a circuit while it runs', () => {
   })
 })
 
+describe('batched edits', () => {
+  it('moves a pin between nets without it ever reading as floating', () => {
+    const sim = new Simulator()
+    const a = sim.addComponent('input')
+    const b = sim.addComponent('input')
+    const gate = sim.addComponent('buffer')
+    sim.connect(pin(a, 'out'), pin(gate, 'in'))
+    const other = sim.addNet()
+    sim.attach(pin(b, 'out'), other)
+    sim.settle()
+    expect(read(sim, gate)).toBe('0')
+
+    // Both nets carry 0, so the buffer's output must not change at all.
+    sim.batch(() => {
+      sim.detach(pin(gate, 'in'))
+      sim.attach(pin(gate, 'in'), other)
+    })
+    expect(sim.pendingEvents).toBe(0)
+    expect(read(sim, gate)).toBe('0')
+  })
+
+  it('evaluates against the final circuit when the edits change a value', () => {
+    const sim = new Simulator()
+    const a = sim.addComponent('input')
+    const b = sim.addComponent('input')
+    const gate = sim.addComponent('buffer')
+    sim.connect(pin(a, 'out'), pin(gate, 'in'))
+    const other = sim.addNet()
+    sim.attach(pin(b, 'out'), other)
+    set(sim, b, '1')
+    sim.settle()
+
+    sim.batch(() => {
+      sim.detach(pin(gate, 'in'))
+      sim.attach(pin(gate, 'in'), other)
+    })
+    sim.step()
+    expect(read(sim, gate)).toBe('1')
+    expect(sim.pendingEvents).toBe(0)
+  })
+
+  it('copes with a component that is added and removed in one batch', () => {
+    const sim = new Simulator()
+    sim.batch(() => {
+      const gate = sim.addComponent('not')
+      sim.removeComponent(gate)
+    })
+    expect(sim.componentIds()).toEqual([])
+    expect(sim.settle()).toBe(true)
+  })
+
+  it('still applies the edits when the callback throws', () => {
+    const sim = new Simulator()
+    const input = sim.addComponent('input')
+    const gate = sim.addComponent('not')
+    sim.settle()
+    expect(() =>
+      sim.batch(() => {
+        sim.connect(pin(input, 'out'), pin(gate, 'in'))
+        throw new Error('stop')
+      }),
+    ).toThrow('stop')
+    sim.settle()
+    expect(read(sim, gate)).toBe('1')
+  })
+})
+
 describe('errors and lookups', () => {
   it('rejects unknown types, components, nets and ports', () => {
     const sim = new Simulator()

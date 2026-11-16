@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest'
+import { builtinComponents, resolveParams } from '../core/index.ts'
+import { rectContainsPoint } from './geometry.ts'
+import { inputRows, symbolFor } from './symbols.ts'
+
+/** Every built-in type, and every input count a gate can have. */
+function allVariants(): { type: string; params: Readonly<Record<string, number>> }[] {
+  const variants: { type: string; params: Readonly<Record<string, number>> }[] = []
+  for (const type of builtinComponents.types()) {
+    const def = builtinComponents.get(type)
+    const inputs = def.params?.inputs
+    if (!inputs) {
+      variants.push({ type, params: resolveParams(def) })
+      continue
+    }
+    for (let count = inputs.min; count <= inputs.max; count++) {
+      variants.push({ type, params: resolveParams(def, { inputs: count }) })
+    }
+  }
+  return variants
+}
+
+describe('inputRows', () => {
+  it('centres the rows and keeps the middle free for an even count', () => {
+    expect(inputRows(1)).toEqual([0])
+    expect(inputRows(2)).toEqual([-1, 1])
+    expect(inputRows(3)).toEqual([-1, 0, 1])
+    expect(inputRows(4)).toEqual([-2, -1, 1, 2])
+  })
+})
+
+describe('symbolFor', () => {
+  it('has exactly the pins the simulator knows, with the same directions', () => {
+    for (const { type, params } of allVariants()) {
+      const ports = builtinComponents.get(type).ports(params)
+      const pins = symbolFor(type, params).pins
+      expect(pins.map((pin) => `${pin.name}:${pin.direction}`).sort()).toEqual(
+        ports.map((port) => `${port.name}:${port.direction}`).sort(),
+      )
+    }
+  })
+
+  it('puts every pin on its own grid point, inside the bounds', () => {
+    for (const { type, params } of allVariants()) {
+      const symbol = symbolFor(type, params)
+      const taken = new Set<string>()
+      for (const pin of symbol.pins) {
+        expect(Number.isInteger(pin.pos.x) && Number.isInteger(pin.pos.y)).toBe(true)
+        expect(rectContainsPoint(symbol.bounds, pin.pos)).toBe(true)
+        expect(Math.abs(pin.dir.x) + Math.abs(pin.dir.y)).toBe(1)
+        taken.add(`${pin.pos.x},${pin.pos.y}`)
+      }
+      expect(taken.size).toBe(symbol.pins.length)
+    }
+  })
+
+  it('returns the same symbol for the same type and parameters', () => {
+    const params = resolveParams(builtinComponents.get('and'))
+    expect(symbolFor('and', params)).toBe(symbolFor('and', { ...params }))
+    expect(symbolFor('and', params)).not.toBe(symbolFor('nand', params))
+  })
+
+  it('grows a gate to fit its inputs', () => {
+    const def = builtinComponents.get('or')
+    const small = symbolFor('or', resolveParams(def, { inputs: 2 }))
+    const large = symbolFor('or', resolveParams(def, { inputs: 8 }))
+    expect(large.bounds.y1).toBeGreaterThan(small.bounds.y1)
+  })
+})

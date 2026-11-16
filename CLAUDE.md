@@ -38,9 +38,33 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - The simulator generates numeric component and net ids. The editor keeps
   its own ids and maps them.
 
+## Editor model
+
+- The drawing is an immutable `CircuitDoc` (`src/editor/document.ts`): parts
+  with a position and rotation, junctions, and wires between terminals. An
+  edit returns a new document, and undo and redo step through old ones.
+- Positions are in grid units. Pins and junctions sit on whole numbers. One
+  unit is 16 px at 100% zoom.
+- A wire stores only its two ends, each a pin or a junction. Its path is
+  never saved: `wireLayout.ts` routes all wires of a document together, so
+  wires of different nets do not touch, and caches the result per document.
+- Nets are derived from the wires (`connectivity.ts`). `SimBridge` applies
+  only the difference to the simulator, inside `sim.batch`, so untouched
+  parts keep their state while the user edits. Do not rebuild the simulator
+  from scratch on an edit.
+- Symbols (`symbols.ts`) own the pin positions. Pin names must match the
+  port names in `src/core`; a test checks this for every built-in type.
+- `CanvasController` owns pointer and keyboard input for the canvas. React
+  draws only the chrome around it and reaches the editor through the
+  `useEditor` store.
+- Canvas colors come from CSS variables in `src/index.css`. Amber is the
+  only accent color; red, green and blue are reserved for signal values.
+- Keyboard shortcuts match on `event.code`, so they work on any layout.
+
 ## Conventions
 
 - Every behavior in `src/core` gets a unit test next to it (`*.test.ts`).
+  Editor logic that is not drawing or input handling is tested the same way.
 - Components (gates, flip-flops, ...) are defined as data plus a pure
   `evaluate` function, one file per component family under
   `src/core/components`, and registered in `components/index.ts`. Adding one

@@ -1,44 +1,252 @@
 .app {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  /* minmax(0, ...) keeps wide content, like the palette strip on a phone,
+     from stretching the page past the screen. */
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr) auto;
   height: 100%;
 }
 
-.app-header {
+/* ---- Top bar ---- */
+
+.topbar {
   display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 12px 16px;
+  align-items: center;
+  height: 44px;
+  padding: 0 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
 
-.app-title {
-  margin: 0;
-  font-size: 18px;
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 14px 0 0;
+  font-size: 15px;
   font-weight: 600;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
 }
 
-.app-meta {
-  font-size: 13px;
+.brand svg {
+  color: var(--accent);
+}
+
+.tool-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 8px;
+  border-left: 1px solid var(--border);
+}
+
+.tool-group:last-child {
+  padding-right: 0;
+}
+
+.tool {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.tool:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.tool:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.zoom-readout {
+  width: auto;
+  min-width: 52px;
+  padding: 0 6px;
+  font-variant-numeric: tabular-nums;
+}
+
+.spacer {
+  flex: 1;
+}
+
+/* ---- Workspace ---- */
+
+.workspace {
+  display: flex;
+  min-height: 0;
+}
+
+.palette {
+  flex: none;
+  width: 168px;
+  padding: 12px 10px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+}
+
+.palette h2 {
+  margin: 0 2px 6px;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--text-muted);
 }
 
-.app-main {
-  flex: 1;
+.palette-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.part {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 16px;
-  text-align: center;
+  gap: 1px;
+  padding: 5px 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--canvas-bg);
+  font-size: 12px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
 }
 
-.app-main p {
+.part:hover {
+  border-color: var(--accent);
+}
+
+.part canvas {
+  display: block;
+  width: 64px;
+  height: 40px;
+}
+
+.canvas-wrap {
+  position: relative;
+  flex: 1;
+  min-width: 0;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  outline: none;
+  touch-action: none;
+}
+
+.canvas:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.empty-hint {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  color: var(--text-muted);
+  font-size: 14px;
+  text-align: center;
+  pointer-events: none;
+}
+
+.empty-hint p {
+  max-width: 34ch;
   margin: 0;
 }
 
-.app-hint {
-  font-size: 14px;
+/* ---- Status bar ---- */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  height: 28px;
+  padding: 0 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   color: var(--text-muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.statusbar .hint {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.statusbar .counts {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---- Narrow screens: the palette becomes a strip above the canvas ---- */
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0 8px;
+  }
+
+  .brand {
+    margin-right: 8px;
+  }
+
+  /* Out of sight to make room for the tools, still read out as the heading. */
+  .brand-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .tool-group {
+    padding: 0 4px;
+  }
+
+  .workspace {
+    flex-direction: column;
+  }
+
+  .palette {
+    display: flex;
+    gap: 6px;
+    width: auto;
+    padding: 8px 12px;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .palette h2 {
+    display: none;
+  }
+
+  .palette-grid {
+    display: flex;
+    margin-bottom: 0;
+  }
+
+  .part {
+    flex: none;
+    width: 72px;
+  }
+
+  .statusbar .hint {
+    display: none;
+  }
 }

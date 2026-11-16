@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 and 1 are done. Phase 2 is next.
+Status: Phases 0, 1 and 2 are done. Phase 3 is next.
 
 ## Decisions
 
@@ -17,7 +17,7 @@ Status: Phases 0 and 1 are done. Phase 2 is next.
 | License | MIT, as a clean implementation (see "Licensing") |
 | Package manager | npm |
 
-State management (Zustand) is added in Phase 2, when the editor first needs it.
+State management is Zustand, added in Phase 2 when the editor first needed it.
 
 ## What the research showed
 
@@ -102,13 +102,46 @@ at the tick limit, driver conflicts, buses, and editing a running circuit.
 Not built yet, on purpose: a way for a component to wake itself up later.
 The clock in Phase 4 needs it.
 
-### Phase 2: canvas editor
+### Phase 2: canvas editor (done)
 
-- Grid with snapping, pan and zoom.
-- Drag components from a palette.
-- Select, move, rotate, delete.
-- Orthogonal wiring between pins.
-- Undo/redo and copy/paste.
+Built in `src/editor` and `src/ui`:
+
+- `document.ts`: the drawing as an immutable document of parts, junctions
+  and wires. Every edit returns a new document, which is what undo steps
+  through.
+- `routing.ts` and `wireLayout.ts`: wire paths. They are computed from the
+  whole drawing and never stored, so wires follow the parts they connect.
+- `connectivity.ts` and `simBridge.ts`: nets derived from the wires, and a
+  bridge that applies only the difference to the simulator, so a running
+  circuit keeps its state while it is edited.
+- `symbols.ts` and `render.ts`: gate shapes, pin positions and canvas drawing.
+- `canvasController.ts`: pointer and keyboard input for the canvas.
+- `store.ts`: the editor state (document, history, selection, view,
+  clipboard, theme) as a Zustand store.
+- `src/ui`: top bar, parts palette, canvas and status bar.
+
+Choices made with the owner before building:
+
+- **Classic ANSI gate shapes**, as in CedarLogic.
+- **Wires route themselves** in horizontal and vertical runs and follow the
+  parts when they move. A junction, made by ending a wire on another wire,
+  branches a net and can be dragged to steer the wires around it.
+- **Light and dark themes** that follow the system, with a toggle.
+
+What works: drag or click a part in from the palette; select by click,
+shift-click or marquee; move by dragging or with the arrow keys; rotate (R);
+delete; wire pin to pin, pin to wire and wire to wire; undo and redo; copy,
+cut and paste; pan (Space or middle button) and zoom (wheel or the top bar).
+The engine gained `Simulator.batch`, which applies several edits as one.
+
+Known limits, left for later phases:
+
+- Wire layout is greedy: each wire avoids the wires placed before it, and
+  nothing routes around parts. A dense drawing can still look crowded.
+- A part's parameters, such as the number of inputs, cannot be changed from
+  the UI yet. That belongs to the properties panel in Phase 6.
+- Mouse and keyboard only. Touch works for single-pointer drags, with no
+  pinch zoom.
 
 ### Phase 3: live simulation
 
@@ -131,10 +164,13 @@ The clock in Phase 4 needs it.
 
 ### Phase 6: polish
 
-- Dark and light themes.
-- Keyboard shortcuts.
-- Properties panel for the selected component.
+- Properties panel for the selected component (inputs, width, delay).
 - Text labels on the canvas.
+- Wire routing that goes around parts.
+- Pinch zoom and other touch gestures.
+
+Dark and light themes and the keyboard shortcuts were planned here and
+arrived early, in Phase 2.
 
 ### MVP done when
 
