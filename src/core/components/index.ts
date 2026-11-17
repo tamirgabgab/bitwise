@@ -14,7 +14,8 @@ import {
   xorGate,
 } from './gates.ts'
 import { buttonSource, constSource, inputSource } from './input.ts'
-import { outputSink } from './output.ts'
+import { displaySink, outputSink } from './output.ts'
+import { clockSource, dFlipFlop, jkFlipFlop, srLatch, tFlipFlop } from './sequential.ts'
 
 /** A fresh registry holding every built-in component type. */
 export function createBuiltinRegistry(): ComponentRegistry {
@@ -35,6 +36,12 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(buttonSource)
     .register(constSource)
     .register(outputSink)
+    .register(displaySink)
+    .register(clockSource)
+    .register(srLatch)
+    .register(dFlipFlop)
+    .register(tFlipFlop)
+    .register(jkFlipFlop)
 }
 
 /** The registry a simulator uses unless it is given another one. */

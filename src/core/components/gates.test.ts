@@ -18,7 +18,7 @@ function gate(
   inputPorts.forEach((port, index) => {
     values[port.name] = parseSignal(inputs[index], radix)
   })
-  return formatSignal(def.evaluate(values, resolved, undefined, { radix }).outputs.out)
+  return formatSignal(def.evaluate(values, resolved, undefined, { radix, woke: false }).outputs.out)
 }
 
 const digitsOf = (radix: number): string[] => [...'0123456789ABCDEF'].slice(0, radix)
@@ -213,7 +213,7 @@ describe('the newer gates at radix 2', () => {
 describe('sources and sinks', () => {
   function outputs(type: string, params: Record<string, number>, state: unknown, radix: number) {
     const def = builtinComponents.get(type)
-    return def.evaluate({}, resolveParams(def, params), state, { radix }).outputs
+    return def.evaluate({}, resolveParams(def, params), state, { radix, woke: false }).outputs
   }
 
   it('const gives its value, or X when the radix has no such digit', () => {
@@ -233,7 +233,7 @@ describe('sources and sinks', () => {
     const def = builtinComponents.get('output')
     const params = resolveParams(def)
     expect(def.ports(params)).toEqual([{ name: 'in', direction: 'in', width: 1 }])
-    expect(def.evaluate({ in: [1] }, params, undefined, { radix: 2 }).outputs).toEqual({})
+    expect(def.evaluate({ in: [1] }, params, undefined, { radix: 2, woke: false }).outputs).toEqual({})
   })
 })
 
@@ -274,6 +274,12 @@ describe('built-in registry', () => {
         'output',
         'shift',
         'xnor',
+        'display',
+        'clock',
+        'sr',
+        'dff',
+        'tff',
+        'jkff',
         'xor',
       ].sort(),
     )

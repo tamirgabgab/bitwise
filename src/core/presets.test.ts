@@ -29,7 +29,7 @@ function gate(type: string, radix: number, params: Record<string, number> = {}) 
     inputs.forEach((port, index) => {
       values[port.name] = [digits[index]]
     })
-    return def.evaluate(values, resolved, undefined, { radix }).outputs.out[0]
+    return def.evaluate(values, resolved, undefined, { radix, woke: false }).outputs.out[0]
   }
 }
 

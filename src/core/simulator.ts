@@ -67,6 +67,8 @@ interface Instance {
   readonly params: Params
   delay: number
   state: unknown
+  /** `seq` of the wake-up this component is waiting for, or 0 for none. */
+  wakeSeq: number
   readonly ports: Map<string, Port>
 }
 
@@ -117,11 +119,14 @@ export class Simulator {
   private readonly batchedNets = new Set<NetId>()
   private readonly batchedInstances = new Set<Instance>()
   private env: EvalEnv
+  private wokeEnv: EvalEnv
+  private wakes = 0
 
   constructor(registry: ComponentRegistry = builtinComponents, radix = 2) {
     checkRadix(radix)
     this.registry = registry
-    this.env = { radix }
+    this.env = { radix, woke: false }
+    this.wokeEnv = { radix, woke: true }
   }
 
   /** How many values a wire can carry. */
@@ -136,7 +141,8 @@ export class Simulator {
   setRadix(radix: number): void {
     checkRadix(radix)
     if (radix === this.env.radix) return
-    this.env = { radix }
+    this.env = { radix, woke: false }
+    this.wokeEnv = { radix, woke: true }
     this.restart()
   }
 
@@ -147,9 +153,11 @@ export class Simulator {
    */
   restart(): void {
     this.queue.clear()
+    this.wakes = 0
     this.now = 0
     for (const instance of this.instances.values()) {
       instance.state = instance.def.initialState?.(instance.params)
+      instance.wakeSeq = 0
       for (const port of instance.ports.values()) {
         const unknown = filled(port.spec.width, X)
         port.driven = unknown
@@ -175,9 +183,20 @@ export class Simulator {
     return this.now
   }
 
-  /** Number of output changes still waiting to happen. 0 means stable. */
+  /**
+   * Number of output changes and wake-ups still waiting to happen. 0 means
+   * stable. A circuit with a clock in it is never stable.
+   */
   get pendingEvents(): number {
     return this.queue.size
+  }
+
+  /**
+   * How many components are waiting to wake themselves up. Above 0 the
+   * circuit keeps itself going, as a clock does.
+   */
+  get pendingWakes(): number {
+    return this.wakes
   }
 
   // ---- Components ----
@@ -208,6 +227,7 @@ export class Simulator {
       params,
       delay,
       state: def.initialState?.(params),
+      wakeSeq: 0,
       ports,
     }
     this.instances.set(instance.id, instance)
@@ -246,6 +266,7 @@ export class Simulator {
       touched.push(port.net)
     }
     // Events still queued for this component are dropped when they come up.
+    if (instance.wakeSeq !== 0) this.wakes--
     this.instances.delete(id)
     this.propagate(touched)
   }
@@ -520,12 +541,20 @@ export class Simulator {
   /** Applies every event due at the current time, then lets it spread. */
   private processCurrentTick(): void {
     const touched = new Set<NetId>()
+    const woken = new Set<Instance>()
     for (;;) {
       const next = this.queue.peek()
       if (next === undefined || next.time !== this.now) break
       this.queue.pop()
       const instance = this.instances.get(next.component)
       if (!instance) continue
+      if (next.wake) {
+        if (instance.wakeSeq !== next.seq) continue
+        instance.wakeSeq = 0
+        this.wakes--
+        woken.add(instance)
+        continue
+      }
       const port = instance.ports.get(next.port)
       // An event scheduled before one that already took effect is stale.
       // This happens when a delay is shortened while a change is in flight.
@@ -535,14 +564,19 @@ export class Simulator {
       port.driven = next.value
       if (port.net !== undefined) touched.add(port.net)
     }
-    this.propagate(touched)
+    this.propagate(touched, woken, woken)
   }
 
   /**
    * Recomputes the given nets, then evaluates each affected component once:
-   * every component reading a net whose value changed, plus `also`.
+   * every component reading a net whose value changed, plus `also`. Those in
+   * `woken` are told that they woke themselves up.
    */
-  private propagate(netIds: Iterable<NetId>, also: Iterable<Instance> = []): void {
+  private propagate(
+    netIds: Iterable<NetId>,
+    also: Iterable<Instance> = [],
+    woken?: ReadonlySet<Instance>,
+  ): void {
     if (this.batchDepth > 0) {
       for (const id of netIds) this.batchedNets.add(id)
       for (const instance of also) this.batchedInstances.add(instance)
@@ -559,7 +593,9 @@ export class Simulator {
     }
     for (const instance of dirty) {
       // A batch may have removed a component after queueing it.
-      if (this.instances.get(instance.id) === instance) this.evaluate(instance)
+      if (this.instances.get(instance.id) === instance) {
+        this.evaluate(instance, woken?.has(instance) ?? false)
+      }
     }
   }
 
@@ -581,12 +617,17 @@ export class Simulator {
    * Evaluates a component against its current inputs and schedules every
    * output that differs from the change already on its way.
    */
-  private evaluate(instance: Instance): void {
+  private evaluate(instance: Instance, woke = false): void {
     const inputs: Record<string, Signal> = {}
     for (const port of instance.ports.values()) {
       if (port.spec.direction === 'in') inputs[port.spec.name] = this.inputValue(port)
     }
-    const result = instance.def.evaluate(inputs, instance.params, instance.state, this.env)
+    const result = instance.def.evaluate(
+      inputs,
+      instance.params,
+      instance.state,
+      woke ? this.wokeEnv : this.env,
+    )
 
     // Check everything before changing anything, so a faulty definition
     // cannot leave the component half updated.
@@ -602,8 +643,27 @@ export class Simulator {
       }
       outputs.push([port, value])
     }
+    const wake = result.wake
+    if (wake !== undefined && (!Number.isInteger(wake) || wake < 1)) {
+      throw new Error(
+        `Component "${instance.def.type}" asked to wake after ${wake} ticks; ` +
+          `it must be an integer of at least 1`,
+      )
+    }
 
     if (result.state !== undefined) instance.state = result.state
+    if (wake !== undefined && instance.wakeSeq === 0) {
+      instance.wakeSeq = ++this.seq
+      this.wakes++
+      this.queue.push({
+        time: this.now + wake,
+        seq: instance.wakeSeq,
+        component: instance.id,
+        port: '',
+        value: [],
+        wake: true,
+      })
+    }
     for (const [port, value] of outputs) {
       if (signalsEqual(port.scheduled, value)) continue
       port.scheduled = value

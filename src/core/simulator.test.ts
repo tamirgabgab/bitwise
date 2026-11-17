@@ -1,4 +1,6 @@
 import { describe, expect, it } from 'vitest'
+import type { ComponentDef } from './component.ts'
+import { createBuiltinRegistry } from './components/index.ts'
 import { formatSignal, parseSignal } from './signal.ts'
 import { Simulator } from './simulator.ts'
 import type { ComponentId, PinRef } from './simulator.ts'
@@ -627,5 +629,58 @@ describe('probe', () => {
     sim.settle()
     expect(sim.probe(pin(input, 'out'))).toEqual({ value: [0], conflict: false })
     expect(formatSignal(sim.probe(pin(gate, 'in')).value)).toBe('Z')
+  })
+})
+
+describe('a component that wakes itself', () => {
+  /** Counts its wake-ups, and asks for `every` ticks between them. */
+  function ticker(every: number): ComponentDef<number> {
+    return {
+      type: 'ticker',
+      params: {},
+      ports: () => [{ name: 'out', direction: 'out', width: 1 }],
+      initialState: () => 0,
+      evaluate(_inputs, _params, count, { woke }) {
+        const next = woke ? count + 1 : count
+        return { outputs: { out: [next % 2] }, state: next, wake: every }
+      },
+    }
+  }
+
+  it('is evaluated again after the ticks it asked for', () => {
+    const sim = new Simulator(createBuiltinRegistry().register(ticker(4)))
+    const id = sim.addComponent('ticker')
+    sim.run(3)
+    expect(sim.getState(id)).toBe(0)
+    sim.run(1)
+    expect(sim.getState(id)).toBe(1)
+    sim.run(8)
+    expect(sim.getState(id)).toBe(3)
+  })
+
+  it('has one request at a time, however often it is evaluated', () => {
+    const sim = new Simulator(createBuiltinRegistry().register(ticker(4)))
+    const id = sim.addComponent('ticker')
+    sim.setState(id, 0)
+    sim.setState(id, 0)
+    expect(sim.pendingWakes).toBe(1)
+    sim.run(4)
+    expect(sim.getState(id)).toBe(1)
+  })
+
+  it('forgets the request when the circuit restarts', () => {
+    const sim = new Simulator(createBuiltinRegistry().register(ticker(4)))
+    const id = sim.addComponent('ticker')
+    sim.run(3)
+    sim.restart()
+    sim.run(3)
+    expect(sim.getState(id)).toBe(0)
+    sim.run(1)
+    expect(sim.getState(id)).toBe(1)
+  })
+
+  it('refuses a wake-up in less than one tick', () => {
+    const sim = new Simulator(createBuiltinRegistry().register(ticker(0)))
+    expect(() => sim.addComponent('ticker')).toThrow(/wake/)
   })
 })

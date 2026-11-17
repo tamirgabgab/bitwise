@@ -26,6 +26,11 @@ export type PortValues = Readonly<Record<string, Signal>>
 export interface EvalEnv {
   /** How many values a wire can carry: digits run from 0 to radix - 1. */
   readonly radix: number
+  /**
+   * True when this evaluation is the one the component asked for with
+   * `wake`, and false when an input changed or the circuit was edited.
+   */
+  readonly woke: boolean
 }
 
 export interface EvalResult<S> {
@@ -33,6 +38,12 @@ export interface EvalResult<S> {
   readonly outputs: PortValues
   /** New internal state. Leave it out to keep the current state. */
   readonly state?: S
+  /**
+   * Asks to be evaluated again after this many ticks (at least 1) even if no
+   * input changes. This is how a clock keeps itself going. A component has
+   * one such request at a time: while one is waiting, another is ignored.
+   */
+  readonly wake?: number
 }
 
 /**

@@ -1,6 +1,9 @@
 import type { Signal } from './signal.ts'
 
-/** A scheduled change of one output port. */
+/**
+ * A scheduled change of one output port, or, with `wake` set, the moment a
+ * component asked to be evaluated again.
+ */
 export interface SimEvent {
   readonly time: number
   /**
@@ -11,6 +14,7 @@ export interface SimEvent {
   readonly component: number
   readonly port: string
   readonly value: Signal
+  readonly wake?: boolean
 }
 
 function isBefore(a: SimEvent, b: SimEvent): boolean {
