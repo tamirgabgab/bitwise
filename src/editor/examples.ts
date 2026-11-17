@@ -1,4 +1,11 @@
-import { addComponent, addJunction, addSubcircuit, addWire, emptyDoc } from './document.ts'
+import {
+  addComponent,
+  addJunction,
+  addSubcircuit,
+  addText,
+  addWire,
+  emptyDoc,
+} from './document.ts'
 import type { AddComponentOptions, Terminal } from './document.ts'
 import { DEFAULT_SETTINGS, toProjectData } from './project.ts'
 import type { ProjectData, ProjectSettings } from './project.ts'
@@ -50,6 +57,10 @@ function sketch() {
       if (!added) throw new Error(`Cannot wire ${from} to ${to}`)
       doc = added.doc
     },
+    /** Writing on the canvas, next to the circuit. */
+    note(text: string, x: number, y: number): void {
+      doc = addText(doc, { x, y }, text).doc
+    },
     /** A point for wires to turn or branch at. */
     bend(x: number, y: number): string {
       const added = addJunction(doc, { x, y })
@@ -95,6 +106,7 @@ function binaryAdder(): ProjectData {
     half.wire(`${b}.out`, `${and}.in1`)
     half.wire(`${xor}.out`, `${sum}.in`)
     half.wire(`${and}.out`, `${carry}.in`)
+    half.note('S is the sum, C the carry', 9, -4)
   }
   const halfAdder = half.done('k1', 'Half adder')
 

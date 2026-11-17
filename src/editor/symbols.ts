@@ -49,6 +49,15 @@ export interface SymbolReadout {
 /** The type of a part that stands for a named circuit. */
 export const SUB_TYPE = 'circuit'
 
+/** The type of a part that is only writing on the canvas. */
+export const TEXT_TYPE = 'text'
+
+/** What a new text label says. */
+export const DEFAULT_TEXT = 'Text'
+
+/** Height of the writing of a text label, in grid units. */
+const TEXT_SIZE = 0.95
+
 /** One pin of a named circuit, as a part that stands for it shows it. */
 export interface SubPin {
   /** The port name: the id of the switch or output inside the circuit. */
@@ -759,6 +768,22 @@ function chipSymbol(sub: SubRef): ComponentSymbol {
   }
 }
 
+/**
+ * A text label: writing with no pins. The box is a guess at the width of the
+ * writing, wide enough to select and drag it by.
+ */
+function textSymbol(text: string): ComponentSymbol {
+  const half = Math.max(1, Math.ceil((text.length * TEXT_SIZE * 0.56) / 2 + 0.3))
+  return {
+    pins: [],
+    notes: [{ text, pos: { x: 0, y: 0 }, size: TEXT_SIZE }],
+    bounds: { x0: 0 - half, y0: -0.8, x1: half, y1: 0.8 },
+    draw() {},
+  }
+}
+
+const texts = new Map<string, ComponentSymbol>()
+
 const UNKNOWN_CIRCUIT: SubRef = { circuit: '', name: '?', inputs: [], outputs: [] }
 const chips = new WeakMap<SubRef, ComponentSymbol>()
 
@@ -767,7 +792,17 @@ export function symbolOf(part: {
   readonly type: string
   readonly params: Readonly<Record<string, number>>
   readonly sub?: SubRef
+  readonly text?: string
 }): ComponentSymbol {
+  if (part.type === TEXT_TYPE) {
+    const text = part.text ?? DEFAULT_TEXT
+    let symbol = texts.get(text)
+    if (!symbol) {
+      symbol = textSymbol(text)
+      texts.set(text, symbol)
+    }
+    return symbol
+  }
   if (part.type !== SUB_TYPE) return symbolFor(part.type, part.params)
   const sub = part.sub ?? UNKNOWN_CIRCUIT
   let symbol = chips.get(sub)

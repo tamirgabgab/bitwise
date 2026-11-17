@@ -623,3 +623,75 @@ describe('framing a circuit', () => {
     expect(editor().view).toBe(before)
   })
 })
+
+describe('tidying and regrouping a selection', () => {
+  it('duplicates the selection and selects the copy, as one step of undo', () => {
+    inverter()
+    editor().setSelection(['c1', 'c2'])
+    editor().duplicateSelection(0, 10)
+    expect(Object.keys(editor().doc.components)).toHaveLength(4)
+    expect(Object.keys(editor().doc.wires)).toHaveLength(2)
+    expect([...editor().selection]).toEqual(['c4', 'c5'])
+    editor().undo()
+    expect(Object.keys(editor().doc.components)).toHaveLength(2)
+  })
+
+  it('does not duplicate onto the same spot', () => {
+    inverter()
+    editor().setSelection(['c1'])
+    editor().duplicateSelection(0, 0)
+    expect(Object.keys(editor().doc.components)).toHaveLength(2)
+  })
+
+  it('lines up and spaces the selected parts', () => {
+    editor().addComponent('not', { x: 0, y: 0 })
+    editor().addComponent('not', { x: 5, y: 9 })
+    editor().addComponent('not', { x: 3, y: 30 })
+    editor().setSelection(['c1', 'c2', 'c3'])
+    editor().alignSelection('left')
+    expect(Object.values(editor().doc.components).map((part) => part.pos.x)).toEqual([0, 0, 0])
+    editor().distributeSelection('y')
+    expect(Object.values(editor().doc.components).map((part) => part.pos.y)).toEqual([0, 15, 30])
+  })
+
+  it('adds a text label and changes its writing', () => {
+    editor().addComponent('text', { x: 0, y: 0 })
+    expect(editor().doc.components.c1).toMatchObject({ type: 'text', text: 'Text' })
+    editor().setText('c1', 'Carry chain')
+    expect(editor().doc.components.c1.text).toBe('Carry chain')
+    editor().undo()
+    expect(editor().doc.components.c1.text).toBe('Text')
+  })
+
+  it('turns the selection into a circuit of its own', () => {
+    inverter()
+    editor().addComponent('output', { x: 20, y: 0 })
+    editor().connect(at('c2', 'out'), at('c4', 'in'))
+    editor().setSelection(['c2'])
+    const id = editor().selectionToCircuit()!
+    expect(editor().order).toEqual(['k1', id])
+    expect(editor().active).toBe('k1')
+    expect(editor().circuits[id].name).toBe('Circuit 2')
+    const parts = Object.values(editor().doc.components)
+    expect(parts.map((part) => part.type).sort()).toEqual(['circuit', 'input', 'output'])
+    const chip = parts.find((part) => part.type === SUB_TYPE)!
+    expect([...editor().selection]).toEqual([chip.id])
+    expect(chip.sub).toMatchObject({ circuit: id, name: 'Circuit 2' })
+    expect(Object.keys(editor().doc.wires)).toHaveLength(2)
+    // Undo brings the parts back; the new circuit stays in the project.
+    editor().undo()
+    expect(Object.values(editor().doc.components).map((part) => part.type)).toEqual([
+      'input',
+      'not',
+      'output',
+    ])
+    expect(id in editor().circuits).toBe(true)
+  })
+
+  it('makes no circuit of a selection with nothing that can move', () => {
+    inverter()
+    editor().setSelection(['c1'])
+    expect(editor().selectionToCircuit()).toBeNull()
+    expect(editor().order).toEqual(['k1'])
+  })
+})

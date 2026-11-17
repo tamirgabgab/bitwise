@@ -2,10 +2,10 @@ import { builtinComponents, resolveParams } from '../core/index.ts'
 import { add, rotatePoint, samePoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
 import type { RouteEnd } from './routing.ts'
-import { SUB_TYPE, symbolOf } from './symbols.ts'
+import { DEFAULT_TEXT, SUB_TYPE, TEXT_TYPE, symbolOf } from './symbols.ts'
 import type { SubRef } from './symbols.ts'
 
-export { SUB_TYPE }
+export { SUB_TYPE, TEXT_TYPE }
 export type { SubPin, SubRef } from './symbols.ts'
 
 /*
@@ -36,7 +36,12 @@ export interface DocComponent {
   readonly key?: string
   /** Set on a part that stands for a named circuit; its type is `SUB_TYPE`. */
   readonly sub?: SubRef
+  /** What a text label says; its type is `TEXT_TYPE`. */
+  readonly text?: string
 }
+
+/** The longest writing a text label can hold. */
+export const MAX_TEXT = 60
 
 /** The longest label a part can have. */
 export const MAX_LABEL = 16
@@ -195,10 +200,48 @@ export function addSubcircuit(
   }
 }
 
+/** Writing made fit for a text label, or undefined when it is blank. */
+export function cleanText(text: unknown): string | undefined {
+  if (typeof text !== 'string') return undefined
+  const clean = text.replace(/\s+/g, ' ').trim().slice(0, MAX_TEXT)
+  return clean === '' ? undefined : clean
+}
+
+/** Adds a text label: writing on the canvas that is not part of the circuit. */
+export function addText(
+  doc: CircuitDoc,
+  pos: Point,
+  text: string = DEFAULT_TEXT,
+): { doc: CircuitDoc; id: string } {
+  const id = `c${doc.nextId}`
+  const component: DocComponent = {
+    id,
+    type: TEXT_TYPE,
+    params: {},
+    delay: 1,
+    pos,
+    rotation: 0,
+    text: cleanText(text) ?? DEFAULT_TEXT,
+  }
+  return {
+    doc: { ...doc, components: { ...doc.components, [id]: component }, nextId: doc.nextId + 1 },
+    id,
+  }
+}
+
+/** Changes what a text label says. Blank writing is ignored. */
+export function setComponentText(doc: CircuitDoc, id: string, text: string): CircuitDoc {
+  const component = doc.components[id]
+  const clean = cleanText(text)
+  if (!component || component.type !== TEXT_TYPE || clean === undefined) return doc
+  if (clean === component.text) return doc
+  return { ...doc, components: { ...doc.components, [id]: { ...component, text: clean } } }
+}
+
 /** Names a part, or takes its name away when `label` is blank. */
 export function setComponentLabel(doc: CircuitDoc, id: string, label: string): CircuitDoc {
   const component = doc.components[id]
-  if (!component) return doc
+  if (!component || component.type === TEXT_TYPE) return doc
   const text = label.trim().slice(0, MAX_LABEL)
   if (text === (component.label ?? '')) return doc
   const next: DocComponent = { ...component, label: text }
@@ -223,7 +266,7 @@ export function setComponentKey(doc: CircuitDoc, id: string, code: string | null
 /** Sets how many ticks a part takes to answer, from 1 to `MAX_DELAY`. */
 export function setComponentDelay(doc: CircuitDoc, id: string, delay: number): CircuitDoc {
   const component = doc.components[id]
-  if (!component || component.type === SUB_TYPE) return doc
+  if (!component || !builtinComponents.has(component.type)) return doc
   if (!Number.isInteger(delay) || delay < 1 || delay > MAX_DELAY) return doc
   if (delay === component.delay) return doc
   return { ...doc, components: { ...doc.components, [id]: { ...component, delay } } }
@@ -239,7 +282,7 @@ export function setComponentParams(
   changes: Readonly<Record<string, number>>,
 ): CircuitDoc {
   const component = doc.components[id]
-  if (!component || component.type === SUB_TYPE) return doc
+  if (!component || !builtinComponents.has(component.type)) return doc
   const params = resolveParams(builtinComponents.get(component.type), {
     ...component.params,
     ...changes,
@@ -382,7 +425,8 @@ export function rotateComponents(doc: CircuitDoc, ids: Iterable<string>): Circui
   let components = doc.components
   for (const id of ids) {
     const component = doc.components[id]
-    if (!component) continue
+    // Writing stays upright, so turning it would only move its box.
+    if (!component || component.type === TEXT_TYPE) continue
     if (components === doc.components) components = { ...components }
     ;(components as Record<string, DocComponent>)[id] = {
       ...component,
@@ -482,6 +526,18 @@ export function pasteFragment(
     wires[id] = { id, from, to }
   }
   return { doc: { components, junctions, wires, nextId }, ids: [...renamed.values()] }
+}
+
+/**
+ * Makes a second copy of the listed parts and junctions, with the wires
+ * between them, `offset` away from the first.
+ */
+export function duplicateItems(
+  doc: CircuitDoc,
+  ids: Iterable<string>,
+  offset: Point,
+): { doc: CircuitDoc; ids: string[] } {
+  return pasteFragment(doc, copyItems(doc, ids), offset)
 }
 
 /** How many wires end on each junction. */

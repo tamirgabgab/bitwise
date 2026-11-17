@@ -7,7 +7,15 @@ import {
   presetAvailable,
   resolveParams,
 } from '../core/index.ts'
-import { MAX_LABEL, SUB_TYPE, deleteItems, isSwitchKey, takesKey } from './document.ts'
+import {
+  MAX_LABEL,
+  SUB_TYPE,
+  TEXT_TYPE,
+  cleanText,
+  deleteItems,
+  isSwitchKey,
+  takesKey,
+} from './document.ts'
 import type { CircuitDoc, DocComponent, DocJunction, DocWire, Terminal } from './document.ts'
 import type { Point, Rotation } from './geometry.ts'
 import {
@@ -70,6 +78,8 @@ export interface ComponentData {
   readonly key?: string
   /** On a part that stands for a named circuit: the id of that circuit. */
   readonly circuit?: string
+  /** On a text label: what it says. */
+  readonly text?: string
 }
 
 export interface CircuitData {
@@ -121,6 +131,7 @@ function docToData(doc: CircuitDoc): Pick<CircuitData, 'nextId' | 'components' |
       ...(component.label ? { label: component.label } : {}),
       ...(component.key ? { key: component.key } : {}),
       ...(component.sub ? { circuit: component.sub.circuit } : {}),
+      ...(component.text !== undefined ? { text: component.text } : {}),
     })),
     junctions: Object.values(doc.junctions),
     wires: Object.values(doc.wires),
@@ -189,6 +200,11 @@ function componentOf(data: ComponentData): DocComponent | undefined {
     // The name and the pins are filled in once every circuit is known.
     const sub = { circuit: data.circuit, name: '', inputs: [], outputs: [] }
     return { id: data.id, type: SUB_TYPE, params: {}, delay: 1, pos, rotation, sub }
+  }
+  if (data.type === TEXT_TYPE) {
+    const text = cleanText(data.text)
+    if (text === undefined) return undefined
+    return { id: data.id, type: TEXT_TYPE, params: {}, delay: 1, pos, rotation: 0, text }
   }
   if (!builtinComponents.has(data.type)) return undefined
   try {

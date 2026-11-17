@@ -3,9 +3,12 @@ import { builtinComponents } from '../core/index.ts'
 import {
   MAX_DELAY,
   MAX_LABEL,
+  MAX_TEXT,
   SUB_TYPE,
+  TEXT_TYPE,
   breakpointOn,
   describeNode,
+  extractable,
   isSwitchKey,
   keyName,
   setBreakpoint,
@@ -14,8 +17,20 @@ import {
   useSim,
   valueText,
 } from '../editor/index.ts'
-import type { BreakWhen, ProjectSettings, Terminal } from '../editor/index.ts'
-import { CloseIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
+import type { AlignEdge, BreakWhen, ProjectSettings, Terminal } from '../editor/index.ts'
+import {
+  AlignBottomIcon,
+  AlignCenterXIcon,
+  AlignCenterYIcon,
+  AlignLeftIcon,
+  AlignRightIcon,
+  AlignTopIcon,
+  CloseIcon,
+  SpreadXIcon,
+  SpreadYIcon,
+  ZoomInIcon,
+  ZoomOutIcon,
+} from './icons.tsx'
 import { partName } from './parts.ts'
 import { pinName } from './probeText.ts'
 
@@ -85,20 +100,28 @@ interface NameFieldProps {
   id: string
   type: string
   label: string
+  /** The field holds the writing of a text label, not the name of a part. */
+  writing?: boolean
 }
 
 /**
- * The name of a switch or an output. It is typed freely and becomes an edit,
- * one step of undo, when the user is done with the field.
+ * The name of a switch or an output, or the writing of a text label. It is
+ * typed freely and becomes an edit, one step of undo, when the user is done
+ * with the field.
  */
-function NameField({ id, type, label }: NameFieldProps) {
+function NameField({ id, type, label, writing = false }: NameFieldProps) {
   const [draft, setDraft] = useState(label)
   const latest = useRef(label)
   const fieldId = useId()
 
+  const save = (text: string): void => {
+    const state = useEditor.getState()
+    if (writing) state.setText(id, text)
+    else state.setLabel(id, text)
+  }
   const commit = (text: string): void => {
     latest.current = text
-    useEditor.getState().setLabel(id, text)
+    save(text)
   }
 
   // The canvas can take the selection away without the field losing focus
@@ -108,17 +131,19 @@ function NameField({ id, type, label }: NameFieldProps) {
     return () => {
       const state = useEditor.getState()
       if (state.active !== active || state.epoch !== epoch) return
-      if (state.doc.components[id]?.type === type) state.setLabel(id, latest.current)
+      if (state.doc.components[id]?.type !== type) return
+      if (writing) state.setText(id, latest.current)
+      else state.setLabel(id, latest.current)
     }
-  }, [id, type])
+  }, [id, type, writing])
 
   return (
     <div className="field">
-      <label htmlFor={fieldId}>Name</label>
+      <label htmlFor={fieldId}>{writing ? 'Text' : 'Name'}</label>
       <input
         id={fieldId}
         value={draft}
-        maxLength={MAX_LABEL}
+        maxLength={writing ? MAX_TEXT : MAX_LABEL}
         spellCheck={false}
         autoComplete="off"
         onChange={(event) => {
@@ -275,6 +300,84 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   )
 }
 
+const ALIGNMENTS: readonly {
+  readonly edge: AlignEdge
+  readonly label: string
+  readonly icon: () => React.JSX.Element
+}[] = [
+  { edge: 'left', label: 'Line up the left edges', icon: AlignLeftIcon },
+  { edge: 'centerX', label: 'Line up the middles, left to right', icon: AlignCenterXIcon },
+  { edge: 'right', label: 'Line up the right edges', icon: AlignRightIcon },
+  { edge: 'top', label: 'Line up the top edges', icon: AlignTopIcon },
+  { edge: 'centerY', label: 'Line up the middles, top to bottom', icon: AlignCenterYIcon },
+  { edge: 'bottom', label: 'Line up the bottom edges', icon: AlignBottomIcon },
+]
+
+/** What can be done with several selected parts at once. */
+function ArrangePanel() {
+  const doc = useEditor((state) => state.doc)
+  const selection = useEditor((state) => state.selection)
+  let parts = 0
+  for (const id of selection) {
+    if (id in doc.components) parts++
+  }
+  const movable = extractable(doc, selection).length
+  if (parts === 0) return null
+  const { alignSelection, distributeSelection, selectionToCircuit } = useEditor.getState()
+
+  return (
+    <aside className="inspector" aria-label="Selected parts">
+      <h2>{count(parts, 'part')}</h2>
+      <div className="arrange" role="group" aria-label="Line up">
+        {ALIGNMENTS.map(({ edge, label, icon: AlignIcon }) => (
+          <button
+            key={edge}
+            type="button"
+            className="tool"
+            aria-label={label}
+            title={label}
+            disabled={parts < 2}
+            onClick={() => alignSelection(edge)}
+          >
+            <AlignIcon />
+          </button>
+        ))}
+      </div>
+      <div className="arrange" role="group" aria-label="Space evenly">
+        <button
+          type="button"
+          className="tool"
+          aria-label="Space evenly, left to right"
+          title="Space evenly, left to right. Needs three parts"
+          disabled={parts < 3}
+          onClick={() => distributeSelection('x')}
+        >
+          <SpreadXIcon />
+        </button>
+        <button
+          type="button"
+          className="tool"
+          aria-label="Space evenly, top to bottom"
+          title="Space evenly, top to bottom. Needs three parts"
+          disabled={parts < 3}
+          onClick={() => distributeSelection('y')}
+        >
+          <SpreadYIcon />
+        </button>
+      </div>
+      <button
+        type="button"
+        className="button"
+        title="Move these parts into a circuit of their own and put one part in their place (Ctrl+G). Switches and outputs stay here"
+        disabled={movable === 0}
+        onClick={() => selectionToCircuit()}
+      >
+        Make a circuit
+      </button>
+    </aside>
+  )
+}
+
 /**
  * The settings of the one selected thing: a gate's number of inputs and its
  * delay, the value a constant gives, the name and the key of a switch, the
@@ -286,9 +389,11 @@ export function Inspector() {
     const [id] = state.selection
     return id
   })
+  const several = useEditor((state) => state.selection.size > 1)
   const doc = useEditor((state) => state.doc)
   const settings = useEditor((state) => state.settings)
   const active = useEditor((state) => state.active)
+  if (several) return <ArrangePanel />
   if (selected === null) return null
 
   const wire = doc.wires[selected]
@@ -298,6 +403,23 @@ export function Inspector() {
   }
   const component = doc.components[selected]
   if (!component) return null
+
+  if (component.type === TEXT_TYPE) {
+    const text = component.text ?? ''
+    return (
+      <aside className="inspector" aria-label="Text settings">
+        <h2>Text</h2>
+        <NameField
+          key={`${active}:${component.id}:${text}`}
+          id={component.id}
+          type={component.type}
+          label={text}
+          writing
+        />
+        <p className="note">Writing on the canvas. It is not part of the circuit.</p>
+      </aside>
+    )
+  }
 
   if (component.type === SUB_TYPE) {
     const sub = component.sub

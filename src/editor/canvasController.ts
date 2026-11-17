@@ -1,4 +1,10 @@
-import { isSwitchKey, moveItems, sameTerminal, terminalEnd } from './document.ts'
+import {
+  duplicateItems,
+  isSwitchKey,
+  moveItems,
+  sameTerminal,
+  terminalEnd,
+} from './document.ts'
 import type { CircuitDoc, Terminal, WireEnd } from './document.ts'
 import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
@@ -51,12 +57,21 @@ type Mode =
       readonly startY: number
       readonly world: Point
       readonly shift: boolean
+      /** Alt was down: dragging the selection leaves a copy behind. */
+      readonly alt: boolean
       /** The press landed on the face of a switch: a click changes its value. */
       readonly poke: boolean
     }
   /** A push button is being held down. */
   | { readonly kind: 'hold'; readonly id: string }
-  | { readonly kind: 'move'; readonly start: Point; dx: number; dy: number }
+  | {
+      readonly kind: 'move'
+      readonly start: Point
+      /** The drag carries a copy and leaves the selection where it was. */
+      readonly copy: boolean
+      dx: number
+      dy: number
+    }
   | { readonly kind: 'marquee'; readonly start: Point; current: Point; readonly additive: boolean }
   | {
       readonly kind: 'wire'
@@ -361,7 +376,7 @@ export class CanvasController {
     if (this.mode.kind === 'pan') cursor = 'grabbing'
     else if (this.spaceDown) cursor = 'grab'
     else if (this.mode.kind === 'wire') cursor = 'crosshair'
-    else if (this.mode.kind === 'move') cursor = 'move'
+    else if (this.mode.kind === 'move') cursor = this.mode.copy ? 'copy' : 'move'
     else if (this.mode.kind === 'hold' || this.hoverPoke) cursor = 'pointer'
     else if (this.hover?.kind === 'pin' || this.hover?.kind === 'wire') cursor = 'crosshair'
     else if (this.hover) cursor = 'move'
@@ -430,6 +445,7 @@ export class CanvasController {
       startY: event.clientY,
       world,
       shift: event.shiftKey,
+      alt: event.altKey,
       poke: poked !== null,
     }
   }
@@ -464,7 +480,11 @@ export class CanvasController {
         if (dx === mode.dx && dy === mode.dy) return
         mode.dx = dx
         mode.dy = dy
-        this.previewDoc = moveItems(state.doc, state.selection, dx, dy)
+        this.previewDoc = !mode.copy
+          ? moveItems(state.doc, state.selection, dx, dy)
+          : dx === 0 && dy === 0
+            ? null
+            : duplicateItems(state.doc, state.selection, { x: dx, y: dy }).doc
         this.requestDraw()
         return
       }
@@ -516,7 +536,7 @@ export class CanvasController {
     } else if (hit.kind !== 'pin' && (press.poke || state.selection.has(hit.id))) {
       // Dragging a switch by its face moves it like any other part.
       if (!state.selection.has(hit.id)) state.setSelection([hit.id])
-      this.mode = { kind: 'move', start: press.world, dx: 0, dy: 0 }
+      this.mode = { kind: 'move', start: press.world, copy: press.alt, dx: 0, dy: 0 }
     } else {
       // Shift-click just took this item out of the selection: nothing to drag.
       this.mode = { kind: 'idle' }
@@ -550,7 +570,8 @@ export class CanvasController {
         break
       }
       case 'move':
-        if (mode.dx !== 0 || mode.dy !== 0) state.moveSelection(mode.dx, mode.dy)
+        if (mode.copy) state.duplicateSelection(mode.dx, mode.dy)
+        else if (mode.dx !== 0 || mode.dy !== 0) state.moveSelection(mode.dx, mode.dy)
         break
       case 'marquee': {
         const inside = itemsInRect(state.doc, rectFromPoints(mode.start, mode.current))
@@ -643,6 +664,7 @@ export class CanvasController {
         KeyX: () => state.cut(),
         KeyV: () => state.paste(),
         KeyA: () => state.selectAll(),
+        KeyG: () => void state.selectionToCircuit(),
       }
       const action = actions[code]
       if (!action) return

@@ -7,7 +7,18 @@
 export { CanvasController } from './canvasController.ts'
 export { canvasRuntime } from './runtime.ts'
 export { defaultParamsOf, renderSymbolIcon } from './render.ts'
-export { MAX_DELAY, MAX_LABEL, SUB_TYPE, isSwitchKey, keyName, takesKey } from './document.ts'
+export {
+  MAX_DELAY,
+  MAX_LABEL,
+  MAX_TEXT,
+  SUB_TYPE,
+  TEXT_TYPE,
+  isSwitchKey,
+  keyName,
+  takesKey,
+} from './document.ts'
+export type { AlignEdge, Axis } from './arrange.ts'
+export { extractable } from './extract.ts'
 export type { Terminal } from './document.ts'
 export { useProbe } from './probeStore.ts'
 export { EXAMPLES } from './examples.ts'

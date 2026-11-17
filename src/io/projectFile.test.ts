@@ -265,3 +265,33 @@ describe('the keyboard key of a part', () => {
     expect(() => parseProject(withPart({ type: 'input', key: 7 }))).toThrow(/keyboard key/)
   })
 })
+
+describe('a text label', () => {
+  const withPart = (part: Record<string, unknown>): string =>
+    JSON.stringify({
+      format: 'cedar-logic',
+      version: FILE_FORMAT_VERSION,
+      settings: {},
+      active: 'k1',
+      circuits: [
+        {
+          id: 'k1',
+          name: 'Main',
+          nextId: 2,
+          components: [{ id: 'c1', pos: { x: 0, y: 0 }, ...part }],
+          junctions: [],
+          wires: [],
+        },
+      ],
+    })
+
+  it('is read with its writing', () => {
+    const part = parseProject(withPart({ type: 'text', text: 'Carry chain' })).circuits[0].components[0]
+    expect(part).toMatchObject({ type: 'text', text: 'Carry chain', params: {}, rotation: 0 })
+  })
+
+  it('is refused with nothing written on it', () => {
+    expect(() => parseProject(withPart({ type: 'text' }))).toThrow(/nothing written/)
+    expect(() => parseProject(withPart({ type: 'text', text: '  ' }))).toThrow(/nothing written/)
+  })
+})

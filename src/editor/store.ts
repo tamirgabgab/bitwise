@@ -6,13 +6,18 @@ import {
   findPreset,
   presetAvailable,
 } from '../core/index.ts'
+import { alignItems, distributeItems } from './arrange.ts'
+import type { AlignEdge, Axis } from './arrange.ts'
 import {
   SUB_TYPE,
+  TEXT_TYPE,
   addComponent,
   addSubcircuit,
+  addText,
   connectEnds,
   copyItems,
   deleteItems,
+  duplicateItems,
   moveItems,
   pasteFragment,
   rotateComponents,
@@ -20,8 +25,10 @@ import {
   setComponentKey,
   setComponentLabel,
   setComponentParams,
+  setComponentText,
 } from './document.ts'
 import type { CircuitDoc, Fragment, WireEnd } from './document.ts'
+import { extractCircuit } from './extract.ts'
 import { samePoint } from './geometry.ts'
 import { docBounds } from './hitTest.ts'
 import type { Point } from './geometry.ts'
@@ -133,12 +140,26 @@ export interface EditorState {
   /** Draws a wire between two ends. Returns false if it could not be made. */
   connect(a: WireEnd, b: WireEnd): boolean
   moveSelection(dx: number, dy: number): void
+  /** Makes a second copy of the selection, that far away, and selects it. */
+  duplicateSelection(dx: number, dy: number): void
+  /** Lines the selected parts up on one edge or one middle line. */
+  alignSelection(edge: AlignEdge): void
+  /** Spaces the selected parts evenly along an axis. */
+  distributeSelection(axis: Axis): void
+  /**
+   * Moves the selected parts into a new circuit and puts one part that
+   * stands for it in their place. Returns the id of the new circuit, or
+   * null when nothing selected can move.
+   */
+  selectionToCircuit(): string | null
   rotateSelection(): void
   deleteSelection(): void
   /** Changes parameters of one part, such as its number of inputs. */
   setParams(id: string, changes: Readonly<Record<string, number>>): void
   /** Names a part. A blank label takes the name away. */
   setLabel(id: string, label: string): void
+  /** Changes what a text label says. */
+  setText(id: string, text: string): void
   /** Gives a switch or a push button a keyboard key, or none for null. */
   setKey(id: string, code: string | null): void
   /** Sets how many ticks a part takes to answer. */
@@ -288,7 +309,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         commit(added.doc, [added.id])
         return
       }
-      const added = addComponent(doc, type, spot)
+      const added = type === TEXT_TYPE ? addText(doc, spot) : addComponent(doc, type, spot)
       commit(added.doc, [added.id])
     },
 
@@ -302,6 +323,42 @@ export const useEditor = create<EditorState>()((set, get) => {
     moveSelection(dx, dy) {
       const { doc, selection } = get()
       commit(moveItems(doc, selection, dx, dy))
+    },
+
+    duplicateSelection(dx, dy) {
+      const { doc, selection } = get()
+      if (dx === 0 && dy === 0) return
+      const copied = duplicateItems(doc, selection, { x: dx, y: dy })
+      if (copied.ids.length > 0) commit(copied.doc, copied.ids)
+    },
+
+    alignSelection(edge) {
+      const { doc, selection } = get()
+      commit(alignItems(doc, selection, edge))
+    },
+
+    distributeSelection(axis) {
+      const { doc, selection } = get()
+      commit(distributeItems(doc, selection, axis))
+    },
+
+    selectionToCircuit() {
+      const state = get()
+      const id = `k${state.nextCircuit}`
+      const names = new Set(Object.values(state.circuits).map((circuit) => circuit.name))
+      let number = state.order.length + 1
+      while (names.has(`Circuit ${number}`)) number++
+      const name = `Circuit ${number}`
+      const result = extractCircuit(state.doc, state.selection, id, name)
+      if (!result) return null
+      set({
+        circuits: { ...state.circuits, [id]: { id, name, doc: result.inner } },
+        order: [...state.order, id],
+        nextCircuit: state.nextCircuit + 1,
+        unframed: new Set([...state.unframed, id]),
+      })
+      commit(result.doc, [result.part])
+      return id
     },
 
     rotateSelection() {
@@ -320,6 +377,10 @@ export const useEditor = create<EditorState>()((set, get) => {
 
     setLabel(id, label) {
       commit(setComponentLabel(get().doc, id, label))
+    },
+
+    setText(id, text) {
+      commit(setComponentText(get().doc, id, text))
     },
 
     setKey(id, code) {

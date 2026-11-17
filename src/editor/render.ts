@@ -1,10 +1,10 @@
 import { builtinComponents, digitChar, numberValue, resolveParams } from '../core/index.ts'
 import type { Digit } from '../core/index.ts'
-import { SUB_TYPE, junctionDegrees, keyName, terminalKey } from './document.ts'
+import { junctionDegrees, keyName, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues } from './liveValues.ts'
-import { symbolFor, symbolOf } from './symbols.ts'
+import { symbolOf } from './symbols.ts'
 import type { ComponentSymbol, SymbolFace, SymbolReadout } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { inkOn } from './valueStyle.ts'
@@ -428,7 +428,7 @@ export function renderScene(
 
   if (scene.ghost) {
     const { ghost } = scene
-    const params = ghost.type === SUB_TYPE ? {} : defaultParamsOf(ghost.type)
+    const params = defaultParamsOf(ghost.type)
     ctx.globalAlpha = 0.55
     drawPart(
       ctx,
@@ -454,7 +454,8 @@ export function renderScene(
 
 /** The parameters a freshly placed part of this type starts with. */
 export function defaultParamsOf(type: string): Readonly<Record<string, number>> {
-  return resolveParams(builtinComponents.get(type))
+  // A named circuit and a text label have no parameters.
+  return builtinComponents.has(type) ? resolveParams(builtinComponents.get(type)) : {}
 }
 
 /** Paints a single symbol centred in a small canvas, for the palette. */
@@ -467,7 +468,7 @@ export function renderSymbolIcon(
   type: string,
 ): void {
   const params = defaultParamsOf(type)
-  const symbol = symbolFor(type, params)
+  const symbol = symbolOf({ type, params })
   const { x0, y0, x1, y1 } = symbol.bounds
   const scale = Math.min((width - 8) / (x1 - x0), (height - 8) / (y1 - y0), 9)
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)

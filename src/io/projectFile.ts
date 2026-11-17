@@ -26,6 +26,8 @@ export const FILE_FORMAT_VERSION = 1
 
 /** The type of a part that stands for another circuit of the project. */
 const CIRCUIT_PART = 'circuit'
+/** The type of a part that is only writing on the canvas. */
+const TEXT_PART = 'text'
 
 export interface FilePoint {
   readonly x: number
@@ -49,6 +51,8 @@ export interface FileComponent {
   readonly key?: string
   /** On a part of type "circuit": the id of the circuit it stands for. */
   readonly circuit?: string
+  /** On a part of type "text": the writing of the label. */
+  readonly text?: string
 }
 
 export interface FileJunction {
@@ -229,6 +233,12 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
       fail(`${what} stands for a circuit that is not in the file.`)
     }
     return { id, type: CIRCUIT_PART, params: {}, delay: 1, pos, rotation, circuit: value.circuit }
+  }
+  if (value.type === TEXT_PART) {
+    if (typeof value.text !== 'string' || value.text.trim() === '') {
+      fail(`${what} is a text label with nothing written on it.`)
+    }
+    return { id, type: TEXT_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text }
   }
   if (typeof value.type !== 'string' || !builtinComponents.has(value.type)) {
     fail(`${what} has the unknown type "${String(value.type)}".`)

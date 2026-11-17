@@ -18,6 +18,7 @@ import { useResolvedTheme } from './useResolvedTheme.ts'
 const IO_PARTS: readonly string[] = ['input', 'button', 'output', 'display']
 const SEQUENTIAL_PARTS: readonly string[] = ['clock', 'cycle', 'sr', 'dff', 'tff', 'jkff']
 const BIT_PARTS: readonly string[] = ['tobits', 'frombits']
+const NOTE_PARTS: readonly string[] = ['text']
 
 /** The gate whose table is on show, and where its button is. */
 interface TableTip {
@@ -151,6 +152,7 @@ export function Palette() {
     { title: 'Inputs and outputs', types: IO_PARTS },
     { title: 'Sequential', types: SEQUENTIAL_PARTS },
     { title: 'Digits and bits', types: BIT_PARTS },
+    { title: 'Notes', types: NOTE_PARTS },
   ]
   const [tip, setTip] = useState<TableTip | null>(null)
   const showTable = (type: string, button: HTMLElement): void => {

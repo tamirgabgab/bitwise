@@ -1117,3 +1117,14 @@ label.swatch:focus-within {
     display: none;
   }
 }
+
+/* The buttons for lining up and spacing several selected parts. */
+.arrange {
+  display: flex;
+  gap: 2px;
+  margin-bottom: 6px;
+}
+
+.inspector .arrange + .button {
+  margin-top: 4px;
+}

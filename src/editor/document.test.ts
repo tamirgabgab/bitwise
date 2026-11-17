@@ -6,10 +6,15 @@ import {
   setComponentDelay,
   setComponentKey,
   MAX_LABEL,
+  MAX_TEXT,
   SUB_TYPE,
+  TEXT_TYPE,
   addComponent,
   addSubcircuit,
+  addText,
   addWire,
+  duplicateItems,
+  setComponentText,
   connectEnds,
   copyItems,
   deleteItems,
@@ -23,6 +28,7 @@ import {
   terminalEnd,
 } from './document.ts'
 import type { CircuitDoc, SubRef, Terminal, WireEnd } from './document.ts'
+import { symbolOf } from './symbols.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 const at = (terminal: Terminal): WireEnd => ({ kind: 'terminal', terminal })
@@ -410,5 +416,61 @@ describe('setComponentDelay', () => {
     expect(setComponentDelay(doc, 'c1', 1.5)).toBe(doc)
     expect(setComponentDelay(doc, 'c1', MAX_DELAY + 1)).toBe(doc)
     expect(setComponentDelay(doc, 'c7', 2)).toBe(doc)
+  })
+})
+
+describe('a text label', () => {
+  it('is a part with writing and no pins', () => {
+    const added = addText(emptyDoc(), { x: 3, y: 4 }, '  Half   adder ')
+    const label = added.doc.components[added.id]
+    expect(label).toMatchObject({ type: TEXT_TYPE, text: 'Half adder', pos: { x: 3, y: 4 } })
+    expect(symbolOf(label).pins).toEqual([])
+  })
+
+  it('grows its box with the writing', () => {
+    const short = symbolOf({ type: TEXT_TYPE, params: {}, text: 'A' }).bounds
+    const long = symbolOf({ type: TEXT_TYPE, params: {}, text: 'A much longer line' }).bounds
+    expect(long.x1 - long.x0).toBeGreaterThan(short.x1 - short.x0)
+  })
+
+  it('takes new writing, cut to length, and ignores blank writing', () => {
+    const added = addText(emptyDoc(), { x: 0, y: 0 })
+    const renamed = setComponentText(added.doc, added.id, 'x'.repeat(MAX_TEXT + 5))
+    expect(renamed.components[added.id].text).toHaveLength(MAX_TEXT)
+    expect(setComponentText(renamed, added.id, '   ')).toBe(renamed)
+    expect(setComponentText(andCircuit(), 'c3', 'no')).toEqual(andCircuit())
+  })
+
+  it('cannot be turned, named, delayed or given parameters', () => {
+    const added = addText(emptyDoc(), { x: 0, y: 0 })
+    const doc = added.doc
+    expect(rotateComponents(doc, [added.id])).toBe(doc)
+    expect(setComponentLabel(doc, added.id, 'A')).toBe(doc)
+    expect(setComponentDelay(doc, added.id, 3)).toBe(doc)
+    expect(setComponentParams(doc, added.id, { inputs: 3 })).toBe(doc)
+  })
+
+  it('moves, copies and is deleted like any other part', () => {
+    const added = addText(andCircuit(), { x: 0, y: -4 }, 'Note')
+    const moved = moveItems(added.doc, [added.id], 2, 1)
+    expect(moved.components[added.id].pos).toEqual({ x: 2, y: -3 })
+    const pasted = pasteFragment(moved, copyItems(moved, [added.id]), { x: 5, y: 5 })
+    expect(pasted.doc.components[pasted.ids[0]]).toMatchObject({ type: TEXT_TYPE, text: 'Note' })
+    expect(deleteItems(moved, [added.id]).components[added.id]).toBeUndefined()
+  })
+})
+
+describe('duplicateItems', () => {
+  it('copies the parts and the wires between them, and leaves the first copy alone', () => {
+    const doc = andCircuit()
+    const copied = duplicateItems(doc, ['c1', 'c3'], { x: 0, y: 20 })
+    expect(copied.ids).toHaveLength(2)
+    expect(Object.keys(copied.doc.components)).toHaveLength(5)
+    // Only the wire from c1 to c3 runs between two copied parts.
+    expect(Object.keys(copied.doc.wires)).toHaveLength(3)
+    const [input, gate] = copied.ids
+    expect(copied.doc.components[input].pos).toEqual({ x: 0, y: 20 })
+    expect(copied.doc.components[gate].pos).toEqual({ x: 12, y: 23 })
+    expect(copied.doc.components.c1).toBe(doc.components.c1)
   })
 })

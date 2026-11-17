@@ -177,3 +177,51 @@ export const BrandMark = () => (
     <path d="M1.5 6H6M1.5 12H6M17 9h3.5" />
   </svg>
 )
+
+export const AlignLeftIcon = () => (
+  <Icon>
+    <path d="M3 2.5v13M5.5 4.5h9v3.5h-9zM5.5 10h5.5v3.5H5.5z" />
+  </Icon>
+)
+
+export const AlignCenterXIcon = () => (
+  <Icon>
+    <path d="M9 2.5v13M4 4.5h10v3.5H4zM6 10h6v3.5H6z" />
+  </Icon>
+)
+
+export const AlignRightIcon = () => (
+  <Icon>
+    <path d="M15 2.5v13M3.5 4.5h9v3.5h-9zM7 10h5.5v3.5H7z" />
+  </Icon>
+)
+
+export const AlignTopIcon = () => (
+  <Icon>
+    <path d="M2.5 3h13M4.5 5.5h3.5v9H4.5zM10 5.5h3.5V11H10z" />
+  </Icon>
+)
+
+export const AlignCenterYIcon = () => (
+  <Icon>
+    <path d="M2.5 9h13M4.5 4h3.5v10H4.5zM10 6h3.5v6H10z" />
+  </Icon>
+)
+
+export const AlignBottomIcon = () => (
+  <Icon>
+    <path d="M2.5 15h13M4.5 3.5h3.5v9H4.5zM10 7h3.5v5.5H10z" />
+  </Icon>
+)
+
+export const SpreadXIcon = () => (
+  <Icon>
+    <path d="M2.5 2.5v13M15.5 2.5v13M7.5 5h3v8h-3z" />
+  </Icon>
+)
+
+export const SpreadYIcon = () => (
+  <Icon>
+    <path d="M2.5 2.5h13M2.5 15.5h13M5 7.5h8v3H5z" />
+  </Icon>
+)

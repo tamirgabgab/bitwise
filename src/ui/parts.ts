@@ -27,6 +27,7 @@ const NAMES: Readonly<Record<string, string>> = {
   cycle: 'Cycle',
   tobits: 'To bits',
   frombits: 'From bits',
+  text: 'Text',
 }
 
 /** What each part does, in one line. Binary first, then the general rule. */
@@ -91,6 +92,10 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   frombits: [
     'Reads bits as one number. With two values a digit is one bit already',
     'Reads bits as one digit. A bit is 0 or the top value',
+  ],
+  text: [
+    'Writing on the canvas. It is not part of the circuit',
+    'Writing on the canvas. It is not part of the circuit',
   ],
 }
 

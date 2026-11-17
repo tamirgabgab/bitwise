@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { addComponent, addSubcircuit, addWire, emptyDoc } from './document.ts'
+import { addComponent, addSubcircuit, addText, addWire, emptyDoc } from './document.ts'
 import type { Terminal } from './document.ts'
 import { DEFAULT_SETTINGS, cleanSettings, emptyProject, fromProjectData, toProjectData } from './project.ts'
 import type { ProjectData } from './project.ts'
@@ -105,5 +105,35 @@ describe('cleanSettings', () => {
       palette: DEFAULT_PALETTE,
       sandbox: false,
     })
+  })
+})
+
+describe('a text label in a project', () => {
+  it('survives being written out and read back', () => {
+    const added = addText(emptyDoc(), { x: 2, y: 3 }, 'Carry chain')
+    const data = toProjectData({
+      circuits: { k1: { id: 'k1', name: 'Main', doc: added.doc } },
+      order: ['k1'],
+      active: 'k1',
+      settings: DEFAULT_SETTINGS,
+    })
+    expect(data.circuits[0].components[0]).toMatchObject({ type: 'text', text: 'Carry chain' })
+    const loaded = fromProjectData(data)
+    expect(loaded.circuits.k1.doc.components[added.id]).toEqual(added.doc.components[added.id])
+  })
+
+  it('is dropped when it says nothing', () => {
+    const added = addText(emptyDoc(), { x: 2, y: 3 })
+    const data = toProjectData({
+      circuits: { k1: { id: 'k1', name: 'Main', doc: added.doc } },
+      order: ['k1'],
+      active: 'k1',
+      settings: DEFAULT_SETTINGS,
+    })
+    const blank = {
+      ...data,
+      circuits: [{ ...data.circuits[0], components: [{ ...data.circuits[0].components[0], text: ' ' }] }],
+    }
+    expect(Object.keys(fromProjectData(blank).circuits.k1.doc.components)).toHaveLength(0)
   })
 })
