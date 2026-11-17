@@ -149,6 +149,31 @@ Run lint, test and build before calling a change done. CI runs the same three.
   only accent color; the other hues are reserved for signal values.
 - Keyboard shortcuts match on `event.code`, so they work on any layout.
 
+## App chrome
+
+- `useChrome` (`src/ui/chrome.ts`) holds what belongs to the app and not to
+  the project: the open overlay (command search, shortcuts, tour), folded
+  palette sections, parts used lately, the height of the timing panel and
+  whether the tour was shown. It is saved under its own storage key.
+- `listCommands()` (`commands.ts`) is the one list of actions behind the
+  command search. A command with a shortcut must also be in `shortcuts.ts`;
+  a test checks it.
+- Overlays are native `<dialog>` elements opened with `showModal()`. The
+  canvas ignores keys whose target is inside a dialog.
+- The inspector is docked on the right and is there only while something
+  is selected. On a phone it is a bottom sheet.
+- `paletteModel.ts` decides the palette sections and the search;
+  `minimap.ts` the overview map, shown only when part of the drawing is out
+  of sight; `toasts.ts` the short messages; `tour.ts` the steps of the tour
+  and where its card goes.
+- `pulses.ts` notes which wires changed and which way a wire carries its
+  value. `render.ts` draws the wave only when the scene has `pulse`: never
+  in an SVG export, and never under `prefers-reduced-motion`.
+- A chip for a value gets its colors from `swatch.ts`, in the settings
+  panel and in the legend alike.
+- Font sizes come from the five `--text-*` variables in `src/index.css`.
+  Do not write a pixel size in `App.css`.
+
 ## Conventions
 
 - Every behavior in `src/core` gets a unit test next to it (`*.test.ts`).

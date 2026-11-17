@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM). What comes next is the rest of the list under "After the MVP".
+Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM) and three rounds of interface work (finding things, the workspace, polish and a first-visit tour). What comes next is touch and phone support, or the rest of the list under "After the MVP".
 
 ## Decisions
 

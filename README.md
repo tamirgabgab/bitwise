@@ -48,6 +48,11 @@ What works today:
 - **Showing a circuit.** Save a list of steps, each with switch values and
   a note, and walk through them with the arrow keys. Export the drawing as
   SVG.
+- **Finding your way.** Ctrl+K searches every action, part and example,
+  and "?" lists the keyboard shortcuts. The palette has a search field and
+  sections that fold. A first visit starts with a short tour, an overview
+  map appears when the drawing runs off screen, and a wire shows a brief
+  wave when its value changes.
 - **Simulation core.** Unknown (X) and floating (Z) values next to the
   digits, driver conflicts, and an event-driven engine with per-component
   delays.
