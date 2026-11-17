@@ -20,6 +20,9 @@ function ProjectsBox({ close }: { close: () => void }) {
   const library = useStorage((state) => state.library)
   const ok = useStorage((state) => state.ok)
   const [renaming, setRenaming] = useState<string | null>(null)
+  // The project whose delete waits for a yes, asked in its own row so no
+  // second window opens over this one.
+  const [deleting, setDeleting] = useState<string | null>(null)
   // Times are told from when the window opened.
   const [now] = useState(() => Date.now())
   const then = (action: () => Promise<unknown>) => (): void => {
@@ -44,7 +47,7 @@ function ProjectsBox({ close }: { close: () => void }) {
       <div className="projects-actions">
         <button type="button" className="button button-main" onClick={then(startNewProject)}>
           <NewIcon />
-          New project
+          Start a new project
         </button>
         <button type="button" className="button" onClick={then(openProjectFile)}>
           <OpenIcon />
@@ -61,7 +64,26 @@ function ProjectsBox({ close }: { close: () => void }) {
             const isOpen = project.id === library.open
             return (
               <li key={project.id} className={isOpen ? 'project is-open' : 'project'}>
-                {renaming === project.id ? (
+                {deleting === project.id ? (
+                  <div className="project-confirm" role="group" aria-label={`Delete ${project.name}`}>
+                    <p className="project-confirm-text">
+                      Delete “{project.name}”? It cannot be brought back.
+                    </p>
+                    <button type="button" className="button" autoFocus onClick={() => setDeleting(null)}>
+                      Keep it
+                    </button>
+                    <button
+                      type="button"
+                      className="button button-danger"
+                      onClick={() => {
+                        setDeleting(null)
+                        void deleteProject(project.id)
+                      }}
+                    >
+                      Delete project
+                    </button>
+                  </div>
+                ) : renaming === project.id ? (
                   <NameInput
                     name={project.name}
                     label="Project name"
@@ -78,8 +100,9 @@ function ProjectsBox({ close }: { close: () => void }) {
                     className="project-open"
                     aria-current={isOpen ? 'true' : undefined}
                     onClick={() => {
-                      if (isOpen) close()
-                      else void switchProject(project.id).then((done) => done && close())
+                      // Closed first, so a failure message never opens over this window.
+                      close()
+                      if (!isOpen) void switchProject(project.id)
                     }}
                   >
                     <span className="project-name">{project.name}</span>
@@ -88,33 +111,37 @@ function ProjectsBox({ close }: { close: () => void }) {
                     </span>
                   </button>
                 )}
-                <button
-                  type="button"
-                  className="tool"
-                  aria-label={`Rename ${project.name}`}
-                  title="Rename"
-                  onClick={() => setRenaming(project.id)}
-                >
-                  <RenameIcon />
-                </button>
-                <button
-                  type="button"
-                  className="tool"
-                  aria-label={`Make a copy of ${project.name}`}
-                  title="Make a copy"
-                  onClick={() => duplicateProject(project.id)}
-                >
-                  <CopyIcon />
-                </button>
-                <button
-                  type="button"
-                  className="tool"
-                  aria-label={`Delete ${project.name}`}
-                  title="Delete"
-                  onClick={() => void deleteProject(project.id)}
-                >
-                  <DeleteIcon />
-                </button>
+                {deleting !== project.id && (
+                  <>
+                    <button
+                      type="button"
+                      className="tool"
+                      aria-label={`Rename ${project.name}`}
+                      title="Rename"
+                      onClick={() => setRenaming(project.id)}
+                    >
+                      <RenameIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="tool"
+                      aria-label={`Make a copy of ${project.name}`}
+                      title="Make a copy"
+                      onClick={() => duplicateProject(project.id)}
+                    >
+                      <CopyIcon />
+                    </button>
+                    <button
+                      type="button"
+                      className="tool"
+                      aria-label={`Delete ${project.name}`}
+                      title="Delete"
+                      onClick={() => setDeleting(project.id)}
+                    >
+                      <DeleteIcon />
+                    </button>
+                  </>
+                )}
               </li>
             )
           })}

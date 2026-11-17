@@ -39,6 +39,7 @@ export {
   describeNode,
   projectSnapshot,
   readPart,
+  isWatched,
   toggleWatch,
   unwatchRow,
   restartSimulation,

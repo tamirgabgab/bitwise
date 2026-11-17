@@ -7,6 +7,7 @@ import {
   updateStepHere,
   useEditor,
 } from '../editor/index.ts'
+import { ask } from './dialogs.ts'
 import { CloseIcon, DeleteIcon, NextIcon, PreviousIcon } from './icons.tsx'
 
 /**
@@ -100,7 +101,18 @@ export function StepsPanel() {
             className="tool"
             aria-label="Delete this step"
             title="Delete this step"
-            onClick={() => deleteStep(index)}
+            onClick={() => {
+              // Steps are not part of undo, so a delete is asked about first.
+              void ask({
+                title: `Delete step ${index + 1}?`,
+                body: 'Its note and the switch values it holds go with it. This cannot be undone.',
+                confirm: 'Delete step',
+                cancel: 'Keep it',
+                danger: true,
+              }).then((yes) => {
+                if (yes) deleteStep(index)
+              })
+            }}
           >
             <DeleteIcon />
           </button>

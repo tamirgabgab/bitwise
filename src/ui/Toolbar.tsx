@@ -270,9 +270,9 @@ function FileMenu() {
             event.preventDefault()
           }}
         >
-          <MenuRow name="New project" onPick={pick(() => void startNewProject())} />
+          <MenuRow name="Start a new project" onPick={pick(() => void startNewProject())} />
           <MenuRow
-            name="Projects in this browser"
+            name="Manage projects"
             summary="Switch, rename, copy or delete"
             onPick={pick(useChrome.getState().openProjects)}
           />

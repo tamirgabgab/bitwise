@@ -11,6 +11,20 @@ function listOf(names: readonly string[]): string {
   return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
 }
 
+let measure: CanvasRenderingContext2D | null | undefined
+
+/**
+ * How wide `text` is in the face of the tabs, in px, so the field that
+ * renames a tab is as wide as the name it replaces.
+ */
+function tabTextWidth(text: string): number {
+  measure ??= document.createElement('canvas').getContext('2d')
+  const sample = document.querySelector('.tab-name, .tab-input')
+  if (!measure || !sample) return text.length * 8
+  measure.font = getComputedStyle(sample).font
+  return Math.ceil(measure.measureText(text).width)
+}
+
 /** Deletes a circuit, after asking if anything would be lost with it. */
 async function deleteCircuit(id: string): Promise<void> {
   const { circuits } = useEditor.getState()
@@ -81,7 +95,7 @@ export function CircuitTabs() {
                 maxLength={MAX_CIRCUIT_NAME}
                 className="tab-input"
                 // As wide as the name, so the tab keeps its size while typing starts.
-                style={(draft) => ({ width: `${Math.max(draft.length, 3) + 1}ch` })}
+                style={(draft) => ({ width: `${Math.max(tabTextWidth(draft), 24)}px` })}
                 onDone={(next) => {
                   setRenaming(null)
                   if (next !== null) renameCircuit(id, next)
@@ -104,10 +118,13 @@ export function CircuitTabs() {
                 {name}
               </button>
             )}
-            {open && order.length > 1 && renaming !== id && (
+            {/* Kept, hidden, while renaming, so the tabs after it do not move. */}
+            {open && order.length > 1 && (
               <button
                 type="button"
                 className="tab-close"
+                style={renaming === id ? { visibility: 'hidden' } : undefined}
+                tabIndex={renaming === id ? -1 : undefined}
                 aria-label={`Delete circuit ${name}`}
                 title={`Delete ${name}`}
                 onClick={() => void deleteCircuit(id)}

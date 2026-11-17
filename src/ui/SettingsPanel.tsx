@@ -8,6 +8,7 @@ import {
 } from '../core/index.ts'
 import type { GatePreset } from '../core/index.ts'
 import { useEditor, valueText } from '../editor/index.ts'
+import { ask } from './dialogs.ts'
 import { CloseIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { hasOwnColors, swatchStyle, usesClassicColors } from './swatch.ts'
 
@@ -29,6 +30,7 @@ function RadixSection() {
           type="button"
           className="tool"
           aria-label="Fewer values"
+          title="Fewer values"
           disabled={radix <= MIN_RADIX}
           onClick={() => setRadix(radix - 1)}
         >
@@ -41,6 +43,7 @@ function RadixSection() {
           type="button"
           className="tool"
           aria-label="More values"
+          title="More values"
           disabled={radix >= MAX_RADIX}
           onClick={() => setRadix(radix + 1)}
         >
@@ -161,7 +164,22 @@ function ColorSection() {
       {editable && (
         <p className="note">
           Click a color to change it.{' '}
-          <button type="button" className="link" onClick={resetPalette}>
+          <button
+            type="button"
+            className="link"
+            onClick={() => {
+              // Settings are not part of undo, so the reset is asked about first.
+              void ask({
+                title: 'Reset the wire colors?',
+                body: 'Every value goes back to its default color. The colors you picked cannot be brought back.',
+                confirm: 'Reset colors',
+                cancel: 'Keep my colors',
+                danger: true,
+              }).then((yes) => {
+                if (yes) resetPalette()
+              })
+            }}
+          >
             Reset colors
           </button>
         </p>
@@ -199,13 +217,31 @@ interface SettingsPanelProps {
 export function SettingsPanel({ onClose }: SettingsPanelProps) {
   const ref = useRef<HTMLDivElement>(null)
 
+  // Focus moves into the panel when it opens and back to its button when it
+  // closes, unless the user has already put it somewhere else.
   useEffect(() => {
+    const panel = ref.current
+    panel?.querySelector<HTMLElement>(
+      'section button:not(:disabled), section input, section select',
+    )?.focus()
+    return () => {
+      const active = document.activeElement
+      if (active === null || active === document.body || panel?.contains(active)) {
+        document.querySelector<HTMLElement>('.logic-button')?.focus()
+      }
+    }
+  }, [])
+
+  useEffect(() => {
+    // A question asked from the panel (a dialog) must not close it.
+    const inDialog = (target: EventTarget | null): boolean =>
+      target instanceof Element && target.closest('dialog') !== null
     const onKeyDown = (event: KeyboardEvent): void => {
-      if (event.code === 'Escape') onClose()
+      if (event.code === 'Escape' && !inDialog(event.target)) onClose()
     }
     const onPointerDown = (event: PointerEvent): void => {
       const target = event.target as Element | null
-      if (ref.current?.contains(target) || target?.closest('.logic-button')) return
+      if (ref.current?.contains(target) || target?.closest('.logic-button') || inDialog(target)) return
       onClose()
     }
     window.addEventListener('keydown', onKeyDown)
@@ -226,7 +262,13 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
     >
       <header className="settings-head">
         <h2>Logic settings</h2>
-        <button type="button" className="tool" aria-label="Close settings" onClick={onClose}>
+        <button
+          type="button"
+          className="tool"
+          aria-label="Close settings"
+          title="Close settings (Esc)"
+          onClick={onClose}
+        >
           <CloseIcon />
         </button>
       </header>

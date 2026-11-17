@@ -133,8 +133,11 @@ Run lint, test and build before calling a change done. CI runs the same three.
   the one bold place of the chrome; the top bar and the empty canvas stay
   quiet.
 - The simulation controls (run, steps, restart, speed) sit in one framed
-  strip, `.transport`. Under `pointer: coarse` the buttons of the bar are
-  40px.
+  strip, `.transport`. Under `pointer: coarse` every target is at least
+  40px; those rules sit last in `App.css` so they win.
+- A destructive action asks first and names what it destroys. Inside a
+  dialog (the projects window) the question is asked in place, in the row,
+  never as a second dialog.
 - `liveValues.ts` reads what each wire carries and `valueStyle.ts` decides
   how it is drawn: the classic look at radix 2, a palette up to 10 values,
   a gradient above. Z is dashed, X dotted, a conflict thick and dashed.

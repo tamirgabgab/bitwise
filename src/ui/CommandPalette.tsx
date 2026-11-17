@@ -106,7 +106,19 @@ function CommandSearch({
           <p className="commands-empty">
             {quickAdd
               ? `No part matches “${query.trim()}”. Try a name such as “counter” or “and”.`
-              : `Nothing matches “${query.trim()}”. Try the name of a part, such as “counter”, or an action, such as “save”.`}
+              : `Nothing matches “${query.trim()}”. Try the name of a part, such as “counter”, or an action, such as “save”.`}{' '}
+            <button
+              type="button"
+              className="link"
+              onClick={(event) => {
+                setQuery('')
+                setActive(0)
+                // Back to the field, where typing goes on.
+                event.currentTarget.closest('.commands-box')?.querySelector('input')?.focus()
+              }}
+            >
+              Clear the search
+            </button>
           </p>
         )}
         {found.map((command, index) => {

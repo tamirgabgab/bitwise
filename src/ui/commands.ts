@@ -69,11 +69,11 @@ export function listCommands(): Command[] {
   const zoom = editor.view.zoom
 
   const commands: Command[] = [
-    { id: 'file.new', group: 'File', title: 'New project', run: () => void startNewProject() },
+    { id: 'file.new', group: 'File', title: 'Start a new project', run: () => void startNewProject() },
     {
       id: 'file.projects',
       group: 'File',
-      title: 'Projects in this browser',
+      title: 'Manage projects',
       keywords: 'list switch rename duplicate copy delete library saved',
       run: chrome.openProjects,
     },

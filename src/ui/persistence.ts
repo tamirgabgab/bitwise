@@ -138,12 +138,20 @@ export function startPersistence(): void {
   })
 }
 
+/** The name the open project goes by: its name in the list, or its first circuit's. */
+function openName(): string {
+  const { circuits, order } = useEditor.getState()
+  const { library } = useStorage.getState()
+  return library.projects.find((project) => project.id === library.open)?.name ?? circuits[order[0]].name
+}
+
 /** Asks before something replaces a project that has work in it. */
 function mayReplace(withWhat: string): Promise<boolean> {
   if (isBlankProject(useEditor.getState())) return Promise.resolve(true)
+  const name = openName()
   return ask({
-    title: 'Replace this project?',
-    body: `${withWhat} takes the place of the project you have open. To keep it, save it to a file first.`,
+    title: `Replace “${name}”?`,
+    body: `${withWhat} takes the place of “${name}”. To keep it, save it to a file first.`,
     confirm: 'Replace project',
     cancel: 'Keep this project',
     danger: true,
@@ -172,10 +180,7 @@ async function openAsNew(base: string, what: string, apply: () => void): Promise
 
 /** Saves the project as a file on the user's computer. */
 export function saveProjectFile(): void {
-  const { circuits, order } = useEditor.getState()
-  const { library } = useStorage.getState()
-  const listed = library.projects.find((project) => project.id === library.open)?.name
-  const name = safeFileName(listed ?? circuits[order[0]].name, 'project')
+  const name = safeFileName(openName(), 'project')
   downloadText(`${name}.cedar.json`, projectText(true))
   toast(`Saved the project as ${name}.cedar.json`)
 }
@@ -270,19 +275,12 @@ export function duplicateProject(id: string): void {
 }
 
 /**
- * Removes a project from the browser once the user agrees. When it is the
- * open one, the latest of the others opens, or a new empty project.
+ * Removes a project from the browser. The caller has asked the user first,
+ * by name. When it is the open one, the latest of the others opens, or a new
+ * empty project.
  */
 export async function deleteProject(id: string): Promise<void> {
   const name = nameOf(id)
-  const sure = await ask({
-    title: `Delete “${name}”?`,
-    body: 'It is removed from this browser and cannot be brought back. To keep a copy, save it to a file first.',
-    confirm: 'Delete project',
-    cancel: 'Keep it',
-    danger: true,
-  })
-  if (!sure) return
   const wasOpen = id === listLocal().open
   if (wasOpen) forgetPendingSave()
   deleteLocal(id)

@@ -10,6 +10,7 @@ import {
   describeNode,
   extractable,
   isSwitchKey,
+  isWatched,
   keyName,
   readPart,
   setBreakpoint,
@@ -17,6 +18,7 @@ import {
   signalText,
   switchValue,
   takesKey,
+  toggleWatch,
   useEditor,
   useSim,
   valueText,
@@ -382,6 +384,17 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
           ))}
         </select>
       </div>
+      {/* The same as a right-click on the wire, for the keyboard. */}
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={isWatched(terminal)}
+          onChange={() => {
+            if (toggleWatch(terminal)) useSim.getState().setScopeOpen(true)
+          }}
+        />
+        Show in the timing diagram
+      </label>
     </aside>
   )
 }
@@ -610,6 +623,7 @@ export function Inspector() {
               type="button"
               className="tool"
               aria-label={`${field.label}: lower`}
+              title={`${field.label}: lower`}
               disabled={value <= min}
               onClick={() => set(value - 1)}
             >
@@ -622,6 +636,7 @@ export function Inspector() {
               type="button"
               className="tool"
               aria-label={`${field.label}: higher`}
+              title={`${field.label}: higher`}
               disabled={value >= max}
               onClick={() => set(value + 1)}
             >
@@ -639,6 +654,7 @@ export function Inspector() {
             type="button"
             className="tool"
             aria-label="Delay: lower"
+            title="Delay: lower"
             disabled={component.delay <= 1}
             onClick={() => setDelay(component.id, component.delay - 1)}
           >
@@ -651,6 +667,7 @@ export function Inspector() {
             type="button"
             className="tool"
             aria-label="Delay: higher"
+            title="Delay: higher"
             disabled={component.delay >= MAX_DELAY}
             onClick={() => setDelay(component.id, component.delay + 1)}
           >

@@ -79,7 +79,10 @@ function CircuitParts({ query }: { query: string }) {
       </h2>
       {folded && !searching ? null : others.length === 0 ? (
         <p className="palette-note">
-          Add a circuit with + above the canvas. It shows up here as a part you can use.
+          Circuits you add show up here as parts you can use.{' '}
+          <button type="button" className="link" onClick={() => useEditor.getState().addCircuit()}>
+            Add a circuit
+          </button>
         </p>
       ) : (
         <div id="palette-circuits" className="palette-list">
@@ -238,7 +241,12 @@ export function Palette() {
             onClick={() => useChrome.getState().openCommands(query.trim())}
           >
             Search all actions
+          </button>{' '}
+          or{' '}
+          <button type="button" className="link" onClick={() => setQuery('')}>
+            clear the search
           </button>
+          .
         </p>
       )}
       {tip && <GateTable type={tip.type} anchor={tip} />}
