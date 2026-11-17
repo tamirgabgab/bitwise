@@ -4,11 +4,26 @@
  * them, and stepping through the list walks an audience through the circuit.
  */
 
+/**
+ * What a switch is on: a digit, or for a switch on a bus its digits as
+ * text, the most significant first.
+ */
+export type InputValue = number | string
+
+/** The value as it came in, if a switch can be on it at this radix. */
+export function cleanInputValue(value: unknown, radix: number): InputValue | undefined {
+  if (typeof value === 'number') {
+    return Number.isInteger(value) && value >= 0 && value < radix ? value : undefined
+  }
+  if (typeof value !== 'string' || !/^[0-9A-F]{2,64}$/.test(value)) return undefined
+  return [...value].every((char) => Number.parseInt(char, 16) < radix) ? value : undefined
+}
+
 export interface Step {
   /** What the presenter wants to say at this step. */
   readonly note: string
   /** The value of each switch, by part id. */
-  readonly inputs: Readonly<Record<string, number>>
+  readonly inputs: Readonly<Record<string, InputValue>>
 }
 
 /** The most steps a circuit can keep. */
@@ -36,13 +51,12 @@ export function cleanSteps(
   for (const item of value.slice(0, MAX_STEPS)) {
     if (typeof item !== 'object' || item === null) continue
     const given = (item as { inputs?: unknown }).inputs
-    const inputs: Record<string, number> = {}
+    const inputs: Record<string, InputValue> = {}
     if (typeof given === 'object' && given !== null && !Array.isArray(given)) {
-      for (const [id, digit] of Object.entries(given)) {
+      for (const [id, raw] of Object.entries(given)) {
         if (!isSwitch(id)) continue
-        if (typeof digit === 'number' && Number.isInteger(digit) && digit >= 0 && digit < radix) {
-          inputs[id] = digit
-        }
+        const value = cleanInputValue(raw, radix)
+        if (value !== undefined) inputs[id] = value
       }
     }
     steps.push({ note: cleanNote((item as { note?: unknown }).note).trim(), inputs })

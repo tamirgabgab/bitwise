@@ -52,8 +52,8 @@ describe('readLiveValues', () => {
   it('reads the value on each wire', () => {
     const doc = inverter()
     const live = readLiveValues(doc, running(doc))
-    expect(live.at(pin('c1', 'out'))).toEqual({ digit: 0, conflict: false })
-    expect(live.at(pin('c2', 'out'))).toEqual({ digit: 1, conflict: false })
+    expect(live.at(pin('c1', 'out'))).toMatchObject({ digit: 0, conflict: false })
+    expect(live.at(pin('c2', 'out'))).toMatchObject({ digit: 1, conflict: false })
     // Both ends of a wire read the same.
     expect(live.at(pin('c3', 'in'))).toEqual(live.at(pin('c2', 'out')))
   })
@@ -69,8 +69,8 @@ describe('readLiveValues', () => {
     const junction = Object.keys(doc.junctions)[0]
     const live = readLiveValues(doc, running(doc))
     const net = terminalNets(doc).get(terminalKey(pin('c2', 'out')))
-    expect(live.net(net)).toEqual({ digit: 1, conflict: false })
-    expect(live.at({ kind: 'junction', junction })).toEqual({ digit: 1, conflict: false })
+    expect(live.net(net)).toMatchObject({ digit: 1, conflict: false })
+    expect(live.at({ kind: 'junction', junction })).toMatchObject({ digit: 1, conflict: false })
     expect(live.face('c6')).toBe(1)
   })
 
@@ -101,7 +101,7 @@ describe('readLiveValues', () => {
     bridge.cycleInput('c1', 1)
     bridge.sim.settle()
     const live = readLiveValues(doc, bridge)
-    expect(live.at(pin('c3', 'in'))).toEqual({ digit: X, conflict: true })
+    expect(live.at(pin('c3', 'in'))).toMatchObject({ digit: X, conflict: true })
     // Each switch still shows its own value.
     expect(live.face('c1')).toBe(1)
     expect(live.face('c2')).toBe(0)
@@ -188,9 +188,9 @@ describe('readLiveValues with a named circuit', () => {
   it('reads the wires on both sides of the part', () => {
     const doc = host()
     const live = readLiveValues(doc, runningHost(doc))
-    expect(live.at(pin('c1', 'c1'))).toEqual({ digit: 0, conflict: false })
-    expect(live.at(pin('c1', 'c3'))).toEqual({ digit: 1, conflict: false })
-    expect(live.at(pin('c3', 'in'))).toEqual({ digit: 1, conflict: false })
+    expect(live.at(pin('c1', 'c1'))).toMatchObject({ digit: 0, conflict: false })
+    expect(live.at(pin('c1', 'c3'))).toMatchObject({ digit: 1, conflict: false })
+    expect(live.at(pin('c3', 'in'))).toMatchObject({ digit: 1, conflict: false })
   })
 
   it('reads what the part drives, as for any output pin', () => {
@@ -206,12 +206,47 @@ describe('readLiveValues with a named circuit', () => {
     const live = readLiveValues(doc, runningHost(doc))
     // Its input floats, so the NOT inside gives unknown.
     expect(live.output('c1', 'c3')).toBe(X)
-    expect(live.at(pin('c1', 'c3'))).toEqual({ digit: X, conflict: false })
+    expect(live.at(pin('c1', 'c3'))).toMatchObject({ digit: X, conflict: false })
   })
 
   it('gives unknown for a pin with nothing behind it', () => {
     const doc = host()
     const live = readLiveValues(doc, runningHost(doc))
     expect(live.output('c1', 'gone')).toBe(X)
+  })
+})
+
+describe('readLiveValues on a bus', () => {
+  it('reads every digit of a wire, a face and an output', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { params: { width: 3 } }).doc
+    doc = addComponent(doc, 'not', { x: 10, y: 0 }, { params: { width: 3 } }).doc
+    doc = addComponent(doc, 'output', { x: 20, y: 0 }, { params: { width: 3 } }).doc
+    doc = addComponent(doc, 'const', { x: 0, y: 6 }, { params: { width: 2, value: 1 } }).doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c2', 'in'))!.doc
+    doc = addWire(doc, pin('c2', 'out'), pin('c3', 'in'))!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.setInput('c1', '110')
+    bridge.sim.settle()
+    const live = readLiveValues(doc, bridge)
+    expect(live.at(pin('c1', 'out')).signal).toEqual([0, 1, 1])
+    expect(live.at(pin('c1', 'out')).mixed).toBe(false)
+    expect(live.faceSignal('c1')).toEqual([0, 1, 1])
+    expect(live.outputSignal('c2', 'out')).toEqual([1, 0, 0])
+    expect(live.faceSignal('c3')).toEqual([1, 0, 0])
+    expect(live.faceSignal('c4')).toEqual([1, 1])
+    // The single-digit readers give the lowest digit.
+    expect(live.face('c1')).toBe(0)
+    expect(live.output('c2', 'out')).toBe(1)
+  })
+
+  it('marks a wire between pins of different widths', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { params: { width: 3 } }).doc
+    doc = addComponent(doc, 'output', { x: 20, y: 0 }).doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c2', 'in'))!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.sim.settle()
+    expect(readLiveValues(doc, bridge).at(pin('c1', 'out')).mixed).toBe(true)
   })
 })

@@ -334,3 +334,40 @@ describe('presentation steps', () => {
     expect(() => parseProject(withSteps([{ note: 7 }]))).toThrow(/note that is not text/)
   })
 })
+
+describe('switches on a bus', () => {
+  const file = (inputs: unknown, stepInputs: unknown): string =>
+    JSON.stringify({
+      format: 'cedar-logic',
+      version: FILE_FORMAT_VERSION,
+      settings: {},
+      active: 'k1',
+      circuits: [
+        {
+          id: 'k1',
+          name: 'Main',
+          nextId: 3,
+          components: [
+            { id: 'c1', type: 'input', pos: { x: 0, y: 0 }, params: { width: 4 } },
+            { id: 'c2', type: 'input', pos: { x: 0, y: 4 } },
+          ],
+          junctions: [],
+          wires: [],
+          inputs,
+          steps: [{ note: '', inputs: stepInputs }],
+        },
+      ],
+    })
+
+  it('keep their digits as text, next to the plain switches', () => {
+    const circuit = parseProject(file({ c1: '0A1F', c2: 1 }, { c1: '0110', c2: 0 })).circuits[0]
+    expect(circuit.inputs).toEqual({ c1: '0A1F', c2: 1 })
+    expect(circuit.steps).toEqual([{ note: '', inputs: { c1: '0110', c2: 0 } }])
+  })
+
+  it('drop a value that is not digits', () => {
+    const circuit = parseProject(file({ c1: 'hello', c2: '1' }, { c1: '1Z', c2: 1.5 })).circuits[0]
+    expect('inputs' in circuit).toBe(false)
+    expect(circuit.steps).toEqual([{ note: '', inputs: {} }])
+  })
+})

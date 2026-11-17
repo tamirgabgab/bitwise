@@ -64,6 +64,8 @@ export function flatten(root: CircuitDoc, library: Library = {}): Netlist {
   const parts = new Map<string, FlatPart>()
   const pins: { readonly node: string; readonly pin: FlatPin }[] = []
   const rootKeys: string[] = []
+  // The pins of the drawing on screen itself, by their own node.
+  const own = new Map<string, FlatPin>()
 
   const pinNode = (prefix: string, component: string, port: string): string =>
     prefix + terminalKey({ kind: 'pin', component, port })
@@ -90,8 +92,12 @@ export function flatten(root: CircuitDoc, library: Library = {}): Netlist {
       })
       for (const port of builtinComponents.get(component.type).ports(component.params)) {
         const node = pinNode(prefix, component.id, port.name)
-        pins.push({ node, pin: { part: key, port: port.name } })
-        if (!inside) rootKeys.push(node)
+        const pin: FlatPin = { part: key, port: port.name }
+        pins.push({ node, pin })
+        if (!inside) {
+          rootKeys.push(node)
+          own.set(node, pin)
+        }
       }
     }
     if (!inside) {
@@ -129,7 +135,9 @@ export function flatten(root: CircuitDoc, library: Library = {}): Netlist {
   const probes = new Map<string, FlatPin>()
   for (const key of rootKeys) {
     const list = members.get(find(key))
-    if (list) probes.set(key, list[0])
+    // A pin is read through itself: on a node where widths are mixed, the
+    // other pins may be on another net.
+    if (list) probes.set(key, own.get(key) ?? list[0])
   }
   return {
     parts,

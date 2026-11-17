@@ -82,14 +82,25 @@ export interface FileCircuit {
   readonly wires: readonly FileWire[]
   readonly view?: FileView
   /** The value each switch was on, by part id. */
-  readonly inputs?: Readonly<Record<string, number>>
+  readonly inputs?: Readonly<Record<string, FileInput>>
   /** The presentation steps: a note and the switch values to show with it. */
   readonly steps?: readonly FileStep[]
 }
 
+/**
+ * What a switch is on: a digit, or for a switch on a bus its digits as
+ * text, the most significant first.
+ */
+export type FileInput = number | string
+
 export interface FileStep {
   readonly note: string
-  readonly inputs: Readonly<Record<string, number>>
+  readonly inputs: Readonly<Record<string, FileInput>>
+}
+
+function isFileInput(value: unknown): value is FileInput {
+  if (typeof value === 'string') return /^[0-9A-F]{2,64}$/.test(value)
+  return isWhole(value) && value >= 0 && value < MAX_RADIX
 }
 
 export interface FileSettings {
@@ -339,12 +350,10 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
   }
   const nextId = isWhole(value.nextId) ? Math.max(value.nextId, highest + 1) : highest + 1
 
-  const inputs: Record<string, number> = {}
+  const inputs: Record<string, FileInput> = {}
   if (isObject(value.inputs)) {
     for (const [partId, digit] of Object.entries(value.inputs)) {
-      if (parts.has(partId) && isWhole(digit) && digit >= 0 && digit < MAX_RADIX) {
-        inputs[partId] = digit
-      }
+      if (parts.has(partId) && isFileInput(digit)) inputs[partId] = digit
     }
   }
   const steps: FileStep[] = []
@@ -354,12 +363,10 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
       if (item.note !== undefined && typeof item.note !== 'string') {
         fail(`${where}: a step has a note that is not text.`)
       }
-      const shown: Record<string, number> = {}
+      const shown: Record<string, FileInput> = {}
       if (isObject(item.inputs)) {
         for (const [partId, digit] of Object.entries(item.inputs)) {
-          if (parts.has(partId) && isWhole(digit) && digit >= 0 && digit < MAX_RADIX) {
-            shown[partId] = digit
-          }
+          if (parts.has(partId) && isFileInput(digit)) shown[partId] = digit
         }
       }
       steps.push({ note: item.note ?? '', inputs: shown })

@@ -14,6 +14,7 @@ import {
   isPrime,
   maxDigit,
   minDigit,
+  stepSignal,
   mirrorDigit,
   mulDigit,
   notBit,
@@ -247,5 +248,22 @@ describe('resolve above radix 2', () => {
     const result = resolve(3, ternary('2ZZ', 'Z1Z'))
     expect(formatSignal(result.value)).toBe('21Z')
     expect(result.conflict).toBe(false)
+  })
+})
+
+describe('stepSignal', () => {
+  it('adds with a carry from digit to digit', () => {
+    expect(formatSignal(stepSignal(parseSignal('0111'), 1, 2))).toBe('1000')
+    expect(formatSignal(stepSignal(parseSignal('129', 10), 3, 10))).toBe('132')
+  })
+
+  it('wraps around at both ends', () => {
+    expect(formatSignal(stepSignal(parseSignal('22', 3), 1, 3))).toBe('00')
+    expect(formatSignal(stepSignal(parseSignal('00', 3), -1, 3))).toBe('22')
+    expect(formatSignal(stepSignal(parseSignal('10', 3), -2, 3))).toBe('01')
+  })
+
+  it('gives X when a digit is unknown', () => {
+    expect(formatSignal(stepSignal(parseSignal('1X'), 1, 2))).toBe('XX')
   })
 })

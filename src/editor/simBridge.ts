@@ -1,8 +1,17 @@
-import { Simulator, Z, circuitCost } from '../core/index.ts'
-import type { CircuitCost, ComponentId, Digit, NetId, PinRef, Probe } from '../core/index.ts'
+import { Simulator, Z, circuitCost, formatSignal, parseSignal, stepSignal } from '../core/index.ts'
+import type {
+  CircuitCost,
+  ComponentId,
+  Digit,
+  NetId,
+  PinRef,
+  Probe,
+  Signal,
+} from '../core/index.ts'
 import type { CircuitDoc } from './document.ts'
 import { flatten } from './flatten.ts'
 import type { Library, Netlist } from './flatten.ts'
+import type { InputValue } from './steps.ts'
 
 interface Mirrored {
   readonly simId: ComponentId
@@ -18,8 +27,10 @@ export interface NodePin {
   readonly port: string
   /** True for an output, which puts a value on the node. */
   readonly drives: boolean
-  /** What the pin drives, or what it reads. */
+  /** What the pin drives, or what it reads: its lowest digit. */
   readonly value: Digit
+  /** The same, every digit of it. */
+  readonly signal: Signal
 }
 
 /** Everything a probe held against a wire can tell. */
@@ -27,7 +38,11 @@ export interface NodeReading {
   /** The simulator's net, or undefined for a pin wired to nothing. */
   readonly net: NetId | undefined
   readonly value: Digit
+  /** Every digit the node carries. More than one on a bus. */
+  readonly signal: Signal
   readonly conflict: boolean
+  /** True when pins of different widths are wired together here. */
+  readonly mixed: boolean
   readonly pins: readonly NodePin[]
 }
 
@@ -54,6 +69,8 @@ export class SimBridge {
   /** The path of each simulator component, worked out when first asked. */
   private paths: Map<ComponentId, string> | undefined
   private last: { readonly doc: CircuitDoc; readonly library: Library } | undefined
+  /** The pins that sit on a node with pins of another width. */
+  private mixed = new Set<string>()
 
   constructor(sim: Simulator = new Simulator()) {
     this.sim = sim
@@ -66,17 +83,16 @@ export class SimBridge {
 
   /**
    * Steps a switch to its next value, or its previous one for a negative
-   * `step`, going round the radix. Returns false if the part is no switch.
+   * `step`, going round the radix. A switch on a bus counts as one number.
+   * Returns false if the part is no switch.
    */
   cycleInput(docId: string, step: number): boolean {
     const entry = this.mirrored.get(docId)
     if (!entry || entry.type !== 'input') return false
     const radix = this.sim.radix
     const state = this.sim.getState(entry.simId) as readonly number[]
-    this.sim.setState(
-      entry.simId,
-      state.map((digit) => (((digit < 0 ? 0 : digit) + step) % radix + radix) % radix),
-    )
+    const known = state.map((digit) => (digit >= 0 && digit < radix ? digit : 0))
+    this.sim.setState(entry.simId, stepSignal(known, step, radix))
     return true
   }
 
@@ -93,15 +109,35 @@ export class SimBridge {
   }
 
   /**
-   * Puts a switch on a value. Returns false if the part is no switch or the
-   * radix has no such value.
+   * Puts a switch on a value: a number, or its digits as text with the most
+   * significant first. Returns false if the part is no switch or the value
+   * does not fit it at this radix.
    */
-  setInput(docId: string, digit: number): boolean {
+  setInput(docId: string, value: InputValue): boolean {
     const entry = this.mirrored.get(docId)
     if (!entry || entry.type !== 'input') return false
-    if (!Number.isInteger(digit) || digit < 0 || digit >= this.sim.radix) return false
+    const radix = this.sim.radix
     const state = this.sim.getState(entry.simId) as readonly number[]
-    this.sim.setState(entry.simId, state.map(() => digit))
+    let digits: number[]
+    if (typeof value === 'string') {
+      try {
+        digits = [...parseSignal(value, radix)]
+      } catch {
+        return false
+      }
+      if (digits.some((digit) => digit < 0)) return false
+    } else {
+      if (!Number.isInteger(value) || value < 0) return false
+      digits = []
+      for (let rest = value; rest > 0 || digits.length === 0; rest = Math.floor(rest / radix)) {
+        digits.push(rest % radix)
+      }
+    }
+    while (digits.length > state.length) {
+      if (digits.pop() !== 0) return false
+    }
+    while (digits.length < state.length) digits.push(0)
+    this.sim.setState(entry.simId, digits)
     return true
   }
 
@@ -157,10 +193,18 @@ export class SimBridge {
         port: other.port,
         drives: spec.direction === 'out',
         value: sim.readPin(other)[0] ?? Z,
+        signal: sim.readPin(other),
       })
     }
     const probe = sim.probe(ref)
-    return { net, value: probe.value[0] ?? Z, conflict: probe.conflict, pins }
+    return {
+      net,
+      value: probe.value[0] ?? Z,
+      signal: probe.value,
+      conflict: probe.conflict,
+      mixed: this.mixed.has(pinKey(ref)),
+      pins,
+    }
   }
 
   /** The output pin of every clock, the ones inside named circuits too. */
@@ -172,15 +216,33 @@ export class SimBridge {
     return pins
   }
 
-  /** The value of every switch of the drawing itself, by part id. */
-  inputValues(): Record<string, number> {
-    const values: Record<string, number> = {}
+  /**
+   * The value of every switch of the drawing itself, by part id: a digit,
+   * or for a switch on a bus its digits as text.
+   */
+  inputValues(): Record<string, InputValue> {
+    const values: Record<string, InputValue> = {}
+    const radix = this.sim.radix
     for (const [key, entry] of this.mirrored) {
       if (entry.type !== 'input' || key.includes('/')) continue
-      const digit = (this.sim.getState(entry.simId) as readonly number[])[0]
-      values[key] = digit >= 0 && digit < this.sim.radix ? digit : 0
+      const digits = (this.sim.getState(entry.simId) as readonly number[]).map((digit) =>
+        digit >= 0 && digit < radix ? digit : 0,
+      )
+      values[key] = digits.length === 1 ? digits[0] : formatSignal(digits)
     }
     return values
+  }
+
+  /**
+   * Whether the node at a terminal of the drawing, by `terminalKey`, has
+   * pins of different widths on it. Such pins cannot share a wire, so each
+   * width is left to itself.
+   */
+  mixedAt(key: string): boolean {
+    const pin = this.netlist?.probes.get(key)
+    if (pin === undefined) return false
+    const simId = this.simComponent(pin.part)
+    return simId !== undefined && this.mixed.has(pinKey({ component: simId, port: pin.port }))
   }
 
   /**
@@ -244,14 +306,27 @@ export class SimBridge {
   private syncNets(netlist: Netlist): void {
     const sim = this.sim
     const groups: PinRef[][] = []
+    const mixed = new Set<string>()
     for (const group of netlist.groups) {
-      const pins: PinRef[] = []
+      // A net has one width. Pins of another width wired to it get a net of
+      // their own, and the drawing shows the wire as faulty.
+      const byWidth = new Map<number, PinRef[]>()
       for (const pin of group) {
         const simId = this.simComponent(pin.part)
-        if (simId !== undefined) pins.push({ component: simId, port: pin.port })
+        if (simId === undefined) continue
+        const width =
+          sim.getComponent(simId).ports.find((port) => port.name === pin.port)?.width ?? 1
+        const ref: PinRef = { component: simId, port: pin.port }
+        const same = byWidth.get(width)
+        if (same) same.push(ref)
+        else byWidth.set(width, [ref])
       }
-      if (pins.length >= 2) groups.push(pins)
+      for (const pins of byWidth.values()) {
+        if (byWidth.size > 1) for (const pin of pins) mixed.add(pinKey(pin))
+        if (pins.length >= 2) groups.push(pins)
+      }
     }
+    this.mixed = mixed
     // Bigger groups choose first, so they keep the net most of their pins
     // are already on and as few pins as possible have to move.
     groups.sort((a, b) => b.length - a.length)

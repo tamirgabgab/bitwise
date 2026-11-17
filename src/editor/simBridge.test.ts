@@ -427,8 +427,8 @@ describe('SimBridge.describeTerminal', () => {
     expect(reading?.value).toBe(0)
     expect(reading?.conflict).toBe(false)
     expect(reading?.pins).toEqual([
-      { part: 'c1', type: 'input', port: 'out', drives: true, value: 0 },
-      { part: 'c2', type: 'not', port: 'in', drives: false, value: 0 },
+      { part: 'c1', type: 'input', port: 'out', drives: true, value: 0, signal: [0] },
+      { part: 'c2', type: 'not', port: 'in', drives: false, value: 0, signal: [0] },
     ])
   })
 
@@ -486,5 +486,140 @@ describe('SimBridge.evaluatedParts and cost', () => {
     expect([...bridge.evaluatedParts()]).toEqual(['c2'])
     bridge.sim.run(1)
     expect([...bridge.evaluatedParts()]).toEqual(['c3'])
+  })
+})
+
+describe('SimBridge with buses', () => {
+  /** A switch c1 four digits wide into an output c2 of the same width. */
+  function busLine(width = 4): CircuitDoc {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { params: { width } }).doc
+    doc = addComponent(doc, 'output', { x: 20, y: 0 }, { params: { width } }).doc
+    return addWire(doc, pin('c1', 'out'), pin('c2', 'in'))!.doc
+  }
+
+  it('carries every digit of a bus from one end to the other', () => {
+    const bridge = new SimBridge()
+    bridge.sync(busLine())
+    set(bridge, 'c1', '1010')
+    bridge.sim.settle()
+    const probe = bridge.probeTerminal(terminalKey(pin('c2', 'in')))
+    expect(formatSignal(probe!.value)).toBe('1010')
+  })
+
+  it('steps a switch on a bus as one number, with a carry', () => {
+    const bridge = new SimBridge()
+    bridge.sync(busLine())
+    set(bridge, 'c1', '0111')
+    expect(bridge.cycleInput('c1', 1)).toBe(true)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('1000')
+    bridge.cycleInput('c1', -1)
+    bridge.cycleInput('c1', -1)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('0110')
+  })
+
+  it('goes round from the largest number to 0 and back', () => {
+    const bridge = new SimBridge()
+    bridge.sim.setRadix(3)
+    bridge.sync(busLine(2))
+    bridge.cycleInput('c1', -1)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('22')
+    bridge.cycleInput('c1', 1)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('00')
+  })
+
+  it('puts a switch on a value given as digits or as a number', () => {
+    const bridge = new SimBridge()
+    bridge.sync(busLine())
+    expect(bridge.setInput('c1', '1001')).toBe(true)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('1001')
+    // Fewer digits than the switch has: the rest are 0.
+    expect(bridge.setInput('c1', '11')).toBe(true)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('0011')
+    expect(bridge.setInput('c1', 6)).toBe(true)
+    bridge.sim.settle()
+    expect(read(bridge, 'c1')).toBe('0110')
+  })
+
+  it('refuses a value the switch has no room for', () => {
+    const bridge = new SimBridge()
+    bridge.sync(busLine(2))
+    expect(bridge.setInput('c1', '111')).toBe(false)
+    expect(bridge.setInput('c1', '12')).toBe(false)
+    expect(bridge.setInput('c1', 'X1')).toBe(false)
+    expect(bridge.setInput('c1', 4)).toBe(false)
+    expect(bridge.setInput('c1', -1)).toBe(false)
+    // Leading zeros beyond the width do no harm.
+    expect(bridge.setInput('c1', '011')).toBe(true)
+  })
+
+  it('reports a wide switch as its digits and a plain one as a number', () => {
+    let doc = busLine()
+    doc = addComponent(doc, 'input', { x: 0, y: 6 }).doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.setInput('c1', '0101')
+    bridge.setInput('c4', 1)
+    expect(bridge.inputValues()).toEqual({ c1: '0101', c4: 1 })
+  })
+
+  it('keeps pins of different widths apart and says so', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { params: { width: 4 } }).doc
+    doc = addComponent(doc, 'output', { x: 20, y: 0 }).doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c2', 'in'))!.doc
+    const bridge = new SimBridge()
+    expect(() => bridge.sync(doc)).not.toThrow()
+    bridge.sim.settle()
+    expect(bridge.mixedAt(terminalKey(pin('c1', 'out')))).toBe(true)
+    expect(bridge.mixedAt(terminalKey(pin('c2', 'in')))).toBe(true)
+    expect(bridge.describeTerminal(terminalKey(pin('c2', 'in')))?.mixed).toBe(true)
+    // The lamp reads nothing: the bus does not reach it.
+    expect(read(bridge, 'c2', 'in')).toBe('Z')
+
+    // Made the same width, the two are one wire again.
+    const fixed = setComponentParams(doc, 'c2', { width: 4 })
+    bridge.sync(fixed)
+    set(bridge, 'c1', '1100')
+    bridge.sim.settle()
+    expect(bridge.mixedAt(terminalKey(pin('c2', 'in')))).toBe(false)
+    expect(read(bridge, 'c2', 'in')).toBe('1100')
+  })
+
+  it('wires the same widths together where three pins meet and one differs', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { params: { width: 2 } }).doc
+    doc = addComponent(doc, 'output', { x: 20, y: 0 }, { params: { width: 2 } }).doc
+    doc = addComponent(doc, 'output', { x: 20, y: 6 }).doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c2', 'in'))!.doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c3', 'in'))!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    set(bridge, 'c1', '10')
+    bridge.sim.settle()
+    expect(read(bridge, 'c2', 'in')).toBe('10')
+    expect(read(bridge, 'c3', 'in')).toBe('Z')
+    expect(bridge.mixedAt(terminalKey(pin('c2', 'in')))).toBe(true)
+  })
+
+  it('splits a bus and merges it back', () => {
+    let doc = busLine()
+    doc = deleteItems(doc, Object.keys(doc.wires))
+    doc = addComponent(doc, 'split', { x: 6, y: 0 }).doc
+    doc = addComponent(doc, 'merge', { x: 14, y: 0 }).doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c4', 'in'))!.doc
+    // Crossed over: the digits come out in the opposite order.
+    for (let i = 0; i < 4; i++) {
+      doc = addWire(doc, pin('c4', `d${i}`), pin('c5', `d${3 - i}`))!.doc
+    }
+    doc = addWire(doc, pin('c5', 'out'), pin('c2', 'in'))!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    set(bridge, 'c1', '1101')
+    bridge.sim.settle()
+    expect(read(bridge, 'c2', 'in')).toBe('1011')
   })
 })

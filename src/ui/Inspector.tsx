@@ -12,6 +12,9 @@ import {
   isSwitchKey,
   keyName,
   setBreakpoint,
+  setSwitch,
+  signalText,
+  switchValue,
   takesKey,
   useEditor,
   useSim,
@@ -87,7 +90,22 @@ const FIELDS: readonly Field[] = [
     range: (_radix, limits) => [limits.min, limits.max],
     show: String,
   },
+  {
+    param: 'width',
+    label: 'Width',
+    range: (_radix, limits) => [limits.min, Math.min(limits.max, MAX_BUS)],
+    show: (value) => (value === 1 ? '1 digit' : `${value} digits`),
+  },
+  {
+    param: 'each',
+    label: 'Digits per branch',
+    range: (_radix, limits) => [limits.min, Math.min(limits.max, MAX_BUS)],
+    show: String,
+  },
 ]
+
+/** The widest bus the inspector makes. Wider ones are hard to read on screen. */
+const MAX_BUS = 32
 
 /** The parts whose name becomes a pin when the circuit is used as a part. */
 const NAMED: readonly string[] = ['input', 'output']
@@ -232,6 +250,52 @@ function KeyField({ id, code }: KeyFieldProps) {
   )
 }
 
+/**
+ * The value of a switch on a bus, typed as digits. Clicking the switch only
+ * goes one number up or down, which is a long way on a wide bus.
+ */
+function BusValueField({ id, width }: { id: string; width: number }) {
+  // The simulator moving is what changes the value.
+  useSim((state) => state.revision)
+  useSim((state) => state.pokes)
+  const shown = String(switchValue(id) ?? '')
+  const [draft, setDraft] = useState<string | null>(null)
+  const [refused, setRefused] = useState(false)
+  const fieldId = useId()
+
+  const commit = (): void => {
+    if (draft === null) return
+    const text = draft.trim().toUpperCase()
+    setRefused(text !== '' && !setSwitch(id, text))
+    setDraft(null)
+  }
+
+  return (
+    <>
+      <div className="field">
+        <label htmlFor={fieldId}>Value</label>
+        <input
+          id={fieldId}
+          value={draft ?? shown}
+          maxLength={width}
+          spellCheck={false}
+          autoComplete="off"
+          onChange={(event) => {
+            setDraft(event.target.value)
+            setRefused(false)
+          }}
+          onBlur={commit}
+          onKeyDown={(event) => {
+            if (event.code === 'Enter' || event.code === 'NumpadEnter') commit()
+            else if (event.code === 'Escape') setDraft(null)
+          }}
+        />
+      </div>
+      {refused && <p className="note">Use up to {width} digits of this radix.</p>}
+    </>
+  )
+}
+
 function breakValue(when: BreakWhen | undefined): string {
   return when === undefined ? 'never' : String(when)
 }
@@ -248,15 +312,24 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   const fieldId = useId()
   const info = describeNode(terminal)
   const when = breakpointOn(terminal)
-  const values = Array.from({ length: settings.radix }, (_, digit) => digit)
+  // A bus has too many values to list: it can only wait for a change.
+  const values =
+    info.signal.length > 1 ? [] : Array.from({ length: settings.radix }, (_, digit) => digit)
 
   return (
     <aside className="inspector" aria-label="Wire">
       <h2>Wire</h2>
       <p className="wire-reading">
-        <span className="wire-value">{valueText(info.value, settings)}</span>
+        <span className="wire-value">{signalText(info.signal, settings)}</span>
         <span>{info.conflict ? `${info.name}, in conflict` : info.name}</span>
       </p>
+      {info.signal.length > 1 && <p className="note">A bus of {info.signal.length} digits.</p>}
+      {info.mixed && (
+        <p className="note">
+          Pins of different widths are wired together here. Make the widths the same, or use a
+          splitter or a merger.
+        </p>
+      )}
       {info.drivers.length === 0 ? (
         <p className="note">Nothing drives it, so it floats.</p>
       ) : (
@@ -264,7 +337,7 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
           {info.drivers.map((pin) => (
             <li key={`${pin.part}:${pin.port}`}>
               <span>{pinName(pin)}</span>
-              <span className="probe-pin-value">{valueText(pin.value, settings)}</span>
+              <span className="probe-pin-value">{signalText(pin.signal, settings)}</span>
             </li>
           ))}
         </ul>
@@ -471,6 +544,13 @@ export function Inspector() {
       )}
       {keyed && (
         <KeyField key={`${active}:${component.id}`} id={component.id} code={component.key} />
+      )}
+      {component.type === 'input' && component.params.width > 1 && (
+        <BusValueField
+          key={`${active}:${component.id}`}
+          id={component.id}
+          width={component.params.width}
+        />
       )}
       {fields.map((field) => {
         const [min, max] = field.range(settings.radix, specs[field.param])

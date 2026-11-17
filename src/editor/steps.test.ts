@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { MAX_NOTE, MAX_STEPS, changeStep, cleanSteps, insertStep, removeStep } from './steps.ts'
+import { MAX_NOTE, MAX_STEPS, changeStep, cleanInputValue, cleanSteps, insertStep, removeStep } from './steps.ts'
 import type { Step } from './steps.ts'
 
 const step = (note: string, inputs: Record<string, number> = {}): Step => ({ note, inputs })
@@ -52,5 +52,32 @@ describe('editing a list of steps', () => {
     expect(changeStep(list, 5, { note: 'x' })).toBe(list)
     expect(removeStep(list, 0)).toEqual([step('two')])
     expect(removeStep(list, 5)).toBe(list)
+  })
+})
+
+describe('cleanInputValue', () => {
+  it('keeps a digit the radix has', () => {
+    expect(cleanInputValue(0, 2)).toBe(0)
+    expect(cleanInputValue(2, 3)).toBe(2)
+    expect(cleanInputValue(2, 2)).toBeUndefined()
+    expect(cleanInputValue(-1, 2)).toBeUndefined()
+    expect(cleanInputValue(0.5, 2)).toBeUndefined()
+  })
+
+  it('keeps the digits of a bus when the radix has them all', () => {
+    expect(cleanInputValue('0110', 2)).toBe('0110')
+    expect(cleanInputValue('0A3F', 16)).toBe('0A3F')
+    expect(cleanInputValue('0120', 2)).toBeUndefined()
+    expect(cleanInputValue('1', 2)).toBeUndefined()
+    expect(cleanInputValue('1X', 2)).toBeUndefined()
+    expect(cleanInputValue('ab', 16)).toBeUndefined()
+    expect(cleanInputValue(null, 2)).toBeUndefined()
+  })
+})
+
+describe('cleanSteps on a bus', () => {
+  it('keeps the digits of a wide switch', () => {
+    const steps = cleanSteps([{ inputs: { c1: '101', c2: 1, c3: '1Z' } }], () => true, 2)
+    expect(steps).toEqual([{ note: '', inputs: { c1: '101', c2: 1 } }])
   })
 })

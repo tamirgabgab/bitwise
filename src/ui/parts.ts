@@ -27,6 +27,8 @@ const NAMES: Readonly<Record<string, string>> = {
   cycle: 'Cycle',
   tobits: 'To bits',
   frombits: 'From bits',
+  split: 'Splitter',
+  merge: 'Merger',
   text: 'Text',
 }
 
@@ -92,6 +94,14 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   frombits: [
     'Reads bits as one number. With two values a digit is one bit already',
     'Reads bits as one digit. A bit is 0 or the top value',
+  ],
+  split: [
+    'Takes a bus apart into its wires. Set the width of a part in its settings to make a bus',
+    'Takes a bus apart into its wires. Set the width of a part in its settings to make a bus',
+  ],
+  merge: [
+    'Puts wires together into one bus, the lowest digit on top',
+    'Puts wires together into one bus, the lowest digit on top',
   ],
   text: [
     'Writing on the canvas. It is not part of the circuit',

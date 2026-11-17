@@ -131,3 +131,19 @@ describe('extractCircuit', () => {
     expect(extractCircuit(chain(), [], 'k9', 'Core')).toBeUndefined()
   })
 })
+
+describe('extractCircuit on a bus', () => {
+  it('gives the pins of the new circuit the width of the wires they stand for', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { params: { width: 4 } }).doc
+    doc = addComponent(doc, 'not', { x: 10, y: 0 }, { params: { width: 4 } }).doc
+    doc = addComponent(doc, 'output', { x: 20, y: 0 }, { params: { width: 4 } }).doc
+    doc = addWire(doc, { kind: 'pin', component: 'c1', port: 'out' }, { kind: 'pin', component: 'c2', port: 'in' })!.doc
+    doc = addWire(doc, { kind: 'pin', component: 'c2', port: 'out' }, { kind: 'pin', component: 'c3', port: 'in' })!.doc
+    const result = extractCircuit(doc, ['c2'], 'k2', 'Inverter')!
+    const boundary = Object.values(result.inner.components).filter(
+      (part) => part.type === 'input' || part.type === 'output',
+    )
+    expect(boundary).toHaveLength(2)
+    expect(boundary.map((part) => part.params.width)).toEqual([4, 4])
+  })
+})

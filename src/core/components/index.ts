@@ -1,4 +1,5 @@
 import { ComponentRegistry } from '../component.ts'
+import { merger, splitter } from './bus.ts'
 import { fromBits, toBits } from './convert.ts'
 import {
   addGate,
@@ -53,6 +54,8 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(cycleSource)
     .register(toBits)
     .register(fromBits)
+    .register(splitter)
+    .register(merger)
 }
 
 /** The registry a simulator uses unless it is given another one. */

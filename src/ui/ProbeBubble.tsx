@@ -1,5 +1,12 @@
 import type { CSSProperties } from 'react'
-import { canvasRuntime, describeNode, useEditor, useProbe, useSim, valueText } from '../editor/index.ts'
+import {
+  canvasRuntime,
+  describeNode,
+  signalText,
+  useEditor,
+  useProbe,
+  useSim,
+} from '../editor/index.ts'
 import { pinName } from './probeText.ts'
 
 /** The bubble is this wide at most, so it knows when to open to the left. */
@@ -27,10 +34,13 @@ export function ProbeBubble() {
   return (
     <div className="probe" role="status" style={style}>
       <p className="probe-head">
-        <span className="probe-value">{valueText(info.value, settings)}</span>
+        <span className="probe-value">{signalText(info.signal, settings)}</span>
         <span className="probe-name">{info.name}</span>
       </p>
       {info.conflict && <p className="probe-conflict">Conflict: its outputs disagree</p>}
+      {info.mixed && (
+        <p className="probe-conflict">Pins of different widths are wired together here</p>
+      )}
       {info.drivers.length === 0 ? (
         <p className="probe-note">Nothing drives this wire, so it floats.</p>
       ) : (
@@ -38,7 +48,7 @@ export function ProbeBubble() {
           {info.drivers.map((pin) => (
             <li key={`${pin.part}:${pin.port}`}>
               <span>{pinName(pin)}</span>
-              <span className="probe-pin-value">{valueText(pin.value, settings)}</span>
+              <span className="probe-pin-value">{signalText(pin.signal, settings)}</span>
             </li>
           ))}
         </ul>

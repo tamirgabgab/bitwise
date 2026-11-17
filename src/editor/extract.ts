@@ -14,6 +14,7 @@ import type { CircuitDoc, Terminal } from './document.ts'
 import type { Point } from './geometry.ts'
 import { componentBounds } from './hitTest.ts'
 import { subRefOf } from './subcircuit.ts'
+import { widthOf } from './widths.ts'
 import { symbolOf } from './symbols.ts'
 
 /*
@@ -209,13 +210,19 @@ export function extractCircuit(
     readonly outside: readonly Terminal[]
   }
   const pins: Pin[] = []
-  const boundary = (ends: readonly Terminal[], drives: boolean, label?: string): string => {
+  const boundary = (
+    ends: readonly Terminal[],
+    drives: boolean,
+    label?: string,
+    outside: readonly Terminal[] = [],
+  ): string => {
     const at = terminalEnd(doc, ends[0])?.pos ?? { x: 0, y: 0 }
+    // The pin is as wide as the wire it stands for, so a bus stays a bus.
     const added = addComponent(
       inner,
       drives ? 'output' : 'input',
       spot(drives ? rightColumn : leftColumn, at.y),
-      { label },
+      { label, params: { width: widthOf(doc, [...ends, ...outside]) } },
     )
     inner = added.doc
     const pin: Terminal = { kind: 'pin', component: added.id, port: drives ? 'in' : 'out' }
@@ -226,7 +233,7 @@ export function extractCircuit(
     (terminalEnd(doc, a)?.pos.y ?? 0) - (terminalEnd(doc, b)?.pos.y ?? 0)
   const ordered = [...crossings.values()].sort((a, b) => byHeight(a.inside[0], b.inside[0]))
   for (const crossing of ordered) {
-    const port = boundary(crossing.inside, crossing.drives, crossing.label)
+    const port = boundary(crossing.inside, crossing.drives, crossing.label, crossing.outside)
     pins.push({ port, outside: crossing.outside })
   }
   for (const terminal of [...loose].sort(byHeight)) {

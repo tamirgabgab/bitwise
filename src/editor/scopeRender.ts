@@ -99,6 +99,20 @@ export function renderScope(
     for (const span of spans) {
       const x0 = x(span.from)
       const x1 = x(span.to)
+      if (typeof span.digit === 'string') {
+        // A bus: a closed lane with the value written in it.
+        ctx.strokeStyle = theme.ink
+        ctx.lineWidth = 1.5
+        ctx.strokeRect(x0 + 1, high + 2, Math.max(0, x1 - x0 - 2), low - high - 4)
+        if (x1 - x0 >= span.digit.length * 7 + 8) {
+          ctx.font = `600 10px ${FONT}`
+          ctx.textAlign = 'center'
+          ctx.fillStyle = theme.ink
+          ctx.fillText(span.digit, (x0 + x1) / 2, middle + 1)
+        }
+        previous = undefined
+        continue
+      }
       if (span.digit === X || span.digit >= radix) {
         // Unknown: a band over the whole height, since it could be anything.
         ctx.fillStyle = theme.signalUnknown

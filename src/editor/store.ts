@@ -30,7 +30,7 @@ import {
 import type { CircuitDoc, Fragment, WireEnd } from './document.ts'
 import { extractCircuit } from './extract.ts'
 import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
-import type { Step } from './steps.ts'
+import type { InputValue, Step } from './steps.ts'
 import { samePoint } from './geometry.ts'
 import { docBounds } from './hitTest.ts'
 import type { Point } from './geometry.ts'
@@ -130,7 +130,7 @@ export interface EditorState {
   /** Goes up whenever a whole project is loaded or started. */
   readonly epoch: number
   /** The switch values a loaded project came with, by circuit and part id. */
-  readonly restoredInputs: Readonly<Record<string, Readonly<Record<string, number>>>>
+  readonly restoredInputs: Readonly<Record<string, Readonly<Record<string, InputValue>>>>
   /** Circuits that came without a view and were not on screen yet. */
   readonly unframed: ReadonlySet<string>
   /** Whether the presentation steps of the open circuit are on screen. */
@@ -204,9 +204,9 @@ export interface EditorState {
   /** Says which step is on show. The switches are set by the session. */
   setStepIndex(index: number): void
   /** Adds a step after the one on show and shows it. */
-  addStep(inputs: Readonly<Record<string, number>>): void
+  addStep(inputs: Readonly<Record<string, InputValue>>): void
   setStepNote(index: number, note: string): void
-  setStepInputs(index: number, inputs: Readonly<Record<string, number>>): void
+  setStepInputs(index: number, inputs: Readonly<Record<string, InputValue>>): void
   deleteStep(index: number): void
 
   /** Adds an empty circuit and opens it. Returns its id. */

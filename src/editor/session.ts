@@ -1,5 +1,5 @@
-import { Z } from '../core/index.ts'
-import type { CircuitCost, Digit } from '../core/index.ts'
+import { Z, formatSignal } from '../core/index.ts'
+import type { CircuitCost, Digit, Probe, Signal } from '../core/index.ts'
 import { terminalNets } from './connectivity.ts'
 import { terminalEnd, terminalKey } from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
@@ -7,12 +7,13 @@ import type { Point } from './geometry.ts'
 import { toProjectData } from './project.ts'
 import type { ProjectData } from './project.ts'
 import { Recorder, scopeSignals } from './scope.ts'
-import type { ScopeSignal } from './scope.ts'
+import type { ScopeSignal, ScopeValue } from './scope.ts'
 import { SimBridge } from './simBridge.ts'
 import type { NodePin } from './simBridge.ts'
 import { SimRunner } from './simRunner.ts'
 import { useSim } from './simStore.ts'
 import type { BreakHit, BreakWhen } from './simStore.ts'
+import type { InputValue } from './steps.ts'
 import { useEditor } from './store.ts'
 import type { EditorState } from './store.ts'
 import type { View } from './view.ts'
@@ -30,7 +31,23 @@ interface Breakpoint {
   readonly terminal: Terminal
   readonly when: BreakWhen
   /** What the wire carried at the previous tick. */
-  last?: { readonly digit: Digit; readonly conflict: boolean }
+  last?: WireReading
+}
+
+interface WireReading {
+  /** The lowest digit: all of a plain wire. */
+  readonly digit: Digit
+  readonly conflict: boolean
+  /** Every digit, so a change anywhere on a bus is noticed. */
+  readonly text: string
+}
+
+function wireReading(probe: Probe | undefined): WireReading {
+  return {
+    digit: probe ? probe.value[0] : Z,
+    conflict: probe?.conflict ?? false,
+    text: probe ? formatSignal(probe.value) : 'Z',
+  }
 }
 
 interface Engine {
@@ -50,19 +67,18 @@ interface Engine {
 function checkBreaks(engine: Pick<Engine, 'bridge' | 'breaks'>): BreakHit | null {
   let hit: BreakHit | null = null
   for (const [key, point] of engine.breaks) {
-    const probe = engine.bridge.probeTerminal(key)
-    const now = { digit: probe ? probe.value[0] : Z, conflict: probe?.conflict ?? false }
+    const now = wireReading(engine.bridge.probeTerminal(key))
     const before = point.last
     point.last = now
     if (!before || hit) continue
     const { when } = point
     const fired =
       when === 'change'
-        ? before.digit !== now.digit || before.conflict !== now.conflict
+        ? before.text !== now.text || before.conflict !== now.conflict
         : when === 'conflict'
           ? now.conflict && !before.conflict
           : now.digit === when && before.digit !== when
-    if (fired) hit = { key, ...now }
+    if (fired) hit = { key, digit: now.digit, conflict: now.conflict }
   }
   return hit
 }
@@ -70,10 +86,11 @@ function checkBreaks(engine: Pick<Engine, 'bridge' | 'breaks'>): BreakHit | null
 /** Notes what every row of the timing diagram carries at this moment. */
 function record(bridge: SimBridge, recorder: Recorder, doc: CircuitDoc | undefined): void {
   if (!doc) return
-  const values = new Map<string, Digit>()
+  const values = new Map<string, ScopeValue>()
   for (const signal of scopeSignals(doc)) {
     const probe = bridge.probeTerminal(terminalKey(signal.pin))
-    if (probe) values.set(signal.key, probe.value[0])
+    // A bus goes into the record as its digits written out.
+    if (probe) values.set(signal.key, probe.value.length > 1 ? formatSignal(probe.value) : probe.value[0])
   }
   recorder.sample(bridge.sim.time, values)
 }
@@ -84,7 +101,7 @@ let shownCircuit = ''
 /** The push buttons each held-down key is keeping pressed. */
 const heldKeys = new Map<string, string[]>()
 /** Switch values a loaded project came with, for circuits not opened yet. */
-let waitingInputs: Record<string, Readonly<Record<string, number>>> = {}
+let waitingInputs: Record<string, Readonly<Record<string, InputValue>>> = {}
 
 function engineOf(id: string, radix: number): Engine {
   let engine = engines.get(id)
@@ -178,7 +195,7 @@ function syncActive(state: EditorState): void {
   const waiting = waitingInputs[state.active]
   if (waiting) {
     delete waitingInputs[state.active]
-    for (const [id, digit] of Object.entries(waiting)) bridge.setInput(id, digit)
+    for (const [id, value] of Object.entries(waiting)) bridge.setInput(id, value)
   }
 }
 
@@ -225,6 +242,24 @@ export function pokeInput(docId: string, step: number): void {
   runner.nudge()
   useSim.setState({ pokes: useSim.getState().pokes + 1 })
   publish()
+}
+
+/**
+ * Puts a switch of the open circuit on a value typed by the user. Returns
+ * false when the switch cannot be on that value.
+ */
+export function setSwitch(docId: string, value: InputValue): boolean {
+  const { bridge, runner } = current()
+  if (!bridge.setInput(docId, value)) return false
+  runner.nudge()
+  useSim.setState({ pokes: useSim.getState().pokes + 1 })
+  publish()
+  return true
+}
+
+/** What a switch of the open circuit is on right now. */
+export function switchValue(docId: string): InputValue | undefined {
+  return current().bridge.inputValues()[docId]
 }
 
 /** Presses a push button or lets go of it. */
@@ -289,7 +324,11 @@ export interface ProbedPin extends NodePin {
 /** What the probe reads on a wire of the open circuit. */
 export interface NodeInfo {
   readonly value: Digit
+  /** Every digit the wire carries. More than one on a bus. */
+  readonly signal: Signal
   readonly conflict: boolean
+  /** True when pins of different widths are wired together here. */
+  readonly mixed: boolean
   /** The name of a switch or output on the wire, or one made up from its net. */
   readonly name: string
   readonly drivers: readonly ProbedPin[]
@@ -302,7 +341,15 @@ export function describeNode(terminal: Terminal): NodeInfo {
   const doc = useEditor.getState().doc
   const reading = current().bridge.describeTerminal(terminalKey(terminal))
   if (!reading) {
-    return { value: Z, conflict: false, name: 'Not connected', drivers: [], readers: 0 }
+    return {
+      value: Z,
+      signal: [Z],
+      conflict: false,
+      mixed: false,
+      name: 'Not connected',
+      drivers: [],
+      readers: 0,
+    }
   }
   const pins = reading.pins.map((pin): ProbedPin => {
     const [root, ...deeper] = pin.part.split('/')
@@ -315,7 +362,9 @@ export function describeNode(terminal: Terminal): NodeInfo {
   )
   return {
     value: reading.value,
+    signal: reading.signal,
     conflict: reading.conflict,
+    mixed: reading.mixed,
     name: named?.label ?? (reading.net === undefined ? 'Not connected' : `Net ${reading.net}`),
     drivers: pins.filter((pin) => pin.drives),
     readers: pins.filter((pin) => !pin.drives).length,
@@ -350,11 +399,10 @@ export function setBreakpoint(terminal: Terminal, when: BreakWhen | null): void 
   if (existing !== undefined) engine.breaks.delete(existing)
   if (when !== null) {
     const key = terminalKey(terminal)
-    const probe = engine.bridge.probeTerminal(key)
     engine.breaks.set(key, {
       terminal,
       when,
-      last: { digit: probe ? probe.value[0] : Z, conflict: probe?.conflict ?? false },
+      last: wireReading(engine.bridge.probeTerminal(key)),
     })
   }
   publishBreaks()
@@ -422,7 +470,7 @@ export function restartSimulation(): void {
 export function projectSnapshot(): ProjectData {
   const state = useEditor.getState()
   const views: Record<string, View> = { [state.active]: state.view }
-  const inputs: Record<string, Readonly<Record<string, number>>> = {}
+  const inputs: Record<string, Readonly<Record<string, InputValue>>> = {}
   for (const id of state.order) {
     const parked = state.parked[id]
     if (parked) views[id] = parked.view
@@ -455,7 +503,7 @@ export function showStep(index: number): void {
   if (steps.length === 0) return
   const at = Math.max(0, Math.min(steps.length - 1, index))
   const { bridge, runner } = current()
-  for (const [id, digit] of Object.entries(steps[at].inputs)) bridge.setInput(id, digit)
+  for (const [id, value] of Object.entries(steps[at].inputs)) bridge.setInput(id, value)
   editor.setStepIndex(at)
   runner.nudge()
   useSim.setState({ breakHit: null, pokes: useSim.getState().pokes + 1 })

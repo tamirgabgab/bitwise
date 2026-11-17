@@ -101,6 +101,23 @@ export function formatSignal(signal: Signal): string {
   return text
 }
 
+/**
+ * A signal read as a number in the radix, plus `by`, wrapping around at both
+ * ends. `by` may be negative. An unknown digit makes the whole result X.
+ */
+export function stepSignal(signal: Signal, by: number, radix: number): Signal {
+  if (signal.some((digit) => digit < 0 || digit >= radix)) return filled(signal.length, X)
+  const digits: Digit[] = []
+  let carry = by
+  for (const digit of signal) {
+    const sum = digit + carry
+    const rest = ((sum % radix) + radix) % radix
+    digits.push(rest)
+    carry = (sum - rest) / radix
+  }
+  return digits
+}
+
 /*
  * Gate logic on one digit. An input that is X or Z counts as unknown, so the
  * result is X unless the other input already decides it (the smaller of 0

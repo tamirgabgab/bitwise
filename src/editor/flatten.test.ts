@@ -66,10 +66,11 @@ describe('a drawing without named circuits', () => {
     })
   })
 
-  it('gives every pin and junction a pin to read its node by', () => {
+  it('gives every pin a pin to read its node by: itself', () => {
     const netlist = flatten(inverter())
-    expect(netlist.probes.get(key('c2', 'in'))).toEqual({ part: 'c1', port: 'out' })
-    expect(netlist.probes.get(key('c3', 'in'))).toEqual({ part: 'c2', port: 'out' })
+    expect(netlist.probes.get(key('c2', 'in'))).toEqual({ part: 'c2', port: 'in' })
+    expect(netlist.probes.get(key('c3', 'in'))).toEqual({ part: 'c3', port: 'in' })
+    expect(netlist.probes.get(key('c1', 'out'))).toEqual({ part: 'c1', port: 'out' })
   })
 })
 

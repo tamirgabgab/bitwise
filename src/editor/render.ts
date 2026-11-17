@@ -1,9 +1,17 @@
-import { builtinComponents, digitChar, numberValue, resolveParams } from '../core/index.ts'
-import type { Digit } from '../core/index.ts'
+import {
+  X,
+  builtinComponents,
+  digitChar,
+  filled,
+  formatSignal,
+  numberValue,
+  resolveParams,
+} from '../core/index.ts'
+import type { Digit, Signal } from '../core/index.ts'
 import { junctionDegrees, keyName, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
-import type { LiveValues } from './liveValues.ts'
+import type { LiveValues, WireValue } from './liveValues.ts'
 import { symbolOf } from './symbols.ts'
 import type { ComponentSymbol, SymbolFace, SymbolReadout } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
@@ -100,6 +108,14 @@ function strokeWire(ctx: CanvasRenderingContext2D, path: readonly Point[], look:
   ctx.setLineDash([])
 }
 
+/** How the wire that carries `value` is stroked. */
+function wireLook(style: ValueStyle, value: WireValue): WireLook {
+  // Pins of different widths on one wire: a fault, shown like a conflict.
+  if (value.mixed) return style.wire(X, true)
+  if (value.signal.length > 1) return style.bus(value.signal, value.conflict)
+  return style.wire(value.digit, value.conflict)
+}
+
 function fillDot(ctx: CanvasRenderingContext2D, at: Point, radius: number, look: WireLook): void {
   if (look.casing) {
     ctx.beginPath()
@@ -151,22 +167,34 @@ function drawText(
 function drawFace(
   ctx: CanvasRenderingContext2D,
   face: SymbolFace,
-  digit: Digit | undefined,
+  signal: Signal | undefined,
   style: ValueStyle | null,
   theme: CanvasTheme,
   outline: string,
 ): void {
   const { pos, reach } = face
+  const wide = face.wide ?? reach
   ctx.beginPath()
-  if (face.shape === 'round') ctx.arc(pos.x, pos.y, reach, 0, Math.PI * 2)
-  else ctx.roundRect(pos.x - reach, pos.y - reach, 2 * reach, 2 * reach, 0.16)
+  if (face.shape === 'round' && face.wide === undefined) ctx.arc(pos.x, pos.y, reach, 0, Math.PI * 2)
+  else {
+    const corner = face.shape === 'round' ? reach : 0.16
+    ctx.roundRect(pos.x - wide, pos.y - reach, 2 * wide, 2 * reach, corner)
+  }
+  // Only a single digit has a color of its own; a bus is written out.
+  const digit = signal?.length === 1 ? signal[0] : undefined
   const fill = digit === undefined ? null : (style?.fill(digit) ?? null)
   ctx.fillStyle = fill ?? theme.partFill
   ctx.fill()
   ctx.strokeStyle = outline
   ctx.lineWidth = STROKE * 0.75
   ctx.stroke()
-  if (digit === undefined) return
+  if (signal === undefined) return
+  if (digit === undefined) {
+    const text = style ? style.label(signal) : formatSignal(signal)
+    const size = Math.min(reach * 1.3, (2 * wide * 0.9) / (text.length * 0.6))
+    drawText(ctx, text, pos, size, theme.ink)
+    return
+  }
   const text = style ? style.text(digit) : digitChar(digit)
   const size = reach * (text.length > 1 ? 1.05 : 1.4)
   drawText(ctx, text, pos, size, fill ? inkOn(fill) : theme.ink)
@@ -199,7 +227,7 @@ interface PartLook {
 
 /**
  * Draws one part where it stands: its outline, the writing on it, and its
- * face showing `faceDigit` (left blank when undefined).
+ * face showing `faceSignal` (left blank when undefined).
  */
 function drawPart(
   ctx: CanvasRenderingContext2D,
@@ -208,7 +236,7 @@ function drawPart(
   look: PartLook,
   theme: CanvasTheme,
   style: ValueStyle | null,
-  faceDigit: Digit | undefined,
+  faceSignal: Signal | undefined,
   name?: string,
   number?: { readonly digits: readonly Digit[]; readonly radix: number },
   keyCap?: string,
@@ -220,7 +248,7 @@ function drawPart(
   ctx.fillStyle = look.fill
   ctx.lineWidth = look.lineWidth
   symbol.draw(ctx)
-  if (symbol.face) drawFace(ctx, symbol.face, faceDigit, style, theme, look.stroke)
+  if (symbol.face) drawFace(ctx, symbol.face, faceSignal, style, theme, look.stroke)
   if (symbol.label) {
     const { label } = symbol
     let text = label.text
@@ -255,8 +283,8 @@ function drawPart(
 }
 
 /** What a part's face shows before any simulation: only a constant has a value. */
-function restingFace(type: string, params: Readonly<Record<string, number>>): Digit | undefined {
-  return type === 'const' ? params.value : undefined
+function restingFace(type: string, params: Readonly<Record<string, number>>): Signal | undefined {
+  return type === 'const' ? filled(params.width ?? 1, params.value) : undefined
 }
 
 /** Paints one frame. `width` and `height` are in CSS pixels. */
@@ -288,6 +316,8 @@ export function renderScene(
   ctx.lineJoin = 'round'
 
   const wiredPins = new Set<string>()
+  // Where each bus gets its value written: beside its longest straight run.
+  const busLabels = new Map<WireValue, { at: Point; length: number; level: boolean }>()
   for (const wire of Object.values(doc.wires)) {
     wiredPins.add(terminalKey(wire.from))
     wiredPins.add(terminalKey(wire.to))
@@ -300,12 +330,26 @@ export function renderScene(
       ctx.stroke()
     }
     const value = live.at(wire.from)
-    strokeWire(ctx, path, style.wire(value.digit, value.conflict))
+    strokeWire(ctx, path, wireLook(style, value))
+    if (value.signal.length > 1 && !value.mixed) {
+      for (let i = 1; i < path.length; i++) {
+        const from = path[i - 1]
+        const to = path[i]
+        const length = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
+        const best = busLabels.get(value)
+        if (best && best.length >= length) continue
+        busLabels.set(value, {
+          at: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
+          length,
+          level: from.y === to.y,
+        })
+      }
+    }
   }
 
   for (const branch of wireBranches(doc)) {
     const value = live.net(branch.net)
-    fillDot(ctx, branch.pos, JUNCTION_DOT, style.wire(value.digit, value.conflict))
+    fillDot(ctx, branch.pos, JUNCTION_DOT, wireLook(style, value))
   }
 
   const degrees = junctionDegrees(doc)
@@ -320,7 +364,7 @@ export function renderScene(
       ctx.fill()
     }
     const value = live.at({ kind: 'junction', junction: junction.id })
-    fillDot(ctx, junction.pos, radius, style.wire(value.digit, value.conflict))
+    fillDot(ctx, junction.pos, radius, wireLook(style, value))
   }
 
   for (const component of Object.values(doc.components)) {
@@ -358,7 +402,7 @@ export function renderScene(
       { stroke: outline, fill: theme.partFill, lineWidth: STROKE },
       theme,
       style,
-      live.face(component.id) ?? restingFace(component.type, component.params),
+      live.faceSignal(component.id) ?? restingFace(component.type, component.params),
       component.label,
       symbol.readout && {
         digits: symbol.readout.pins.map(
@@ -387,11 +431,23 @@ export function renderScene(
           x: pin.pos.x - 0.45 * pin.dir.x + 0.6 * pin.dir.y,
           y: pin.pos.y - 0.45 * pin.dir.y - 0.6 * pin.dir.x,
         }
-        const text = style.text(live.output(component.id, pin.name))
-        drawText(ctx, text, at, text.length > 1 ? 0.6 : 0.72, theme.ink, theme.background)
+        // A bus has its value written along the wire instead.
+        const driven = live.outputSignal(component.id, pin.name)
+        if (driven.length === 1) {
+          const text = style.text(driven[0])
+          drawText(ctx, text, at, text.length > 1 ? 0.6 : 0.72, theme.ink, theme.background)
+        }
       }
     }
     ctx.restore()
+  }
+
+  for (const [value, label] of busLabels) {
+    const text = style.label(value.signal)
+    const at = label.level
+      ? { x: label.at.x, y: label.at.y - 0.62 }
+      : { x: label.at.x + 0.5 + text.length * 0.19, y: label.at.y }
+    drawText(ctx, text, at, 0.64, theme.ink, theme.background)
   }
 
   for (const mark of scene.marks) {

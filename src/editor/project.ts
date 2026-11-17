@@ -25,8 +25,8 @@ import {
   repairDoc,
 } from './subcircuit.ts'
 import type { Circuit, Circuits } from './subcircuit.ts'
-import { cleanSteps } from './steps.ts'
-import type { Step } from './steps.ts'
+import { cleanSteps, cleanInputValue } from './steps.ts'
+import type { InputValue, Step } from './steps.ts'
 import { DEFAULT_PALETTE } from './valueStyle.ts'
 import { MAX_ZOOM, MIN_ZOOM } from './view.ts'
 import type { View } from './view.ts'
@@ -94,7 +94,7 @@ export interface CircuitData {
   /** Where the canvas was looking at this circuit. */
   readonly view?: View
   /** The value each switch was on, by part id. */
-  readonly inputs?: Readonly<Record<string, number>>
+  readonly inputs?: Readonly<Record<string, InputValue>>
   /** The presentation steps of the circuit. */
   readonly steps?: readonly Step[]
 }
@@ -117,7 +117,7 @@ export interface Project {
 
 export interface LoadedProject extends Project {
   readonly views: Readonly<Record<string, View>>
-  readonly inputs: Readonly<Record<string, Readonly<Record<string, number>>>>
+  readonly inputs: Readonly<Record<string, Readonly<Record<string, InputValue>>>>
   /** The number the next new circuit gets in its id. */
   readonly nextCircuit: number
 }
@@ -147,7 +147,7 @@ export function toProjectData(
   project: Project,
   extras: {
     readonly views?: Readonly<Record<string, View>>
-    readonly inputs?: Readonly<Record<string, Readonly<Record<string, number>>>>
+    readonly inputs?: Readonly<Record<string, Readonly<Record<string, InputValue>>>>
   } = {},
 ): ProjectData {
   return {
@@ -299,14 +299,13 @@ function viewOf(value: unknown): View | undefined {
   return { panX, panY, zoom: Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom)) }
 }
 
-function inputsOf(value: unknown, doc: CircuitDoc, radix: number): Record<string, number> {
-  const inputs: Record<string, number> = {}
+function inputsOf(value: unknown, doc: CircuitDoc, radix: number): Record<string, InputValue> {
+  const inputs: Record<string, InputValue> = {}
   if (!isObject(value)) return inputs
-  for (const [id, digit] of Object.entries(value)) {
+  for (const [id, raw] of Object.entries(value)) {
     if (doc.components[id]?.type !== 'input') continue
-    if (typeof digit === 'number' && Number.isInteger(digit) && digit >= 0 && digit < radix) {
-      inputs[id] = digit
-    }
+    const cleaned = cleanInputValue(raw, radix)
+    if (cleaned !== undefined) inputs[id] = cleaned
   }
   return inputs
 }
@@ -379,7 +378,7 @@ export function fromProjectData(data: ProjectData): LoadedProject {
   }
 
   const views: Record<string, View> = {}
-  const inputs: Record<string, Record<string, number>> = {}
+  const inputs: Record<string, Record<string, InputValue>> = {}
   for (const id of order) {
     const item = given.get(id)
     const view = viewOf(item?.view)

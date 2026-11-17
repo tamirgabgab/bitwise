@@ -63,18 +63,24 @@ export function scopeSignals(doc: CircuitDoc): readonly ScopeSignal[] {
   return signals
 }
 
+/**
+ * What a row holds at one moment: a digit, or for a bus its digits written
+ * out, the most significant first.
+ */
+export type ScopeValue = Digit | string
+
 /** A stretch of time over which a signal kept one value. */
 export interface Span {
   readonly from: number
   readonly to: number
-  readonly digit: Digit
+  readonly digit: ScopeValue
 }
 
 interface Track {
   /** The ticks at which the value changed, oldest first. */
   readonly times: number[]
   /** The value from each of those ticks on. */
-  readonly digits: Digit[]
+  readonly digits: ScopeValue[]
 }
 
 /** How many ticks back the record goes unless told otherwise. */
@@ -123,7 +129,7 @@ export class Recorder {
    * is forgotten. Time going backwards means the circuit started over, and
    * the record starts over with it.
    */
-  sample(time: number, values: ReadonlyMap<string, Digit>): void {
+  sample(time: number, values: ReadonlyMap<string, ScopeValue>): void {
     if (time < this.last) this.clear()
     this.last = time
     for (const key of this.tracks.keys()) {

@@ -25,7 +25,7 @@ export { EXAMPLES } from './examples.ts'
 export type { Example } from './examples.ts'
 export type { ProjectData } from './project.ts'
 export { MAX_NOTE, MAX_STEPS } from './steps.ts'
-export type { Step } from './steps.ts'
+export type { InputValue, Step } from './steps.ts'
 export {
   addStepHere,
   showStep,
@@ -36,9 +36,11 @@ export {
   projectSnapshot,
   restartSimulation,
   setBreakpoint,
+  setSwitch,
   stepBack,
   stepSimulation,
   stepToClockEdge,
+  switchValue,
 } from './session.ts'
 export type { NodeInfo, ProbedPin } from './session.ts'
 export type { BreakHit, BreakWhen } from './simStore.ts'
@@ -50,6 +52,6 @@ export type { SimSpeed } from './simRunner.ts'
 export { useSim } from './simStore.ts'
 export { useEditor } from './store.ts'
 export type { ProjectSettings, ThemeChoice } from './store.ts'
-export { digitColor, gradientColor, inkOn, valueText } from './valueStyle.ts'
+export { digitColor, gradientColor, inkOn, signalText, valueText } from './valueStyle.ts'
 export { readCanvasTheme } from './theme.ts'
 export { MAX_ZOOM, MIN_ZOOM } from './view.ts'

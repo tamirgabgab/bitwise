@@ -1,4 +1,4 @@
-import { builtinComponents, resolveParams } from '../core/index.ts'
+import { branchWidths, builtinComponents, resolveParams } from '../core/index.ts'
 import type { PortDirection } from '../core/index.ts'
 import type { Point, Rect } from './geometry.ts'
 
@@ -86,8 +86,10 @@ export interface SymbolLabel {
 export interface SymbolFace {
   readonly shape: 'round' | 'square'
   readonly pos: Point
-  /** Half the width of the patch. */
+  /** Half the height of the patch, and half its width unless `wide` is set. */
   readonly reach: number
+  /** Half the width of a patch that shows several digits. */
+  readonly wide?: number
 }
 
 const LEFT: Point = { x: -1, y: 0 }
@@ -217,22 +219,36 @@ function unarySymbol(inverted: boolean): ComponentSymbol {
 }
 
 /**
+ * Half the width of the body of a part that shows a value `width` digits
+ * wide. A whole number, so the pin stays on the grid. 1 for a single digit.
+ */
+function busHalf(width: number): number {
+  return width > 1 ? Math.max(2, Math.ceil(width * 0.27 + 0.6)) : 1
+}
+
+/**
  * A source set by hand: a square housing around a face that shows its value.
  * A switch has a square face, a push button a round one.
  */
-function sourceSymbol(face: SymbolFace['shape']): ComponentSymbol {
+function sourceSymbol(face: SymbolFace['shape'], width: number): ComponentSymbol {
+  const half = busHalf(width)
   return {
-    pins: [{ name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }],
-    bounds: { x0: -1, y0: -1, x1: 2, y1: 1 },
-    face: { shape: face, pos: { x: 0, y: 0 }, reach: 0.64 },
+    pins: [{ name: 'out', direction: 'out', pos: { x: half + 1, y: 0 }, dir: RIGHT }],
+    bounds: { x0: 0 - half, y0: -1, x1: half + 1, y1: 1 },
+    face: {
+      shape: face,
+      pos: { x: 0, y: 0 },
+      reach: 0.64,
+      ...(width > 1 ? { wide: half - 0.36 } : {}),
+    },
     draw(ctx) {
       ctx.beginPath()
-      ctx.moveTo(1, 0)
-      ctx.lineTo(2, 0)
+      ctx.moveTo(half, 0)
+      ctx.lineTo(half + 1, 0)
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.roundRect(-1, -1, 2, 2, 0.25)
+      ctx.roundRect(0 - half, -1, 2 * half, 2, 0.25)
       ctx.fill()
       ctx.stroke()
     },
@@ -240,23 +256,29 @@ function sourceSymbol(face: SymbolFace['shape']): ComponentSymbol {
 }
 
 /** A constant: a tag pointing at its output, with the value on it. */
-function constSymbol(): ComponentSymbol {
+function constSymbol(width: number): ComponentSymbol {
+  const half = busHalf(width)
   return {
-    pins: [{ name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }],
-    bounds: { x0: -1, y0: -1, x1: 2, y1: 1 },
-    face: { shape: 'square', pos: { x: -0.25, y: 0 }, reach: 0.5 },
+    pins: [{ name: 'out', direction: 'out', pos: { x: half + 1, y: 0 }, dir: RIGHT }],
+    bounds: { x0: 0 - half, y0: -1, x1: half + 1, y1: 1 },
+    face: {
+      shape: 'square',
+      pos: { x: -0.25, y: 0 },
+      reach: 0.5,
+      ...(width > 1 ? { wide: half - 0.5 } : {}),
+    },
     draw(ctx) {
       ctx.beginPath()
-      ctx.moveTo(1, 0)
-      ctx.lineTo(2, 0)
+      ctx.moveTo(half, 0)
+      ctx.lineTo(half + 1, 0)
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.moveTo(-1, -0.85)
-      ctx.lineTo(0.35, -0.85)
-      ctx.lineTo(1, 0)
-      ctx.lineTo(0.35, 0.85)
-      ctx.lineTo(-1, 0.85)
+      ctx.moveTo(0 - half, -0.85)
+      ctx.lineTo(half - 0.65, -0.85)
+      ctx.lineTo(half, 0)
+      ctx.lineTo(half - 0.65, 0.85)
+      ctx.lineTo(0 - half, 0.85)
       ctx.closePath()
       ctx.fill()
       ctx.stroke()
@@ -265,21 +287,84 @@ function constSymbol(): ComponentSymbol {
 }
 
 /** A lamp: a round body that takes the color of the value it is shown. */
-function outputSymbol(): ComponentSymbol {
+function outputSymbol(width: number): ComponentSymbol {
+  const half = busHalf(width)
   return {
-    pins: [{ name: 'in', direction: 'in', pos: { x: -2, y: 0 }, dir: LEFT }],
-    bounds: { x0: -2, y0: -1, x1: 1, y1: 1 },
-    face: { shape: 'round', pos: { x: 0, y: 0 }, reach: 0.72 },
+    pins: [{ name: 'in', direction: 'in', pos: { x: 0 - half - 1, y: 0 }, dir: LEFT }],
+    bounds: { x0: 0 - half - 1, y0: -1, x1: half, y1: 1 },
+    face: {
+      shape: 'round',
+      pos: { x: 0, y: 0 },
+      reach: 0.72,
+      ...(width > 1 ? { wide: half - 0.28 } : {}),
+    },
     draw(ctx) {
       ctx.beginPath()
-      ctx.moveTo(-2, 0)
-      ctx.lineTo(-1, 0)
+      ctx.moveTo(0 - half - 1, 0)
+      ctx.lineTo(0 - half, 0)
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.arc(0, 0, 1, 0, Math.PI * 2)
+      if (width > 1) ctx.roundRect(0 - half, -1, 2 * half, 2, 1)
+      else ctx.arc(0, 0, 1, 0, Math.PI * 2)
       ctx.fill()
       ctx.stroke()
+    },
+  }
+}
+
+/**
+ * A splitter or a merger: a heavy bar with the bus on one side and its
+ * branches on the other, each marked with the digits it carries. Branch 0,
+ * the lowest digits, is on top.
+ */
+function busBarSymbol(width: number, each: number, split: boolean): ComponentSymbol {
+  const sizes = branchWidths(width, each)
+  const first = 0 - Math.floor((sizes.length - 1) / 2)
+  const rows = sizes.map((_size, index) => first + index)
+  const top = first - 0.6
+  const bottom = rows[rows.length - 1] + 0.6
+  const side = split ? 1 : -1
+  const branches = rows.map((y, index): PinGeometry => ({
+    name: `d${index}`,
+    direction: split ? 'out' : 'in',
+    pos: { x: 2 * side, y },
+    dir: split ? RIGHT : LEFT,
+  }))
+  const bus: PinGeometry = split
+    ? { name: 'in', direction: 'in', pos: { x: -2, y: 0 }, dir: LEFT }
+    : { name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }
+  const pins = split ? [bus, ...branches] : [...branches, bus]
+
+  return {
+    pins,
+    bounds: { x0: -2, y0: Math.min(top, -1), x1: 2, y1: Math.max(bottom, 1) },
+    notes: rows.map((y, index): SymbolLabel => {
+      const low = index * each
+      const high = low + sizes[index] - 1
+      return {
+        text: high === low ? String(low) : `${high}:${low}`,
+        pos: { x: 1.05 * side, y: y - 0.42 },
+        size: 0.5,
+      }
+    }),
+    draw(ctx) {
+      ctx.beginPath()
+      for (const pin of branches) {
+        ctx.moveTo(pin.pos.x, pin.pos.y)
+        ctx.lineTo(0, pin.pos.y)
+      }
+      ctx.stroke()
+      // The bus side and the bar are as heavy as a bus on the canvas.
+      const plain = ctx.lineWidth
+      ctx.lineWidth = plain * 2.4
+      ctx.beginPath()
+      ctx.moveTo(-2 * side, 0)
+      ctx.lineTo(0, 0)
+      ctx.moveTo(0, top)
+      ctx.lineTo(0, bottom)
+      ctx.stroke()
+      ctx.lineWidth = plain
     },
   }
 }
@@ -689,13 +774,17 @@ function buildSymbol(type: string, params: Readonly<Record<string, number>>): Co
     case 'mul':
       return operatorSymbol(params.inputs, '×')
     case 'input':
-      return sourceSymbol('square')
+      return sourceSymbol('square', params.width ?? 1)
     case 'button':
-      return sourceSymbol('round')
+      return sourceSymbol('round', params.width ?? 1)
     case 'const':
-      return constSymbol()
+      return constSymbol(params.width ?? 1)
     case 'output':
-      return outputSymbol()
+      return outputSymbol(params.width ?? 1)
+    case 'split':
+      return busBarSymbol(params.width, params.each, true)
+    case 'merge':
+      return busBarSymbol(params.width, params.each, false)
     default:
       return boxSymbol(type, params)
   }
