@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 4 are done. Phase 5 (sequential logic) is next.
+Status: Phases 0 to 5 are done, which completes the MVP. Phase 6 (polish) is next.
 
 ## Decisions
 
@@ -101,8 +101,8 @@ an SR latch from two NOR gates (set, hold, reset, hold, and the race when
 both inputs are released together), a ring oscillator that the engine stops
 at the tick limit, driver conflicts, buses, and editing a running circuit.
 
-Not built yet, on purpose: a way for a component to wake itself up later.
-The clock in Phase 5 needs it.
+A way for a component to wake itself up later was left out on purpose and
+arrived in Phase 5, with the clock that needs it.
 
 ### Phase 2: canvas editor (done)
 
@@ -268,25 +268,58 @@ How it was built, and choices made along the way:
   ternary Max, Is zero and Equal built from the Kleene + Shift kit, each
   checked against its truth table.
 
-### Phase 5: sequential logic
+### Phase 5: sequential logic (done)
 
-- Engine support for a component that schedules its own next evaluation.
-- Clock with adjustable frequency.
-- SR latch, and D, JK and T flip-flops with asynchronous Set/Reset. How a
-  clock edge and a flip-flop behave above radix 2 is a question for the
-  owner at the start of this phase.
-- Examples: a 4-bit binary counter from JK flip-flops (the MVP test), and a
-  ternary counter from T flip-flops.
+Choices made with the owner before building:
 
-Added by the owner to this phase:
+- **The clock alternates between 0 and the top value** at every radix.
+- **A rising edge is the clock crossing the middle of the digits**: from
+  the lower half (2 * value < radix) to the upper half. X and Z are in
+  neither half, so coming out of them is no edge.
+- **T adds its value.** On an edge Q becomes Q + T modulo the radix, so
+  with T at 1 a T flip-flop is one digit of a counter.
+- **J, K, S, R, Set and Reset act only at the top value.** J or S sets Q to
+  the top value, K or R clears it to 0, and J and K together add 1.
+- **Q starts at 0**, so a counter counts without being reset first.
+- **The timing diagram picks its rows by itself**: every clock, switch and
+  output of the open circuit, named by its label.
+- **The number display shows the digits in the radix and the decimal value
+  under them.**
+- **A warning for a circuit that oscillates without a clock** was added to
+  this phase. A keyboard key bound to a switch was offered and not chosen.
 
-- **A small timing diagram.** A panel that shows chosen wires over the last
-  ticks, oscilloscope style. A first, small version of the timing diagram
-  listed after the MVP.
-- **A number display.** An output part with several inputs that shows them
-  as one number, in the circuit's radix.
-- **Step to the next clock edge.** A step button that runs until the next
-  edge of the clock instead of one tick.
+Built:
+
+- `src/core`: an `evaluate` result may carry `wake`, a number of ticks after
+  which the component is evaluated again, and `EvalEnv.woke` tells it that
+  this is that evaluation. One request per component at a time; `restart`
+  drops them. `Simulator.pendingWakes` counts them.
+- `components/sequential.ts`: `clock` (parameter `half`, ticks per half
+  period), `sr`, `dff`, `tff`, `jkff`. Each flip-flop has Q and its mirror,
+  and Set and Reset that act at once and are off when left unattached.
+  While a control input is unknown and could change the result, the outputs
+  read X but the stored value is kept; otherwise the X every wire carries
+  for a moment at power-on would wipe the memory.
+- `components/output.ts`: `display`, 1 to 8 digit inputs, least significant
+  first, and `numberValue`.
+- `src/editor`: symbols for all of these, with a triangle on the clock pin,
+  Set on top and Reset below. `scope.ts` records what each row of the timing
+  diagram carried (changes only, the last 2000 ticks) and `scopeRender.ts`
+  draws it. `SimRunner` steps tick by tick so the record is complete, runs
+  to the next rising clock edge (`stepToEdge`), and reports a circuit with
+  no clock that is still changing 200 ticks after it was last touched.
+- `src/ui`: a Sequential section in the palette, the clock period and the
+  digit count in the inspector, a step-to-edge button, the timing panel
+  under the canvas, and "Never settles" in the status bar.
+- Examples: a four-bit ripple counter from JK flip-flops, and a two-digit
+  ternary counter from T flip-flops. Each stage is clocked by the mirrored
+  output of the one before, which rises exactly when that stage wraps to 0.
+
+Known limits:
+
+- A flip-flop is one digit wide. Registers come with buses, after the MVP.
+- The timing diagram has a fixed scale of 4 pixels per tick and no cursor.
+- A push button has no row in the timing diagram.
 
 ### Phase 6: polish
 
@@ -308,7 +341,9 @@ count, save it, close the browser, and load it back.
 
 - **Buses and larger components.** Multi-bit wires, multiplexer, decoder,
   adder, register, counter, RAM, ROM.
-- **Timing diagram.** Signals over time, oscilloscope style.
+- **Timing diagram.** Signals over time, oscilloscope style. A small one
+  arrived in Phase 5; what is left is choosing any wire, zooming in time,
+  and a cursor to read values off.
 - **State-diagram (FSM) editor.** Draw states and transitions, run them as a
   component, and later convert them to a flip-flop circuit automatically.
 - **Testing and sharing.** Automatic truth table (n^k rows), testbench, share

@@ -29,6 +29,7 @@ export function TimingPanel() {
   useEffect(() => {
     const canvas = canvasRef.current
     const ctx = canvas?.getContext('2d')
+    if (spanRef.current) spanRef.current.textContent = ''
     if (!open || !canvas || !ctx) return
     let frame = 0
 

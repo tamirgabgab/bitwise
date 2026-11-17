@@ -47,6 +47,17 @@ Run lint, test and build before calling a change done. CI runs the same three.
   hanging the engine. Do not allow a delay of 0.
 - An output is X until its first evaluation takes effect. `restart()` puts
   the whole circuit back in that state.
+- A component can wake itself: `evaluate` returns `wake: k` to be evaluated
+  again in k ticks (at least 1), and that evaluation gets `env.woke`. One
+  request per component at a time. Only the clock uses it. A circuit with a
+  clock never settles: `pendingEvents` stays above 0 and `settle()` returns
+  false, so tests of clocked circuits use `run`.
+- Sequential parts (`components/sequential.ts`) follow the owner's rules for
+  radix n: the clock alternates between 0 and the top value; a clock input
+  is high when 2 * value >= radix, and a rising edge is low to high, never
+  out of X or Z; J, K, S, R, Set and Reset are on only at the top value; T
+  adds its value modulo n; Q starts at 0. An unknown control input makes the
+  outputs X but must not destroy the stored value.
 - The simulator generates numeric component and net ids. The editor keeps
   its own ids and maps them.
 - The core knows nothing about named circuits. The editor flattens them
@@ -86,8 +97,12 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `session.ts` owns one `SimBridge` per circuit and the run loop; only the
   open circuit runs. `SimRunner` turns
   wall-clock time into ticks; time moves only while a change is waiting, and
-  a frame simulates at most 2000 ticks. `useSim` holds what the chrome shows
-  (running, speed, tick, conflicts).
+  a frame simulates at most 2000 ticks. It advances one tick at a time so
+  the timing diagram misses nothing. `useSim` holds what the chrome shows
+  (running, speed, tick, conflicts, clocks, oscillating).
+- The timing diagram (`scope.ts`, `scopeRender.ts`) picks its own rows: the
+  clocks, switches and outputs of the open circuit. Each circuit has its own
+  `Recorder`, which keeps only the changes.
 - `liveValues.ts` reads what each wire carries and `valueStyle.ts` decides
   how it is drawn: the classic look at radix 2, a palette up to 10 values,
   a gradient above. Z is dashed, X dotted, a conflict thick and dashed.

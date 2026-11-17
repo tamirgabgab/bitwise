@@ -21,14 +21,21 @@ What works today:
 - **Named circuits.** A project holds several circuits in tabs. Any circuit
   can be used as a part of another: its switches become input pins and its
   outputs output pins. A change to a circuit shows everywhere it is used.
+- **Clocks and memory.** A clock, an SR latch and D, T and JK flip-flops
+  with Set and Reset, all defined for any radix: a T flip-flop adds its
+  input modulo n, so it is one digit of a counter. A number display shows
+  several wires as one number.
+- **Timing diagram.** A panel under the canvas follows the clocks, switches
+  and outputs over the last ticks. A step button runs to the next clock
+  edge, and a circuit that oscillates without a clock is pointed out.
 - **Saving.** The project is kept in the browser as you work, and can be
-  saved to and opened from a JSON file. Two ready-made examples are in the
-  top bar.
+  saved to and opened from a JSON file. Four ready-made examples are in the
+  top bar, two of them counters.
 - **Simulation core.** Unknown (X) and floating (Z) values next to the
   digits, driver conflicts, and an event-driven engine with per-component
   delays.
 
-Clocks and flip-flops are next; see [docs/PLAN.md](docs/PLAN.md) for the roadmap and
+This completes the first version. See [docs/PLAN.md](docs/PLAN.md) for the roadmap and
 [docs/n_ary_logic_sim_spec.md](docs/n_ary_logic_sim_spec.md) (in Hebrew) for
 the mathematics behind the gate kits.
 
