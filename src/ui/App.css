@@ -571,6 +571,58 @@
   line-height: 1;
 }
 
+/* ---- The table of a gate, beside the palette ---- */
+
+.gate-table {
+  position: fixed;
+  z-index: 20;
+  padding: 8px 10px 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  pointer-events: none;
+  animation: probe-in 0.01s 0.35s both;
+}
+
+.gate-table-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.gate-table table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.gate-table th,
+.gate-table td {
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  text-align: center;
+}
+
+.gate-table th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.gate-table td {
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.gate-table .gate-table-corner {
+  width: auto;
+  padding-right: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+}
+
 /* ---- Probe: what the wire under the pointer carries ---- */
 
 .probe {

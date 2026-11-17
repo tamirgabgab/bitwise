@@ -1,4 +1,5 @@
 import { ComponentRegistry } from '../component.ts'
+import { fromBits, toBits } from './convert.ts'
 import {
   addGate,
   andGate,
@@ -15,7 +16,14 @@ import {
 } from './gates.ts'
 import { buttonSource, constSource, inputSource } from './input.ts'
 import { displaySink, outputSink } from './output.ts'
-import { clockSource, dFlipFlop, jkFlipFlop, srLatch, tFlipFlop } from './sequential.ts'
+import {
+  clockSource,
+  cycleSource,
+  dFlipFlop,
+  jkFlipFlop,
+  srLatch,
+  tFlipFlop,
+} from './sequential.ts'
 
 /** A fresh registry holding every built-in component type. */
 export function createBuiltinRegistry(): ComponentRegistry {
@@ -42,6 +50,9 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(dFlipFlop)
     .register(tFlipFlop)
     .register(jkFlipFlop)
+    .register(cycleSource)
+    .register(toBits)
+    .register(fromBits)
 }
 
 /** The registry a simulator uses unless it is given another one. */

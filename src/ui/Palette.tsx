@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { findPreset, sandboxGates } from '../core/index.ts'
 import {
@@ -10,12 +10,21 @@ import {
   renderSymbolIcon,
   useEditor,
 } from '../editor/index.ts'
+import { GateTable } from './GateTable.tsx'
 import { ChipIcon } from './icons.tsx'
-import { partHint, partName } from './parts.ts'
+import { hasGateTable, partHint, partName } from './parts.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
 const IO_PARTS: readonly string[] = ['input', 'button', 'output', 'display']
-const SEQUENTIAL_PARTS: readonly string[] = ['clock', 'sr', 'dff', 'tff', 'jkff']
+const SEQUENTIAL_PARTS: readonly string[] = ['clock', 'cycle', 'sr', 'dff', 'tff', 'jkff']
+const BIT_PARTS: readonly string[] = ['tobits', 'frombits']
+
+/** The gate whose table is on show, and where its button is. */
+interface TableTip {
+  readonly type: string
+  readonly top: number
+  readonly right: number
+}
 
 const ICON_WIDTH = 64
 const ICON_HEIGHT = 40
@@ -141,7 +150,15 @@ export function Palette() {
     },
     { title: 'Inputs and outputs', types: IO_PARTS },
     { title: 'Sequential', types: SEQUENTIAL_PARTS },
+    { title: 'Digits and bits', types: BIT_PARTS },
   ]
+  const [tip, setTip] = useState<TableTip | null>(null)
+  const showTable = (type: string, button: HTMLElement): void => {
+    if (!hasGateTable(type)) return
+    const rect = button.getBoundingClientRect()
+    setTip({ type, top: rect.top, right: rect.right })
+  }
+  const hideTable = (): void => setTip(null)
 
   return (
     <nav className="palette" aria-label="Parts">
@@ -155,8 +172,15 @@ export function Palette() {
                 type="button"
                 className="part"
                 title={`${partName(type)}: ${partHint(type, radix)}. Drag onto the canvas, or click.`}
-                onPointerDown={(event) => beginPlacing(type, event)}
+                onPointerDown={(event) => {
+                  hideTable()
+                  beginPlacing(type, event)
+                }}
                 onClick={() => placeAtCenter(type)}
+                onPointerEnter={(event) => showTable(type, event.currentTarget)}
+                onPointerLeave={hideTable}
+                onFocus={(event) => showTable(type, event.currentTarget)}
+                onBlur={hideTable}
               >
                 <SymbolIcon type={type} />
                 {partName(type)}
@@ -166,6 +190,7 @@ export function Palette() {
         </section>
       ))}
       <CircuitParts />
+      {tip && <GateTable type={tip.type} anchor={tip} />}
     </nav>
   )
 }

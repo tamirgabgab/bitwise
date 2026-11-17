@@ -19,7 +19,7 @@ export function TimingPanel() {
   const rows = useEditor((state) => {
     let count = 0
     for (const part of Object.values(state.doc.components)) {
-      if (part.type === 'clock' || part.type === 'input' || part.type === 'output') count++
+      if (['clock', 'cycle', 'input', 'output'].includes(part.type)) count++
     }
     return count
   })

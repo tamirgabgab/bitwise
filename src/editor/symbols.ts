@@ -416,6 +416,79 @@ function clockSymbol(): ComponentSymbol {
   }
 }
 
+/** A cycling switch: the housing of a source with a staircase on it. */
+function cycleSymbol(): ComponentSymbol {
+  const clock = clockSymbol()
+  return {
+    pins: clock.pins,
+    bounds: clock.bounds,
+    draw(ctx) {
+      ctx.beginPath()
+      ctx.moveTo(1, 0)
+      ctx.lineTo(2, 0)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.roundRect(-1, -1, 2, 2, 0.25)
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.moveTo(-0.65, 0.45)
+      ctx.lineTo(-0.22, 0.45)
+      ctx.lineTo(-0.22, 0)
+      ctx.lineTo(0.22, 0)
+      ctx.lineTo(0.22, -0.45)
+      ctx.lineTo(0.65, -0.45)
+      ctx.stroke()
+    },
+  }
+}
+
+/**
+ * A part that turns a digit into bits or bits into a digit: a box with the
+ * digit on one side and the bits on the other, each bit marked with what it
+ * is worth. Bit 0 is on top, like the lowest digit of a number display.
+ */
+function converterSymbol(bits: number, toBits: boolean): ComponentSymbol {
+  const rows = inputRows(bits)
+  const half = Math.max(1.5, rows[rows.length - 1] + 0.5)
+  const side = toBits ? 1 : -1
+  const bitPins = rows.map((y, index): PinGeometry => ({
+    name: `b${index}`,
+    direction: toBits ? 'out' : 'in',
+    pos: { x: 3 * side, y },
+    dir: toBits ? RIGHT : LEFT,
+  }))
+  const digitPin: PinGeometry = toBits
+    ? { name: 'in', direction: 'in', pos: { x: -3, y: 0 }, dir: LEFT }
+    : { name: 'out', direction: 'out', pos: { x: 3, y: 0 }, dir: RIGHT }
+  const pins = toBits ? [digitPin, ...bitPins] : [...bitPins, digitPin]
+
+  return {
+    pins,
+    bounds: { x0: -3, y0: -half, x1: 3, y1: half },
+    draw(ctx) {
+      ctx.beginPath()
+      for (const pin of pins) {
+        ctx.moveTo(pin.pos.x, pin.pos.y)
+        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y)
+      }
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.rect(-2, -half, 4, 2 * half)
+      ctx.fill()
+      ctx.stroke()
+    },
+    label: { text: 'n', pos: { x: -1.25 * side, y: 0 }, size: 0.9 },
+    notes: rows.map((y, index) => ({
+      text: String(2 ** index),
+      pos: { x: 1.4 * side, y },
+      size: 0.6,
+    })),
+  }
+}
+
 /** One labelled pin on the left or right side of a memory part. */
 interface SidePin {
   readonly name: string
@@ -542,6 +615,12 @@ function buildSymbol(type: string, params: Readonly<Record<string, number>>): Co
   switch (type) {
     case 'clock':
       return clockSymbol()
+    case 'cycle':
+      return cycleSymbol()
+    case 'tobits':
+      return converterSymbol(params.bits, true)
+    case 'frombits':
+      return converterSymbol(params.bits, false)
     case 'sr':
       return memorySymbol(
         [

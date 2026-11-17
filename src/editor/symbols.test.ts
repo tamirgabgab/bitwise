@@ -211,3 +211,30 @@ describe('the sequential parts and the number display', () => {
     }
   })
 })
+
+describe('the cycling switch and the bit converters', () => {
+  const symbol = (type: string, params?: Readonly<Record<string, number>>) =>
+    symbolFor(type, resolveParams(builtinComponents.get(type), params))
+
+  it('gives the cycling switch the pin of a clock', () => {
+    expect(symbol('cycle').pins).toEqual(symbol('clock').pins)
+  })
+
+  it('puts the digit on one side of a converter and the bits on the other, bit 0 on top', () => {
+    for (let bits = 1; bits <= 4; bits++) {
+      const split = symbol('tobits', { bits })
+      const join = symbol('frombits', { bits })
+      expect(split.pins.filter((pin) => pin.pos.x > 0).map((pin) => pin.name)).toEqual(
+        Array.from({ length: bits }, (_, i) => `b${i}`),
+      )
+      expect(join.pins.filter((pin) => pin.pos.x < 0).map((pin) => pin.name)).toEqual(
+        Array.from({ length: bits }, (_, i) => `b${i}`),
+      )
+      const rows = split.pins.filter((pin) => pin.name !== 'in').map((pin) => pin.pos.y)
+      expect(rows).toEqual([...rows].sort((a, b) => a - b))
+      expect(split.notes?.map((note) => note.text)).toEqual(
+        Array.from({ length: bits }, (_, i) => String(2 ** i)),
+      )
+    }
+  })
+})

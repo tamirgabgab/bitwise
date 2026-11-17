@@ -343,3 +343,61 @@ describe('number display', () => {
     expect(sim.getComponent(display).ports.map((port) => port.name)).toEqual(['in0', 'in1', 'in2'])
   })
 })
+
+describe('cycle', () => {
+  function watch(radix: number, ticks: number, steps: number): number[] {
+    const sim = new Simulator(undefined, radix)
+    const cycle = sim.addComponent('cycle', { params: { ticks } })
+    const seen: number[] = []
+    for (let i = 0; i < steps; i++) {
+      sim.run(ticks)
+      seen.push(sim.readPin({ component: cycle, port: 'out' })[0])
+    }
+    return seen
+  }
+
+  it('walks through every value and starts again', () => {
+    expect(watch(3, 4, 7)).toEqual([0, 1, 2, 0, 1, 2, 0])
+    expect(watch(5, 1, 6)).toEqual([0, 1, 2, 3, 4, 0])
+  })
+
+  it('is a slow clock at radix 2', () => {
+    expect(watch(2, 10, 5)).toEqual([0, 1, 0, 1, 0])
+  })
+
+  it('stays on each value for as many ticks as it is told', () => {
+    const sim = new Simulator(undefined, 3)
+    const cycle = sim.addComponent('cycle', { params: { ticks: 3 } })
+    const seen: number[] = []
+    for (let i = 0; i < 10; i++) {
+      sim.run(1)
+      seen.push(sim.readPin({ component: cycle, port: 'out' })[0])
+    }
+    // The first value takes effect after the delay of one tick.
+    expect(seen).toEqual([0, 0, 0, 1, 1, 1, 2, 2, 2, 0])
+  })
+
+  it('walks two switches through every combination when one is radix times slower', () => {
+    const sim = new Simulator(undefined, 3)
+    const fast = sim.addComponent('cycle', { params: { ticks: 2 } })
+    const slow = sim.addComponent('cycle', { params: { ticks: 6 } })
+    const seen = new Set<string>()
+    for (let i = 0; i < 9; i++) {
+      sim.run(2)
+      const low = sim.readPin({ component: fast, port: 'out' })[0]
+      const high = sim.readPin({ component: slow, port: 'out' })[0]
+      seen.add(`${high}${low}`)
+    }
+    expect([...seen]).toEqual(['00', '01', '02', '10', '11', '12', '20', '21', '22'])
+  })
+
+  it('starts over at 0 when the circuit restarts', () => {
+    const sim = new Simulator(undefined, 4)
+    const cycle = sim.addComponent('cycle', { params: { ticks: 2 } })
+    sim.run(5)
+    expect(sim.readPin({ component: cycle, port: 'out' })[0]).toBe(2)
+    sim.restart()
+    sim.run(1)
+    expect(sim.readPin({ component: cycle, port: 'out' })[0]).toBe(0)
+  })
+})

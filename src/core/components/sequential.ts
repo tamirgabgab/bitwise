@@ -35,6 +35,26 @@ export const clockSource: ComponentDef<boolean> = {
   },
 }
 
+/**
+ * A switch that works itself: it gives 0, then 1, and so on up to the top
+ * value, `ticks` ticks on each, and starts again. Several of them, each
+ * `radix` times slower than the one before, walk through every combination.
+ */
+export const cycleSource: ComponentDef<number> = {
+  type: 'cycle',
+  params: { ticks: { default: 10, min: 1, max: 1000 } },
+  ports() {
+    return [{ name: 'out', direction: 'out', width: 1 }]
+  },
+  initialState() {
+    return 0
+  },
+  evaluate(_inputs, { ticks }, value, { radix, woke }) {
+    const next = (woke ? value + 1 : value) % radix
+    return { outputs: { out: [next] }, state: next, wake: ticks }
+  },
+}
+
 /** Where a clock input stands. */
 export type ClockLevel = 'low' | 'high' | 'unknown'
 

@@ -1,3 +1,5 @@
+import { builtinComponents, gateTable } from '../core/index.ts'
+
 /** What a part is called in the palette and the inspector. */
 const NAMES: Readonly<Record<string, string>> = {
   and: 'AND',
@@ -22,6 +24,9 @@ const NAMES: Readonly<Record<string, string>> = {
   dff: 'D flip-flop',
   tff: 'T flip-flop',
   jkff: 'JK flip-flop',
+  cycle: 'Cycle',
+  tobits: 'To bits',
+  frombits: 'From bits',
 }
 
 /** What each part does, in one line. Binary first, then the general rule. */
@@ -75,6 +80,18 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
     'When the clock rises: J sets it to 1, K clears it to 0, and both together flip it',
     'When the clock rises past the middle: J at the top value sets it to the top value, K clears it to 0, and both together add 1',
   ],
+  cycle: [
+    'Switches between 0 and 1 on its own, like a slow clock',
+    'Steps through every value from 0 to the top on its own, then starts again',
+  ],
+  tobits: [
+    'Writes a number in binary. With two values a digit is one bit already',
+    'Writes a digit in binary, one wire per bit. A bit is 0 or the top value',
+  ],
+  frombits: [
+    'Reads bits as one number. With two values a digit is one bit already',
+    'Reads bits as one digit. A bit is 0 or the top value',
+  ],
 }
 
 export function partName(type: string): string {
@@ -85,4 +102,9 @@ export function partHint(type: string, radix: number): string {
   const hint = HINTS[type]
   if (!hint) return ''
   return radix === 2 ? hint[0] : hint[1]
+}
+
+/** True for a part the palette can show a table for. */
+export function hasGateTable(type: string): boolean {
+  return builtinComponents.has(type) && gateTable(builtinComponents.get(type), 2) !== undefined
 }

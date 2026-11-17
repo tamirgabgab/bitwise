@@ -141,3 +141,18 @@ describe('Recorder.rewind', () => {
     expect(recorder.spans('a', 0, 3)).toEqual([{ from: 0, to: 3, digit: 0 }])
   })
 })
+
+describe('scopeSignals with cycling switches', () => {
+  it('lists them after the clocks and before the switches', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'cycle', { x: 0, y: 8 }).doc
+    doc = addComponent(doc, 'cycle', { x: 0, y: 4 }).doc
+    doc = addComponent(doc, 'clock', { x: 0, y: 12 }).doc
+    expect(scopeSignals(doc).map((signal) => `${signal.name} ${signal.key}`)).toEqual([
+      'Clock c4',
+      'Cycle 1 c3',
+      'Cycle 2 c2',
+      'in1 c1',
+    ])
+  })
+})

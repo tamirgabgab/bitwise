@@ -28,16 +28,19 @@ function byPlace(a: DocComponent, b: DocComponent): number {
 const signalsOf = new WeakMap<CircuitDoc, readonly ScopeSignal[]>()
 
 /**
- * The rows a drawing gets: its clocks, then its switches, then its outputs,
- * each group from top to bottom. A switch or an output goes by its label,
+ * The rows a drawing gets: its clocks and cycling switches, then its
+ * switches, then its outputs, each group from top to bottom. A switch or an output goes by its label,
  * the same name it has as a pin of the circuit.
  */
 export function scopeSignals(doc: CircuitDoc): readonly ScopeSignal[] {
   let signals = signalsOf.get(doc)
   if (!signals) {
-    const clocks = Object.values(doc.components)
-      .filter((component) => component.type === 'clock')
-      .sort(byPlace)
+    const ofType = (type: string): DocComponent[] =>
+      Object.values(doc.components)
+        .filter((component) => component.type === type)
+        .sort(byPlace)
+    const clocks = ofType('clock')
+    const cycles = ofType('cycle')
     const pins = interfaceOf(doc)
     const row = (
       kind: ScopeSignal['kind'],
@@ -48,6 +51,9 @@ export function scopeSignals(doc: CircuitDoc): readonly ScopeSignal[] {
     signals = [
       ...clocks.map((clock, index) =>
         row('clock', clock.id, 'out', clocks.length === 1 ? 'Clock' : `Clock ${index + 1}`),
+      ),
+      ...cycles.map((cycle, index) =>
+        row('clock', cycle.id, 'out', cycles.length === 1 ? 'Cycle' : `Cycle ${index + 1}`),
       ),
       ...pins.inputs.map((pin) => row('input', pin.port, 'out', pin.label)),
       ...pins.outputs.map((pin) => row('output', pin.port, 'in', pin.label)),
