@@ -4,6 +4,8 @@ import type { Point } from './geometry.ts'
 export interface CanvasRuntime {
   /** The grid point under a window position, or null if it is off the canvas. */
   clientToGrid(clientX: number, clientY: number): Point | null
+  /** The grid point under the pointer, or null when the pointer is not over the canvas. */
+  pointerGrid(): Point | null
   /** The grid point at the middle of the visible canvas. */
   gridCenter(): Point
   /** The middle of the visible canvas, in the canvas's own pixels. */

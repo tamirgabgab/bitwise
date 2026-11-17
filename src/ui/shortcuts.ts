@@ -28,6 +28,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
       { keys: ['Ctrl+Y', 'Ctrl+Shift+Z'], does: 'Redo' },
       { keys: ['Ctrl+C', 'Ctrl+X', 'Ctrl+V'], does: 'Copy, cut and paste' },
       { keys: ['Ctrl+A'], does: 'Select everything' },
+      { keys: ['/'], does: 'Add a part where the pointer is' },
       { keys: ['Ctrl+G'], does: 'Turn the selection into a circuit' },
       { keys: ['R'], does: 'Rotate the selection' },
       { keys: ['Delete'], does: 'Delete the selection' },

@@ -22,6 +22,7 @@ export {
 export type { AlignEdge, Axis } from './arrange.ts'
 export { extractable } from './extract.ts'
 export type { Terminal } from './document.ts'
+export type { Point } from './geometry.ts'
 export { useProbe } from './probeStore.ts'
 export { EXAMPLES } from './examples.ts'
 export type { Example } from './examples.ts'

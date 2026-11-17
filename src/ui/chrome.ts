@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { canvasRuntime } from '../editor/index.ts'
+import type { Point } from '../editor/index.ts'
 import { withRecent } from './paletteModel.ts'
 
 /*
@@ -14,6 +16,11 @@ interface ChromeState {
   readonly overlay: Overlay | null
   /** What the command search starts with when it opens. */
   readonly commandQuery: string
+  /**
+   * Set when the search was opened to add a part: it lists only parts, and
+   * puts the one picked at `at`, or mid-canvas when that is null.
+   */
+  readonly quickAdd: { readonly at: Point | null } | null
   /** The logic settings panel beside the canvas. */
   readonly settingsOpen: boolean
   /** Ids of the palette sections that are folded away. */
@@ -26,6 +33,7 @@ interface ChromeState {
   readonly tourDone: boolean
 
   openCommands(query?: string): void
+  openQuickAdd(at: Point | null): void
   openShortcuts(): void
   openProjects(): void
   startTour(): void
@@ -78,11 +86,15 @@ function save({ collapsed, recent, timingHeight, tourDone }: Kept): void {
 export const useChrome = create<ChromeState>()((set, get) => ({
   overlay: null,
   commandQuery: '',
+  quickAdd: null,
   settingsOpen: false,
   ...load(),
 
   openCommands(query = '') {
-    set({ overlay: 'commands', commandQuery: query })
+    set({ overlay: 'commands', commandQuery: query, quickAdd: null })
+  },
+  openQuickAdd(at) {
+    set({ overlay: 'commands', commandQuery: '', quickAdd: { at } })
   },
   openShortcuts() {
     set({ overlay: 'shortcuts' })
@@ -132,7 +144,8 @@ function isTyping(target: EventTarget | null): boolean {
  */
 export function listenForChromeKeys(): () => void {
   const onKey = (event: KeyboardEvent): void => {
-    const { overlay, openCommands, openShortcuts, closeOverlay } = useChrome.getState()
+    const { overlay, openCommands, openQuickAdd, openShortcuts, closeOverlay } =
+      useChrome.getState()
     const command = event.ctrlKey || event.metaKey
     if (command && !event.altKey && !event.shiftKey && event.code === 'KeyK') {
       event.preventDefault()
@@ -140,11 +153,13 @@ export function listenForChromeKeys(): () => void {
       else openCommands()
       return
     }
-    // Shift and the slash key: the question mark, on any layout.
-    if (event.code === 'Slash' && event.shiftKey && !command && !event.altKey) {
+    // Shift and the slash key: the question mark, on any layout. The slash
+    // key alone adds a part where the pointer is.
+    if (event.code === 'Slash' && !command && !event.altKey) {
       if (isTyping(event.target) || document.querySelector('dialog[open]')) return
       event.preventDefault()
-      openShortcuts()
+      if (event.shiftKey) openShortcuts()
+      else openQuickAdd(canvasRuntime.current?.pointerGrid() ?? null)
     }
   }
   window.addEventListener('keydown', onKey)

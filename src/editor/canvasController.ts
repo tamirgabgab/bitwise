@@ -104,6 +104,8 @@ export class CanvasController {
   private readonly cleanups: (() => void)[] = []
   private mode: Mode = { kind: 'idle' }
   private hover: Hit | null = null
+  /** Where the pointer last was over the canvas, in window pixels. */
+  private pointerAt: { x: number; y: number } | null = null
   /** The pointer rests on the face of a switch or button. */
   private hoverPoke = false
   /** The document as it would look if the drag in progress ended now. */
@@ -183,6 +185,10 @@ export class CanvasController {
         const y = clientY - rect.top
         if (x < 0 || y < 0 || x > rect.width || y > rect.height) return null
         return snapPoint(screenToWorld(useEditor.getState().view, x, y))
+      },
+      pointerGrid: () => {
+        const at = this.pointerAt
+        return at ? (canvasRuntime.current?.clientToGrid(at.x, at.y) ?? null) : null
       },
       gridCenter: () =>
         snapPoint(screenToWorld(useEditor.getState().view, this.width / 2, this.height / 2)),
@@ -506,6 +512,7 @@ export class CanvasController {
   }
 
   private readonly onPointerMove = (event: PointerEvent): void => {
+    this.pointerAt = { x: event.clientX, y: event.clientY }
     const state = useEditor.getState()
     const world = this.toWorld(event)
     const mode = this.mode
@@ -680,6 +687,7 @@ export class CanvasController {
   }
 
   private readonly onPointerLeave = (): void => {
+    this.pointerAt = null
     if (this.mode.kind !== 'idle' || this.hover === null) return
     this.hover = null
     this.hoverPoke = false

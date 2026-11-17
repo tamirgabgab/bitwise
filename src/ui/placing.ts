@@ -1,5 +1,6 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { SUB_TYPE, canvasRuntime, useEditor } from '../editor/index.ts'
+import type { Point } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 
 /* Putting a part on the canvas, from the palette or from the command search. */
@@ -42,9 +43,14 @@ export function beginPlacing(type: string, event: ReactPointerEvent, circuit?: s
   window.addEventListener('pointercancel', stop)
 }
 
+/** Drops a part at a grid point, or mid-canvas when there is none. */
+export function placeAt(type: string, pos: Point | null, circuit?: string): void {
+  const at = pos ?? canvasRuntime.current?.gridCenter() ?? { x: 0, y: 0 }
+  useEditor.getState().addComponent(type, at, circuit)
+  added(type)
+}
+
 /** A plain click, or Enter on the keyboard, drops the part mid-canvas. */
 export function placeAtCenter(type: string, circuit?: string): void {
-  const center = canvasRuntime.current?.gridCenter() ?? { x: 0, y: 0 }
-  useEditor.getState().addComponent(type, center, circuit)
-  added(type)
+  placeAt(type, null, circuit)
 }

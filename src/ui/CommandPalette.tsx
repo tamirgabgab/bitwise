@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import type { Point } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 import { listCommands, searchCommands } from './commands.ts'
 import type { Command } from './commands.ts'
 import { SearchIcon } from './icons.tsx'
 import { Keys } from './Keys.tsx'
+import { placeAt } from './placing.ts'
 
 /** The most rows the list shows for one search. */
 const MAX_ROWS = 60
@@ -15,6 +17,7 @@ const MAX_ROWS = 60
 export function CommandPalette() {
   const open = useChrome((state) => state.overlay === 'commands')
   const seed = useChrome((state) => state.commandQuery)
+  const quickAdd = useChrome((state) => state.quickAdd)
   const dialogRef = useRef<HTMLDialogElement>(null)
 
   useEffect(() => {
@@ -28,7 +31,7 @@ export function CommandPalette() {
     <dialog
       ref={dialogRef}
       className="dialog commands"
-      aria-label="Search actions"
+      aria-label={quickAdd ? 'Add a part' : 'Search actions'}
       onCancel={(event) => {
         event.preventDefault()
         useChrome.getState().closeOverlay()
@@ -37,19 +40,31 @@ export function CommandPalette() {
         if (event.target === event.currentTarget) useChrome.getState().closeOverlay()
       }}
     >
-      {open && <CommandSearch seed={seed} />}
+      {open && <CommandSearch seed={seed} quickAdd={quickAdd} />}
     </dialog>
   )
 }
 
-function CommandSearch({ seed }: { seed: string }) {
+function CommandSearch({
+  seed,
+  quickAdd,
+}: {
+  seed: string
+  quickAdd: { readonly at: Point | null } | null
+}) {
   const [query, setQuery] = useState(seed)
   const [active, setActive] = useState(0)
   const listRef = useRef<HTMLDivElement>(null)
   // Read once: the list is as the app stood when the search opened.
-  const all = useMemo(() => listCommands(), [])
+  const all = useMemo(
+    () => listCommands().filter((command) => !quickAdd || command.place),
+    [quickAdd],
+  )
   const found = useMemo(() => searchCommands(all, query).slice(0, MAX_ROWS), [all, query])
   const current = Math.min(active, Math.max(found.length - 1, 0))
+  const prompt = quickAdd
+    ? 'Search parts to add where the pointer is'
+    : 'Search actions, parts, circuits and examples'
 
   useEffect(() => {
     listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
@@ -59,7 +74,8 @@ function CommandSearch({ seed }: { seed: string }) {
     if (!command || command.disabled) return
     // Closed first, so a command that opens another window is not undone.
     useChrome.getState().closeOverlay()
-    command.run()
+    if (quickAdd && command.place) placeAt(command.place.type, quickAdd.at, command.place.circuit)
+    else command.run()
   }
 
   const move = (to: number): void => {
@@ -70,7 +86,7 @@ function CommandSearch({ seed }: { seed: string }) {
     <div className="commands-box">
       <label className="commands-field">
         <SearchIcon />
-        <span className="visually-hidden">Search actions, parts, circuits and examples</span>
+        <span className="visually-hidden">{prompt}</span>
         <input
           autoFocus
           type="text"
@@ -81,7 +97,7 @@ function CommandSearch({ seed }: { seed: string }) {
           aria-autocomplete="list"
           autoComplete="off"
           spellCheck={false}
-          placeholder="Search actions, parts, circuits and examples"
+          placeholder={prompt}
           value={query}
           onChange={(event) => {
             setQuery(event.target.value)
@@ -101,8 +117,9 @@ function CommandSearch({ seed }: { seed: string }) {
       <div ref={listRef} id="command-list" className="commands-list" role="listbox" aria-label="Actions">
         {found.length === 0 && (
           <p className="commands-empty">
-            Nothing matches “{query.trim()}”. Try the name of a part, such as “counter”, or an
-            action, such as “save”.
+            {quickAdd
+              ? `No part matches “${query.trim()}”. Try a name such as “counter” or “and”.`
+              : `Nothing matches “${query.trim()}”. Try the name of a part, such as “counter”, or an action, such as “save”.`}
           </p>
         )}
         {found.map((command, index) => {

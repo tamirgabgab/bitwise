@@ -42,6 +42,8 @@ export interface Command {
   readonly detail?: string
   /** Listed, but cannot be run right now. */
   readonly disabled?: boolean
+  /** For a command that adds a part: which one, so it can be put somewhere else. */
+  readonly place?: { readonly type: string; readonly circuit?: string }
   run(): void
 }
 
@@ -288,6 +290,7 @@ export function listCommands(): Command[] {
         title: `Add ${partName(type)}`,
         detail: partHint(type, editor.settings.radix),
         keywords: `${type} ${section.title} place insert`,
+        place: { type },
         run: () => placeAtCenter(type),
       })
     }
@@ -309,6 +312,7 @@ export function listCommands(): Command[] {
         group: 'Circuits',
         title: `Add circuit ${name} as a part`,
         keywords: 'place insert use',
+        place: { type: SUB_TYPE, circuit: id },
         run: () => placeAtCenter(SUB_TYPE, id),
       })
     }
