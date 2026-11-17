@@ -4,6 +4,8 @@ import {
   MIN_ZOOM,
   UNIT,
   fitView,
+  keepInSight,
+  wheelZoomFactor,
   screenToWorld,
   worldToScreen,
   zoomAt,
@@ -61,5 +63,61 @@ describe('fitView', () => {
   it('copes with a single point and with a canvas that has no size yet', () => {
     expect(fitView({ x0: 3, y0: 3, x1: 3, y1: 3 }, 800, 600).zoom).toBe(1)
     expect(Number.isFinite(fitView({ x0: 0, y0: 0, x1: 10, y1: 10 }, 0, 0).zoom)).toBe(true)
+  })
+})
+
+describe('keepInSight', () => {
+  const view: View = { panX: 0, panY: 0, zoom: 1 }
+  // 10 by 5 grid units: 160 by 80 pixels at 100%.
+  const bounds = { x0: 20, y0: 10, x1: 30, y1: 15 }
+
+  it('moves a drawing that was in sight back into a narrower canvas', () => {
+    const moved = keepInSight(view, bounds, { width: 600, height: 400 }, { width: 400, height: 400 })
+    expect(moved.panX).toBeLessThan(0)
+    expect(moved.panY).toBe(0)
+    const right = bounds.x1 * UNIT + moved.panX
+    expect(right).toBeLessThanOrEqual(400)
+    expect(bounds.x0 * UNIT + moved.panX).toBeGreaterThanOrEqual(0)
+  })
+
+  it('moves it up when the canvas gets shorter', () => {
+    const moved = keepInSight(view, bounds, { width: 600, height: 400 }, { width: 600, height: 200 })
+    expect(bounds.y1 * UNIT + moved.panY).toBeLessThanOrEqual(200)
+  })
+
+  it('leaves the view alone when the drawing was not all in sight', () => {
+    expect(keepInSight(view, bounds, { width: 400, height: 400 }, { width: 300, height: 400 })).toBe(view)
+  })
+
+  it('zooms out when the drawing no longer fits', () => {
+    const fitted = keepInSight(view, bounds, { width: 600, height: 400 }, { width: 120, height: 400 })
+    expect(fitted.zoom).toBeLessThan(1)
+    expect(bounds.x1 * UNIT * fitted.zoom + fitted.panX).toBeLessThanOrEqual(120)
+    expect(bounds.x0 * UNIT * fitted.zoom + fitted.panX).toBeGreaterThanOrEqual(0)
+  })
+
+  it('leaves the view alone when the canvas grows', () => {
+    expect(keepInSight(view, bounds, { width: 600, height: 400 }, { width: 800, height: 500 })).toBe(view)
+  })
+})
+
+describe('wheelZoomFactor', () => {
+  it('zooms in when scrolling up and out when scrolling down', () => {
+    expect(wheelZoomFactor(-100, 0, 800)).toBeGreaterThan(1)
+    expect(wheelZoomFactor(100, 0, 800)).toBeLessThan(1)
+  })
+
+  it('caps one event at one ordinary notch', () => {
+    expect(wheelZoomFactor(400, 0, 800)).toBe(wheelZoomFactor(100, 0, 800))
+    expect(wheelZoomFactor(-1000, 0, 800)).toBe(wheelZoomFactor(-100, 0, 800))
+  })
+
+  it('reads line and page scrolling as pixels', () => {
+    expect(wheelZoomFactor(3, 1, 800)).toBe(wheelZoomFactor(48, 0, 800))
+    expect(wheelZoomFactor(1, 2, 800)).toBe(wheelZoomFactor(100, 0, 800))
+  })
+
+  it('keeps a touchpad smooth', () => {
+    expect(wheelZoomFactor(4, 0, 800)).toBeCloseTo(Math.exp(-0.006))
   })
 })

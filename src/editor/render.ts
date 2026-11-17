@@ -104,12 +104,6 @@ function tracePath(ctx: CanvasRenderingContext2D, points: readonly Point[]): voi
 }
 
 function strokeWire(ctx: CanvasRenderingContext2D, path: readonly Point[], look: WireLook): void {
-  if (look.casing) {
-    tracePath(ctx, path)
-    ctx.strokeStyle = look.casing
-    ctx.lineWidth = WIRE_STROKE * look.weight + 0.1
-    ctx.stroke()
-  }
   tracePath(ctx, path)
   ctx.setLineDash(look.dash as number[])
   ctx.strokeStyle = look.color
@@ -158,21 +152,36 @@ function wireLook(style: ValueStyle, value: WireValue): WireLook {
 }
 
 function fillDot(ctx: CanvasRenderingContext2D, at: Point, radius: number, look: WireLook): void {
-  if (look.casing) {
-    ctx.beginPath()
-    ctx.arc(at.x, at.y, radius + 0.05, 0, Math.PI * 2)
-    ctx.fillStyle = look.casing
-    ctx.fill()
-  }
   ctx.beginPath()
   ctx.arc(at.x, at.y, radius, 0, Math.PI * 2)
   ctx.fillStyle = look.color
   ctx.fill()
 }
 
+/** The smallest text worth drawing, in CSS pixels. */
+export const MIN_TEXT_PX = 8.5
+
+/**
+ * How far small text may be enlarged to reach `MIN_TEXT_PX`. Text that would
+ * need more is too small to read at this zoom and is left out instead, so it
+ * does not crowd its neighbours.
+ */
+export const MAX_TEXT_BOOST = 1.6
+
+/** The pixel size text is drawn at, or 0 to leave it out. */
+export function textPixels(designed: number, floor: number): number {
+  if (designed >= floor) return designed
+  return designed * MAX_TEXT_BOOST >= floor ? floor : 0
+}
+
+/** `MIN_TEXT_PX` in device pixels for the scene being drawn. */
+let textFloor = MIN_TEXT_PX
+
 /**
  * Writes text centred on a point given in the current coordinates, upright
- * and at a real pixel size whatever rotation and scale are in effect.
+ * and at a real pixel size whatever rotation and scale are in effect. Text
+ * smaller than `MIN_TEXT_PX` is enlarged a little or, when even that would
+ * not make it readable, left out.
  */
 function drawText(
   ctx: CanvasRenderingContext2D,
@@ -186,7 +195,8 @@ function drawText(
   const scale = Math.hypot(matrix.a, matrix.b)
   const x = matrix.a * at.x + matrix.c * at.y + matrix.e
   const y = matrix.b * at.x + matrix.d * at.y + matrix.f
-  const pixels = size * scale
+  const pixels = textPixels(size * scale, textFloor)
+  if (pixels === 0) return
   ctx.save()
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.font = `600 ${pixels}px ${FONT}`
@@ -338,6 +348,7 @@ export function renderScene(
   scene: Scene,
 ): void {
   const { doc, selection, view, live, style } = scene
+  textFloor = MIN_TEXT_PX * pixelRatio
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
   ctx.fillStyle = theme.background
   ctx.fillRect(0, 0, width, height)

@@ -51,3 +51,51 @@ export function zoomAt(view: View, factor: number, x: number, y: number): View {
   const k = zoom / view.zoom
   return { zoom, panX: x - (x - view.panX) * k, panY: y - (y - view.panY) * k }
 }
+
+/** Screen pixels kept free between a drawing and the edge when it is moved into sight. */
+const SIGHT_MARGIN = 16
+
+/**
+ * The canvas changed size from `before` to `after` (a panel opened beside or
+ * below it). When all of `bounds` was in sight before, it stays in sight: the
+ * view moves just enough, or zooms out to fit when the drawing no longer fits
+ * at the same zoom. A drawing that was partly out of sight is left alone.
+ */
+export function keepInSight(
+  view: View,
+  bounds: Rect,
+  before: { readonly width: number; readonly height: number },
+  after: { readonly width: number; readonly height: number },
+): View {
+  const scale = UNIT * view.zoom
+  const left = bounds.x0 * scale + view.panX
+  const right = bounds.x1 * scale + view.panX
+  const top = bounds.y0 * scale + view.panY
+  const bottom = bounds.y1 * scale + view.panY
+  const wasInSight = left >= 0 && top >= 0 && right <= before.width && bottom <= before.height
+  if (!wasInSight) return view
+  // Along one axis: the shift that brings [low, high] inside [0, size].
+  if (right - left > after.width || bottom - top > after.height) {
+    const fitted = fitView(bounds, after.width, after.height)
+    return fitted.zoom < view.zoom ? fitted : view
+  }
+  const shift = (low: number, high: number, size: number): number =>
+    high > size ? Math.max(size - SIGHT_MARGIN - high, -low) : 0
+  const dx = shift(left, right, after.width)
+  const dy = shift(top, bottom, after.height)
+  return dx === 0 && dy === 0 ? view : { ...view, panX: view.panX + dx, panY: view.panY + dy }
+}
+
+/** The most a single wheel event may zoom, as pixels of scroll. About 16%. */
+const MAX_WHEEL_STEP = 100
+
+/**
+ * The zoom factor for one wheel event. Line and page scrolling are turned
+ * into pixels, and one event never zooms more than one notch of an ordinary
+ * mouse wheel, so a coarse wheel steps evenly while a touchpad stays smooth.
+ */
+export function wheelZoomFactor(deltaY: number, deltaMode: number, pageHeight: number): number {
+  const pixels = deltaMode === 1 ? deltaY * 16 : deltaMode === 2 ? deltaY * pageHeight : deltaY
+  const step = Math.max(-MAX_WHEEL_STEP, Math.min(MAX_WHEEL_STEP, pixels))
+  return Math.exp(-step * 0.0015)
+}

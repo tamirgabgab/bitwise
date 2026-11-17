@@ -8,6 +8,7 @@ import {
   inkOn,
   luminance,
   makeValueStyle,
+  mixColor,
   valueText,
 } from './valueStyle.ts'
 import type { ValueSettings, ValueTheme } from './valueStyle.ts'
@@ -125,16 +126,27 @@ describe('valueText', () => {
 describe('makeValueStyle', () => {
   it('draws a digit as a solid line in its color', () => {
     const look = makeValueStyle(settings({ radix: 3 }), light).wire(2, false)
-    expect(look).toEqual({ color: DEFAULT_PALETTE[2], casing: null, dash: [], weight: 1 })
+    expect(look).toEqual({ color: DEFAULT_PALETTE[2], dash: [], weight: 1 })
   })
 
-  it('cases a color that would vanish into the canvas', () => {
-    const three = settings({ radix: 10 })
+  it('lifts a color that would vanish into the canvas to a solid, readable one', () => {
+    const ten = settings({ radix: 10 })
     // Black on the dark canvas, white on the light one.
-    expect(makeValueStyle(three, dark).wire(0, false).casing).toBe(dark.wire)
-    expect(makeValueStyle(three, light).wire(0, false).casing).toBeNull()
-    expect(makeValueStyle(three, light).wire(9, false).casing).toBe(light.wire)
-    expect(makeValueStyle(three, dark).wire(9, false).casing).toBeNull()
+    for (const [theme, digit] of [[dark, 0], [light, 9]] as const) {
+      const look = makeValueStyle(ten, theme).wire(digit, false)
+      expect(look.color).not.toBe(DEFAULT_PALETTE[digit])
+      expect(look.dash).toEqual([])
+      expect(contrastRatio(look.color, theme.background)).toBeGreaterThanOrEqual(1.6)
+    }
+    // Colors that already read are left alone.
+    expect(makeValueStyle(ten, light).wire(0, false).color).toBe(DEFAULT_PALETTE[0])
+    expect(makeValueStyle(ten, dark).wire(9, false).color).toBe(DEFAULT_PALETTE[9])
+  })
+
+  it('mixes two colors', () => {
+    expect(mixColor('#000000', '#ffffff', 0)).toBe('#000000')
+    expect(mixColor('#000000', '#ffffff', 1)).toBe('#ffffff')
+    expect(mixColor('#000000', '#ffffff', 0.5)).toBe('#808080')
   })
 
   it('breaks the line for floating, unknown and conflicting wires', () => {

@@ -130,15 +130,39 @@ export function signalText(signal: Signal, settings: ValueSettings): string {
 /** How to stroke a wire that carries a value. Lengths are in grid units. */
 export interface WireLook {
   readonly color: string
-  /** A darker or lighter line drawn underneath so a faint color stays visible. */
-  readonly casing: string | null
   readonly dash: readonly number[]
   /** Line width as a multiple of the normal wire width. */
   readonly weight: number
 }
 
-/** A color needs a casing when it would nearly vanish into the canvas. */
+/** Below this contrast with the canvas a color is lifted toward the wire color. */
 const MIN_CONTRAST = 1.6
+
+/** A color part of the way from `a` to `b`: 0 is `a`, 1 is `b`. */
+export function mixColor(a: string, b: string, t: number): string {
+  const from = parseHex(a)
+  const to = parseHex(b)
+  if (!from || !to) return a
+  const hex = (i: number): string =>
+    Math.round(from[i] + (to[i] - from[i]) * t)
+      .toString(16)
+      .padStart(2, '0')
+  return `#${hex(0)}${hex(1)}${hex(2)}`
+}
+
+/**
+ * The color a value is drawn in on the canvas. One that would nearly vanish
+ * into the background, such as black on the dark theme, is moved toward the
+ * plain wire color until it reads, so the wire stays one solid line.
+ */
+export function visibleColor(color: string, theme: ValueTheme): string {
+  if (contrastRatio(color, theme.background) >= MIN_CONTRAST) return color
+  for (let t = 0.2; t < 1; t += 0.1) {
+    const lifted = mixColor(color, theme.wire, t)
+    if (contrastRatio(lifted, theme.background) >= MIN_CONTRAST + 0.4) return lifted
+  }
+  return theme.wire
+}
 
 /**
  * Everything the renderer needs to show values, for one combination of
@@ -158,8 +182,6 @@ export interface ValueStyle {
 
 export function makeValueStyle(settings: ValueSettings, theme: ValueTheme): ValueStyle {
   const classic = isClassic(settings)
-  const casingFor = (color: string): string | null =>
-    contrastRatio(color, theme.background) < MIN_CONTRAST ? theme.wire : null
   // Classic keeps CedarLogic's green and blue. With a palette those hues may
   // be digits, so floating and unknown wires fall back to the plain wire color.
   const floating = classic ? theme.signalHiz : theme.wire
@@ -177,20 +199,19 @@ export function makeValueStyle(settings: ValueSettings, theme: ValueTheme): Valu
       return signalText(signal, settings)
     },
     bus(signal, conflict) {
-      if (conflict) return { color: unknown, casing: null, dash: [0.3, 0.35], weight: 3 }
+      if (conflict) return { color: unknown, dash: [0.3, 0.35], weight: 3 }
       if (signal.every((digit) => digit === Z)) {
-        return { color: floating, casing: null, dash: [0.4, 0.34], weight: 2 }
+        return { color: floating, dash: [0.4, 0.34], weight: 2 }
       }
-      return { color: theme.wire, casing: null, dash: [], weight: 2.5 }
+      return { color: theme.wire, dash: [], weight: 2.5 }
     },
     wire(digit, conflict) {
-      if (conflict) return { color: unknown, casing: null, dash: [0.3, 0.35], weight: 1.9 }
-      if (digit === Z) return { color: floating, casing: null, dash: [0.4, 0.34], weight: 0.8 }
+      if (conflict) return { color: unknown, dash: [0.3, 0.35], weight: 1.9 }
+      if (digit === Z) return { color: floating, dash: [0.4, 0.34], weight: 0.8 }
       if (digit === X || digit >= settings.radix) {
-        return { color: unknown, casing: null, dash: [0.02, 0.3], weight: 1.15 }
+        return { color: unknown, dash: [0.02, 0.3], weight: 1.15 }
       }
-      const color = digitColor(digit, settings, theme)
-      return { color, casing: casingFor(color), dash: [], weight: 1 }
+      return { color: visibleColor(digitColor(digit, settings, theme), theme), dash: [], weight: 1 }
     },
   }
 }

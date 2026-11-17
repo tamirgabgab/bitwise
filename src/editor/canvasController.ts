@@ -8,7 +8,7 @@ import {
 import type { CircuitDoc, Terminal, WireEnd } from './document.ts'
 import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
-import { hitTest, itemsInRect } from './hitTest.ts'
+import { docBounds, hitTest, itemsInRect } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
 import { isPokeable, readLiveValues } from './liveValues.ts'
 import type { LiveValues } from './liveValues.ts'
@@ -40,7 +40,7 @@ import { readCanvasTheme } from './theme.ts'
 import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
-import { screenToWorld } from './view.ts'
+import { keepInSight, screenToWorld, wheelZoomFactor } from './view.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
 const DRAG_THRESHOLD = 4
@@ -243,6 +243,16 @@ export class CanvasController {
 
   private resize(): void {
     const rect = this.canvas.getBoundingClientRect()
+    if (this.centered && rect.width > 0 && rect.height > 0) {
+      // A panel opened beside or below the canvas: keep the drawing in sight.
+      const { view, doc, setView } = useEditor.getState()
+      const bounds = docBounds(doc)
+      if (bounds) {
+        const before = { width: this.width, height: this.height }
+        const kept = keepInSight(view, bounds, before, rect)
+        if (kept !== view) setView(kept)
+      }
+    }
     this.width = rect.width
     this.height = rect.height
     this.pixelRatio = window.devicePixelRatio || 1
@@ -672,7 +682,7 @@ export class CanvasController {
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault()
     const rect = this.canvas.getBoundingClientRect()
-    const factor = Math.exp(-event.deltaY * 0.0015)
+    const factor = wheelZoomFactor(event.deltaY, event.deltaMode, rect.height)
     useEditor.getState().zoomAt(factor, event.clientX - rect.left, event.clientY - rect.top)
   }
 
