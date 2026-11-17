@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc -b)",
+      "Bash(npm run lint)",
+      "Bash(npm test)",
+      "Bash(npx tsc --noEmit -p .)",
+      "mcp__playwright__browser_take_screenshot",
+      "mcp__Claude_Browser__find",
+      "mcp__playwright__browser_wait_for",
+      "mcp__Claude_Browser__preview_list",
+      "mcp__Claude_Browser__read_console_messages",
+      "mcp__ccd_session_mgmt__get_session",
+      "mcp__6a15fec9-e785-4bcc-903a-953a663abbae__creative_get_flow_run_status"
+    ]
+  }
+}
