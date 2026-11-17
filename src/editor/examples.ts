@@ -9,6 +9,7 @@ import {
 import type { AddComponentOptions, Terminal } from './document.ts'
 import { DEFAULT_SETTINGS, toProjectData } from './project.ts'
 import type { ProjectData, ProjectSettings } from './project.ts'
+import type { Step } from './steps.ts'
 import { subRefOf } from './subcircuit.ts'
 import type { Circuit } from './subcircuit.ts'
 
@@ -71,8 +72,8 @@ function sketch() {
     run(...stops: readonly string[]): void {
       for (let i = 0; i + 1 < stops.length; i++) this.wire(stops[i], stops[i + 1])
     },
-    done(id: string, name: string): Circuit {
-      return { id, name, doc }
+    done(id: string, name: string, steps?: readonly Step[]): Circuit {
+      return steps ? { id, name, doc, steps } : { id, name, doc }
     },
   }
 }
@@ -133,6 +134,7 @@ function binaryAdder(): ProjectData {
   const fullAdder = full.done('k2', 'Full adder')
 
   const top = sketch()
+  const walk: Step[] = []
   {
     const a0 = top.part('input', 0, 0, { label: 'A0' })
     const b0 = top.part('input', 0, 4, { label: 'B0' })
@@ -151,8 +153,18 @@ function binaryAdder(): ProjectData {
     top.wire(`${low}.C`, `${high}.Cin`)
     top.wire(`${high}.S`, `${s1}.in`)
     top.wire(`${high}.Cout`, `${carry}.in`)
+    const show = (note: string, a: number, b: number): void => {
+      walk.push({
+        note,
+        inputs: { [a0]: a & 1, [a1]: a >> 1, [b0]: b & 1, [b1]: b >> 1 },
+      })
+    }
+    show('0 + 0 = 0. Every output is off.', 0, 0)
+    show('1 + 1 = 2. The low half adder carries into the full adder.', 1, 1)
+    show('2 + 1 = 3. No carry anywhere.', 2, 1)
+    show('3 + 3 = 6. The sum no longer fits in two bits, so C comes on.', 3, 3)
   }
-  const adder = top.done('k3', 'Two-bit adder')
+  const adder = top.done('k3', 'Two-bit adder', walk)
 
   return project([adder, fullAdder, halfAdder], adder, {})
 }

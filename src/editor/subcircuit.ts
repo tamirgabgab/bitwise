@@ -1,5 +1,6 @@
 import { SUB_TYPE, deleteItems, terminalEnd } from './document.ts'
 import type { CircuitDoc, DocComponent, SubPin, SubRef, Terminal } from './document.ts'
+import type { Step } from './steps.ts'
 
 /*
  * Named circuits. A project holds several drawings, each with a name, and any
@@ -13,6 +14,8 @@ export interface Circuit {
   readonly id: string
   readonly name: string
   readonly doc: CircuitDoc
+  /** The presentation steps of the circuit, if it has any. */
+  readonly steps?: readonly Step[]
 }
 
 export type Circuits = Readonly<Record<string, Circuit>>

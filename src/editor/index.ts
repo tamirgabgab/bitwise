@@ -24,7 +24,12 @@ export { useProbe } from './probeStore.ts'
 export { EXAMPLES } from './examples.ts'
 export type { Example } from './examples.ts'
 export type { ProjectData } from './project.ts'
+export { MAX_NOTE, MAX_STEPS } from './steps.ts'
+export type { Step } from './steps.ts'
 export {
+  addStepHere,
+  showStep,
+  updateStepHere,
   breakpointOn,
   currentScope,
   describeNode,

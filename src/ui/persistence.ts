@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { projectSnapshot, useEditor, useSim } from '../editor/index.ts'
+import { canvasRuntime, projectSnapshot, useEditor, useSim } from '../editor/index.ts'
 import type { Example } from '../editor/index.ts'
 import {
   ProjectFileError,
@@ -132,6 +132,14 @@ export function saveProjectFile(): void {
   const { circuits, order } = useEditor.getState()
   const name = safeFileName(circuits[order[0]].name, 'project')
   downloadText(`${name}.cedar.json`, projectText(true))
+}
+
+/** Saves a picture of the open circuit, as it looks now, as an SVG file. */
+export function exportCircuitSvg(): void {
+  const svg = canvasRuntime.current?.svg()
+  if (svg === undefined) return
+  const { circuits, active } = useEditor.getState()
+  downloadText(`${safeFileName(circuits[active].name, 'circuit')}.svg`, svg, 'image/svg+xml')
 }
 
 /** Lets the user pick a project file and opens it. */

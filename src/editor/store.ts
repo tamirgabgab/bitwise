@@ -29,6 +29,8 @@ import {
 } from './document.ts'
 import type { CircuitDoc, Fragment, WireEnd } from './document.ts'
 import { extractCircuit } from './extract.ts'
+import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
+import type { Step } from './steps.ts'
 import { samePoint } from './geometry.ts'
 import { docBounds } from './hitTest.ts'
 import type { Point } from './geometry.ts'
@@ -131,6 +133,10 @@ export interface EditorState {
   readonly restoredInputs: Readonly<Record<string, Readonly<Record<string, number>>>>
   /** Circuits that came without a view and were not on screen yet. */
   readonly unframed: ReadonlySet<string>
+  /** Whether the presentation steps of the open circuit are on screen. */
+  readonly stepsOpen: boolean
+  /** Which step of the open circuit is being shown. */
+  readonly stepIndex: number
 
   /**
    * Adds a part at `pos`, nudging it along if that exact spot is taken. For
@@ -194,6 +200,15 @@ export interface EditorState {
   setPaletteColor(value: number, color: string): void
   resetPalette(): void
 
+  setStepsOpen(open: boolean): void
+  /** Says which step is on show. The switches are set by the session. */
+  setStepIndex(index: number): void
+  /** Adds a step after the one on show and shows it. */
+  addStep(inputs: Readonly<Record<string, number>>): void
+  setStepNote(index: number, note: string): void
+  setStepInputs(index: number, inputs: Readonly<Record<string, number>>): void
+  deleteStep(index: number): void
+
   /** Adds an empty circuit and opens it. Returns its id. */
   addCircuit(name?: string): string
   /** Opens another circuit of the project. */
@@ -229,6 +244,8 @@ type Data = Pick<
   | 'parked'
   | 'restoredInputs'
   | 'unframed'
+  | 'stepsOpen'
+  | 'stepIndex'
 >
 
 /** The state for a freshly opened project, looking at it through `view`. */
@@ -256,6 +273,8 @@ function projectData(project: LoadedProject, view: View): Data {
     nextCircuit: project.nextCircuit,
     parked,
     restoredInputs: project.inputs,
+    stepsOpen: false,
+    stepIndex: 0,
     unframed: new Set(
       project.order.filter(
         (id) => !project.views[id] && Object.keys(project.circuits[id].doc.components).length > 0,
@@ -292,10 +311,51 @@ export const useEditor = create<EditorState>()((set, get) => {
     })
   }
 
+  /** Puts a new list of steps on the open circuit. Not a step of undo. */
+  const putSteps = (steps: readonly Step[], stepIndex: number): void => {
+    const state = get()
+    const circuit = state.circuits[state.active]
+    if (steps === (circuit.steps ?? [])) return
+    set({
+      circuits: { ...state.circuits, [state.active]: { ...circuit, steps } },
+      stepIndex: Math.max(0, Math.min(steps.length - 1, stepIndex)),
+    })
+  }
+  const stepsNow = (): readonly Step[] => get().circuits[get().active].steps ?? []
+
   return {
     ...projectData(emptyProject(), DEFAULT_VIEW),
     epoch: 0,
     theme: loadTheme(),
+
+    setStepsOpen(stepsOpen) {
+      set({ stepsOpen })
+    },
+
+    setStepIndex(index) {
+      const last = stepsNow().length - 1
+      set({ stepIndex: Math.max(0, Math.min(last, index)) })
+    },
+
+    addStep(inputs) {
+      const steps = stepsNow()
+      const at = steps.length === 0 ? -1 : get().stepIndex
+      const next = insertStep(steps, at, { note: '', inputs })
+      if (next.length > steps.length) putSteps(next, at + 1)
+    },
+
+    setStepNote(index, note) {
+      putSteps(changeStep(stepsNow(), index, { note: cleanNote(note) }), get().stepIndex)
+    },
+
+    setStepInputs(index, inputs) {
+      putSteps(changeStep(stepsNow(), index, { inputs }), get().stepIndex)
+    },
+
+    deleteStep(index) {
+      const { stepIndex } = get()
+      putSteps(removeStep(stepsNow(), index), index < stepIndex ? stepIndex - 1 : stepIndex)
+    },
 
     addComponent(type, pos, circuit) {
       const { doc, circuits, active } = get()
@@ -571,6 +631,7 @@ export const useEditor = create<EditorState>()((set, get) => {
         selection: existingIds(doc, mine?.selection ?? []),
         parked,
         placing: null,
+        stepIndex: 0,
       })
     },
 

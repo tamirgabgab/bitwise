@@ -32,6 +32,8 @@ export interface Scene {
   readonly active: ReadonlySet<string>
   /** Where a breakpoint sits on a wire. */
   readonly marks: readonly Point[]
+  /** Leave the grid out, as for a picture of the circuit. */
+  readonly paper?: boolean
 }
 
 const STROKE = 0.13
@@ -270,7 +272,7 @@ export function renderScene(
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
   ctx.fillStyle = theme.background
   ctx.fillRect(0, 0, width, height)
-  drawGrid(ctx, width, height, theme, view)
+  if (!scene.paper) drawGrid(ctx, width, height, theme, view)
 
   // From here on, one unit is one grid square.
   const scale = UNIT * view.zoom

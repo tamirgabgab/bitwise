@@ -83,6 +83,13 @@ export interface FileCircuit {
   readonly view?: FileView
   /** The value each switch was on, by part id. */
   readonly inputs?: Readonly<Record<string, number>>
+  /** The presentation steps: a note and the switch values to show with it. */
+  readonly steps?: readonly FileStep[]
+}
+
+export interface FileStep {
+  readonly note: string
+  readonly inputs: Readonly<Record<string, number>>
 }
 
 export interface FileSettings {
@@ -340,6 +347,24 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
       }
     }
   }
+  const steps: FileStep[] = []
+  if (value.steps !== undefined) {
+    for (const item of listOf(value.steps, `${where}: the steps`)) {
+      if (!isObject(item)) fail(`${where}: a step is not an object.`)
+      if (item.note !== undefined && typeof item.note !== 'string') {
+        fail(`${where}: a step has a note that is not text.`)
+      }
+      const shown: Record<string, number> = {}
+      if (isObject(item.inputs)) {
+        for (const [partId, digit] of Object.entries(item.inputs)) {
+          if (parts.has(partId) && isWhole(digit) && digit >= 0 && digit < MAX_RADIX) {
+            shown[partId] = digit
+          }
+        }
+      }
+      steps.push({ note: item.note ?? '', inputs: shown })
+    }
+  }
   const view = viewOf(value.view)
   return {
     id,
@@ -350,6 +375,7 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
     wires,
     ...(view ? { view } : {}),
     ...(Object.keys(inputs).length > 0 ? { inputs } : {}),
+    ...(steps.length > 0 ? { steps } : {}),
   }
 }
 

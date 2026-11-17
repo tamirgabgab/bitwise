@@ -8,6 +8,8 @@ export interface CanvasRuntime {
   gridCenter(): Point
   /** The middle of the visible canvas, in the canvas's own pixels. */
   screenCenter(): { x: number; y: number }
+  /** The open circuit as an SVG picture, in the colors on screen. */
+  svg(): string
 }
 
 /** Set while a canvas is mounted. */

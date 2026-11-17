@@ -5,6 +5,7 @@ import { DialogHost } from './DialogHost.tsx'
 import { Palette } from './Palette.tsx'
 import { SettingsPanel } from './SettingsPanel.tsx'
 import { StatusBar } from './StatusBar.tsx'
+import { StepsPanel } from './StepsPanel.tsx'
 import { TimingPanel } from './TimingPanel.tsx'
 import { Toolbar } from './Toolbar.tsx'
 import './App.css'
@@ -25,6 +26,7 @@ export function App() {
         <CanvasView />
         {settingsOpen && <SettingsPanel onClose={closeSettings} />}
       </div>
+      <StepsPanel />
       <TimingPanel />
       <StatusBar />
       <DialogHost />

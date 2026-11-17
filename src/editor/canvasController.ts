@@ -26,11 +26,13 @@ import {
   pressKey,
   releaseKey,
   releaseKeys,
+  showStep,
 } from './session.ts'
 import { useSim } from './simStore.ts'
 import { useEditor } from './store.ts'
 import type { EditorState, ProjectSettings } from './store.ts'
 import { subRefOf } from './subcircuit.ts'
+import { circuitSvg } from './svgExport.ts'
 import { symbolOf } from './symbols.ts'
 import { readCanvasTheme } from './theme.ts'
 import type { CanvasTheme } from './theme.ts'
@@ -174,6 +176,15 @@ export class CanvasController {
       gridCenter: () =>
         snapPoint(screenToWorld(useEditor.getState().view, this.width / 2, this.height / 2)),
       screenCenter: () => ({ x: this.width / 2, y: this.height / 2 }),
+      svg: () => {
+        const state = useEditor.getState()
+        return circuitSvg(
+          state.doc,
+          this.theme,
+          this.valueStyle(state.settings),
+          readLiveValues(state.doc, currentBridge()),
+        )
+      },
     }
     this.cleanups.push(() => {
       canvasRuntime.current = null
@@ -671,6 +682,26 @@ export class CanvasController {
       event.preventDefault()
       action()
       return
+    }
+
+    // While the presentation steps are open, the arrows walk through them.
+    const steps = state.stepsOpen ? (state.circuits[state.active].steps?.length ?? 0) : 0
+    if (steps > 0 && !event.altKey) {
+      const jumps: Record<string, number> = {
+        ArrowRight: state.stepIndex + 1,
+        ArrowDown: state.stepIndex + 1,
+        PageDown: state.stepIndex + 1,
+        ArrowLeft: state.stepIndex - 1,
+        ArrowUp: state.stepIndex - 1,
+        PageUp: state.stepIndex - 1,
+        Home: 0,
+        End: steps - 1,
+      }
+      if (code in jumps) {
+        event.preventDefault()
+        showStep(jumps[code])
+        return
+      }
     }
 
     const moves: Record<string, [number, number]> = {

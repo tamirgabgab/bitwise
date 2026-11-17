@@ -225,3 +225,30 @@ export const SpreadYIcon = () => (
     <path d="M2.5 2.5h13M2.5 15.5h13M5 7.5h8v3H5z" />
   </Icon>
 )
+
+export const PictureIcon = () => (
+  <Icon>
+    <rect x="2.5" y="3.5" width="13" height="11" rx="1.5" />
+    <circle cx="6.3" cy="7.2" r="1.2" />
+    <path d="m3 13 3.6-3.4 2.6 2.3 2.4-2.9 3.6 3.9" />
+  </Icon>
+)
+
+export const PreviousIcon = () => (
+  <Icon>
+    <path d="M11 4 6 9l5 5" />
+  </Icon>
+)
+
+export const NextIcon = () => (
+  <Icon>
+    <path d="m7 4 5 5-5 5" />
+  </Icon>
+)
+
+export const StepsIcon = () => (
+  <Icon>
+    <rect x="2.5" y="3.5" width="13" height="9" rx="1.5" />
+    <path d="M6 15.5h6M7.5 6.5v3l2.8-1.5Z" />
+  </Icon>
+)

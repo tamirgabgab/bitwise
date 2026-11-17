@@ -1,9 +1,12 @@
 import { terminalNets } from './connectivity.ts'
-import { terminalEnd, terminalKey } from './document.ts'
+import { TEXT_TYPE, terminalEnd, terminalKey } from './document.ts'
 import type { CircuitDoc, DocWire } from './document.ts'
-import { samePoint } from './geometry.ts'
+import { placeRect, samePoint } from './geometry.ts'
 import type { Point } from './geometry.ts'
+import { mazeRoute } from './mazeRoute.ts'
+import type { WireMark } from './mazeRoute.ts'
 import { routeWire } from './routing.ts'
+import { symbolOf } from './symbols.ts'
 
 /*
  * Where every wire of a drawing runs.
@@ -13,6 +16,9 @@ import { routeWire } from './routing.ts'
  * connection that is not there. So each wire tries a few channels and takes
  * the first one that keeps clear of the wires of other nets placed before it.
  * Wires of the same net may overlap freely: they are one node anyway.
+ *
+ * A wire must not run through a part either. When every simple channel does,
+ * the wire is sent around the parts by a search of the grid (`mazeRoute`).
  */
 
 /** Channels to try, nearest to the natural route first. */
@@ -109,6 +115,55 @@ function findBranches(
   return [...branches.values()]
 }
 
+/** One number for a grid point: looking up a number is far quicker than a text. */
+const at = (x: number, y: number): number => (x + 1048576) * 2097152 + (y + 1048576)
+
+/**
+ * The grid points the parts of a drawing cover, pins included. A wire has
+ * no business there, except at its own two ends. Text labels are only
+ * writing, so wires may pass them.
+ */
+function partCells(doc: CircuitDoc): Set<number> {
+  const cells = new Set<number>()
+  for (const component of Object.values(doc.components)) {
+    if (component.type === TEXT_TYPE) continue
+    const box = placeRect(symbolOf(component).bounds, component.pos, component.rotation)
+    for (let x = Math.ceil(box.x0); x <= Math.floor(box.x1); x++) {
+      for (let y = Math.ceil(box.y0); y <= Math.floor(box.y1); y++) cells.add(at(x, y))
+    }
+  }
+  return cells
+}
+
+/** Calls `visit` for every grid point of a path, saying how the path passes it. */
+function walk(path: Path, visit: (x: number, y: number, mark: WireMark) => void): void {
+  for (let i = 1; i < path.length; i++) {
+    const from = path[i - 1]
+    const to = path[i]
+    const dx = Math.sign(to.x - from.x)
+    const dy = Math.sign(to.y - from.y)
+    const steps = Math.abs(to.x - from.x) + Math.abs(to.y - from.y)
+    for (let step = i === 1 ? 0 : 1; step <= steps; step++) {
+      // Corners and ends are where a second wire would seem to connect.
+      const inside = step > 0 && step < steps
+      visit(from.x + dx * step, from.y + dy * step, inside ? (dx !== 0 ? 'h' : 'v') : 'x')
+    }
+  }
+}
+
+/** Whether a path runs through a part anywhere between its two ends. */
+function hitsPart(path: Path, cells: ReadonlySet<number>): boolean {
+  const first = path[0]
+  const last = path[path.length - 1]
+  let hit = false
+  walk(path, (x, y) => {
+    if (hit || !cells.has(at(x, y))) return
+    if ((x === first.x && y === first.y) || (x === last.x && y === last.y)) return
+    hit = true
+  })
+  return hit
+}
+
 const cache = new WeakMap<CircuitDoc, Layout>()
 
 /** Documents are immutable, so a layout is worked out once per document. */
@@ -117,7 +172,10 @@ function layoutOf(doc: CircuitDoc): Layout {
   if (cached) return cached
 
   const nets = terminalNets(doc)
+  const cells = partCells(doc)
   const placed: { readonly net: string | undefined; readonly path: Path }[] = []
+  // What the wires placed so far do at each grid point, net by net.
+  const marks = new Map<number, { readonly net: string | undefined; readonly mark: WireMark }[]>()
   const paths = new Map<string, Path>()
   for (const wire of Object.values(doc.wires)) {
     const from = terminalEnd(doc, wire.from)
@@ -127,17 +185,32 @@ function layoutOf(doc: CircuitDoc): Layout {
     const isClear = (path: Path): boolean =>
       !placed.some((other) => other.net !== net && pathsClash(path, other.path))
 
-    // With no clear channel in reach, the natural route is as good as any.
-    let path = routeWire(from, to)
-    for (const shift of SHIFTS) {
-      const candidate = shift === 0 ? path : routeWire(from, to, shift)
-      if (isClear(candidate)) {
-        path = candidate
-        break
-      }
-    }
+    // First choice: a simple channel that touches no other net and no part.
+    const candidates = SHIFTS.map((shift) => routeWire(from, to, shift))
+    let path = candidates.find((candidate) => isClear(candidate) && !hitsPart(candidate, cells))
+    // Second: a way around whatever is in the way.
+    path ??= mazeRoute(from, to, {
+      blocked: (x, y) => cells.has(at(x, y)),
+      wire(x, y) {
+        let found: WireMark | undefined
+        for (const other of marks.get(at(x, y)) ?? []) {
+          if (other.net === net) continue
+          if (other.mark === 'x' || (found !== undefined && found !== other.mark)) return 'x'
+          found = other.mark
+        }
+        return found
+      },
+    })
+    // With no way around in reach, the natural route is as good as any.
+    path ??= candidates.find(isClear) ?? candidates[0]
+
     placed.push({ net, path })
     paths.set(wire.id, path)
+    walk(path, (x, y, mark) => {
+      const list = marks.get(at(x, y))
+      if (list) list.push({ net, mark })
+      else marks.set(at(x, y), [{ net, mark }])
+    })
   }
   const branches = findBranches(placed)
   const layout: Layout = { paths, branches, branchPoints: branches.map((branch) => branch.pos) }

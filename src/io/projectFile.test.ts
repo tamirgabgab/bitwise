@@ -295,3 +295,42 @@ describe('a text label', () => {
     expect(() => parseProject(withPart({ type: 'text', text: '  ' }))).toThrow(/nothing written/)
   })
 })
+
+describe('presentation steps', () => {
+  const withSteps = (steps: unknown): string =>
+    JSON.stringify({
+      format: 'cedar-logic',
+      version: FILE_FORMAT_VERSION,
+      settings: {},
+      active: 'k1',
+      circuits: [
+        {
+          id: 'k1',
+          name: 'Main',
+          nextId: 2,
+          components: [{ id: 'c1', type: 'input', pos: { x: 0, y: 0 } }],
+          junctions: [],
+          wires: [],
+          steps,
+        },
+      ],
+    })
+
+  it('are read with their notes and switch values', () => {
+    const circuit = parseProject(withSteps([{ note: 'On', inputs: { c1: 1, c9: 1 } }, {}])).circuits[0]
+    expect(circuit.steps).toEqual([
+      { note: 'On', inputs: { c1: 1 } },
+      { note: '', inputs: {} },
+    ])
+  })
+
+  it('are left out when there are none', () => {
+    expect('steps' in parseProject(withSteps([])).circuits[0]).toBe(false)
+  })
+
+  it('are refused when they are not a list of steps', () => {
+    expect(() => parseProject(withSteps('x'))).toThrow(/steps/)
+    expect(() => parseProject(withSteps([7]))).toThrow(/step is not an object/)
+    expect(() => parseProject(withSteps([{ note: 7 }]))).toThrow(/note that is not text/)
+  })
+})

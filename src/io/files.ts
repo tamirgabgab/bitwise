@@ -12,8 +12,8 @@ export function safeFileName(name: string, fallback: string): string {
 }
 
 /** Hands `text` to the browser as a file download. */
-export function downloadText(fileName: string, text: string): void {
-  const url = URL.createObjectURL(new Blob([text], { type: 'application/json' }))
+export function downloadText(fileName: string, text: string, type = 'application/json'): void {
+  const url = URL.createObjectURL(new Blob([text], { type }))
   const link = document.createElement('a')
   link.href = url
   link.download = fileName

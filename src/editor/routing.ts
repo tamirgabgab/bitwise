@@ -23,7 +23,7 @@ function detour(a: number, b: number): number {
  * Drops repeated points and points in the middle of a straight run. A run
  * that goes out and straight back along itself disappears altogether.
  */
-function simplify(points: readonly Point[]): Point[] {
+export function simplify(points: readonly Point[]): Point[] {
   const result: Point[] = []
   for (const point of points) {
     result.push(point)

@@ -1128,3 +1128,61 @@ label.swatch:focus-within {
 .inspector .arrange + .button {
   margin-top: 4px;
 }
+
+/* ---- Presentation steps ---- */
+
+.steps {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  padding: 4px 6px 4px 12px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  overflow-x: auto;
+}
+
+.steps h2 {
+  margin: 0 6px 0 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.steps-count {
+  min-width: 56px;
+  text-align: center;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.steps-label {
+  margin-left: 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.steps-note {
+  flex: 1;
+  min-width: 160px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--canvas-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.steps-hint {
+  flex: 1;
+  min-width: 200px;
+  margin: 0 6px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.steps .button:disabled {
+  color: var(--text-faint);
+  cursor: default;
+}

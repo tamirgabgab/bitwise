@@ -25,6 +25,8 @@ import {
   repairDoc,
 } from './subcircuit.ts'
 import type { Circuit, Circuits } from './subcircuit.ts'
+import { cleanSteps } from './steps.ts'
+import type { Step } from './steps.ts'
 import { DEFAULT_PALETTE } from './valueStyle.ts'
 import { MAX_ZOOM, MIN_ZOOM } from './view.ts'
 import type { View } from './view.ts'
@@ -93,6 +95,8 @@ export interface CircuitData {
   readonly view?: View
   /** The value each switch was on, by part id. */
   readonly inputs?: Readonly<Record<string, number>>
+  /** The presentation steps of the circuit. */
+  readonly steps?: readonly Step[]
 }
 
 export interface ProjectData {
@@ -159,6 +163,7 @@ export function toProjectData(
         ...docToData(circuit.doc),
         ...(view ? { view } : {}),
         ...(inputs && Object.keys(inputs).length > 0 ? { inputs } : {}),
+        ...(circuit.steps && circuit.steps.length > 0 ? { steps: circuit.steps } : {}),
       }
     }),
   }
@@ -363,7 +368,14 @@ export function fromProjectData(data: ProjectData): LoadedProject {
   for (const id of order) {
     const circuit = circuits[id]
     const doc = repairDoc(circuit.doc)
-    if (doc !== circuit.doc) circuits[id] = { ...circuit, doc }
+    const steps = cleanSteps(
+      given.get(id)?.steps,
+      (part) => doc.components[part]?.type === 'input',
+      settings.radix,
+    )
+    if (doc !== circuit.doc || steps.length > 0) {
+      circuits[id] = { ...circuit, doc, ...(steps.length > 0 ? { steps } : {}) }
+    }
   }
 
   const views: Record<string, View> = {}

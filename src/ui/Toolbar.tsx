@@ -23,6 +23,7 @@ import {
   NewIcon,
   OpenIcon,
   PauseIcon,
+  PictureIcon,
   PlayIcon,
   RedoIcon,
   RestartIcon,
@@ -31,13 +32,20 @@ import {
   StepBackIcon,
   StepEdgeIcon,
   StepIcon,
+  StepsIcon,
   SunIcon,
   TimingIcon,
   UndoIcon,
   ZoomInIcon,
   ZoomOutIcon,
 } from './icons.tsx'
-import { openExample, openProjectFile, saveProjectFile, startNewProject } from './persistence.ts'
+import {
+  exportCircuitSvg,
+  openExample,
+  openProjectFile,
+  saveProjectFile,
+  startNewProject,
+} from './persistence.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
 interface ToolButtonProps {
@@ -81,6 +89,7 @@ function SimControls() {
   const hasClock = useSim((state) => state.clocks > 0)
   const scopeOpen = useSim((state) => state.scopeOpen)
   const canStepBack = useSim((state) => state.canStepBack)
+  const stepsOpen = useEditor((state) => state.stepsOpen)
   const { setRunning, setSpeed, setScopeOpen } = useSim.getState()
 
   return (
@@ -147,6 +156,16 @@ function SimControls() {
         onClick={() => setScopeOpen(!scopeOpen)}
       >
         <TimingIcon />
+      </button>
+      <button
+        type="button"
+        className="tool"
+        aria-label="Presentation steps"
+        aria-pressed={stepsOpen}
+        title={stepsOpen ? 'Hide the presentation steps' : 'Show the presentation steps'}
+        onClick={() => useEditor.getState().setStepsOpen(!stepsOpen)}
+      >
+        <StepsIcon />
       </button>
     </div>
   )
@@ -282,6 +301,9 @@ export function Toolbar({ settingsOpen, onToggleSettings }: ToolbarProps) {
         </ToolButton>
         <ToolButton label="Save the project as a file" shortcut="Ctrl+S" onClick={saveProjectFile}>
           <SaveIcon />
+        </ToolButton>
+        <ToolButton label="Export this circuit as an SVG picture" onClick={exportCircuitSvg}>
+          <PictureIcon />
         </ToolButton>
         <ExamplesMenu />
       </div>

@@ -695,3 +695,66 @@ describe('tidying and regrouping a selection', () => {
     expect(editor().order).toEqual(['k1'])
   })
 })
+
+describe('presentation steps', () => {
+  const steps = () => editor().circuits[editor().active].steps ?? []
+
+  it('adds steps after the one on show and shows the new one', () => {
+    editor().addStep({ c1: 0 })
+    editor().addStep({ c1: 1 })
+    expect(steps().map((step) => step.inputs.c1)).toEqual([0, 1])
+    expect(editor().stepIndex).toBe(1)
+    editor().setStepIndex(0)
+    editor().addStep({ c1: 2 })
+    expect(steps().map((step) => step.inputs.c1)).toEqual([0, 2, 1])
+    expect(editor().stepIndex).toBe(1)
+  })
+
+  it('changes the note and the switches of a step, outside undo', () => {
+    inverter()
+    const before = editor().past.length
+    editor().addStep({ c1: 0 })
+    editor().setStepNote(0, 'The input is off')
+    editor().setStepInputs(0, { c1: 1 })
+    expect(steps()).toEqual([{ note: 'The input is off', inputs: { c1: 1 } }])
+    expect(editor().past.length).toBe(before)
+    expect(editor().circuits.k1.doc).toBe(editor().doc)
+  })
+
+  it('deletes a step and keeps the index inside the list', () => {
+    editor().addStep({})
+    editor().addStep({})
+    editor().addStep({})
+    editor().deleteStep(2)
+    expect(steps()).toHaveLength(2)
+    expect(editor().stepIndex).toBe(1)
+    editor().deleteStep(0)
+    expect(editor().stepIndex).toBe(0)
+    editor().setStepIndex(9)
+    expect(editor().stepIndex).toBe(0)
+  })
+
+  it('keeps the steps of a circuit through an edit and through saving', () => {
+    inverter()
+    editor().addStep({ c1: 1 })
+    editor().setStepNote(0, 'On')
+    editor().addComponent('output', { x: 20, y: 0 })
+    expect(steps()).toHaveLength(1)
+    const data = toProjectData(editor())
+    expect(data.circuits[0].steps).toEqual([{ note: 'On', inputs: { c1: 1 } }])
+    editor().newProject()
+    expect(steps()).toEqual([])
+    editor().loadProject(data)
+    expect(steps()).toEqual([{ note: 'On', inputs: { c1: 1 } }])
+  })
+
+  it('starts each circuit at its first step', () => {
+    editor().addStep({})
+    editor().addStep({})
+    const second = editor().addCircuit()
+    expect(editor().stepIndex).toBe(0)
+    editor().selectCircuit('k1')
+    expect(editor().active).not.toBe(second)
+    expect(editor().stepIndex).toBe(0)
+  })
+})

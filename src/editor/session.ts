@@ -444,3 +444,31 @@ if (typeof requestAnimationFrame === 'function') {
   }
   requestAnimationFrame(frame)
 }
+
+/**
+ * Shows a presentation step of the open circuit: its switches go to the
+ * values the step keeps. A step past either end shows the nearest one.
+ */
+export function showStep(index: number): void {
+  const editor = useEditor.getState()
+  const steps = editor.circuits[editor.active].steps ?? []
+  if (steps.length === 0) return
+  const at = Math.max(0, Math.min(steps.length - 1, index))
+  const { bridge, runner } = current()
+  for (const [id, digit] of Object.entries(steps[at].inputs)) bridge.setInput(id, digit)
+  editor.setStepIndex(at)
+  runner.nudge()
+  useSim.setState({ breakHit: null, pokes: useSim.getState().pokes + 1 })
+  publish()
+}
+
+/** Keeps the switches as they are now as a new presentation step. */
+export function addStepHere(): void {
+  useEditor.getState().addStep(current().bridge.inputValues())
+}
+
+/** Puts the switches as they are now into the step on show. */
+export function updateStepHere(): void {
+  const editor = useEditor.getState()
+  editor.setStepInputs(editor.stepIndex, current().bridge.inputValues())
+}
