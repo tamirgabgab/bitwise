@@ -3,6 +3,7 @@ import { CanvasController, useEditor } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 import { Minimap } from './Minimap.tsx'
 import { ProbeBubble } from './ProbeBubble.tsx'
+import { ValueLegend } from './ValueLegend.tsx'
 
 export function CanvasView() {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -42,6 +43,7 @@ export function CanvasView() {
           </div>
         </div>
       )}
+      <ValueLegend />
       <Minimap />
       <ProbeBubble />
     </div>

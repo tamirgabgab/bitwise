@@ -295,6 +295,7 @@ function FileMenu() {
             shortcut="?"
             onPick={pick(useChrome.getState().openShortcuts)}
           />
+          <MenuRow name="Take the tour" onPick={pick(useChrome.getState().startTour)} />
         </div>
       )}
     </>

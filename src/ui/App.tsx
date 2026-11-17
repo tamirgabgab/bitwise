@@ -13,6 +13,7 @@ import { StepsPanel } from './StepsPanel.tsx'
 import { TimingPanel } from './TimingPanel.tsx'
 import { ToastHost } from './ToastHost.tsx'
 import { Toolbar } from './Toolbar.tsx'
+import { Tour } from './Tour.tsx'
 import './App.css'
 
 const closeSettings = (): void => useChrome.getState().setSettingsOpen(false)
@@ -21,6 +22,11 @@ export function App() {
   const settingsOpen = useChrome((state) => state.settingsOpen)
 
   useEffect(() => listenForChromeKeys(), [])
+  useEffect(() => {
+    // A first visit starts with the tour, unless something else is open.
+    const { tourDone, overlay, startTour } = useChrome.getState()
+    if (!tourDone && overlay === null && !document.querySelector('dialog[open]')) startTour()
+  }, [])
 
   return (
     <div className="app">
@@ -38,6 +44,7 @@ export function App() {
       <ToastHost />
       <CommandPalette />
       <ShortcutsSheet />
+      <Tour />
       <DialogHost />
     </div>
   )

@@ -36,7 +36,7 @@
   align-items: center;
   gap: 8px;
   margin: 0 14px 0 0;
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
   white-space: nowrap;
@@ -211,7 +211,7 @@
   padding: 8px 10px 3px;
   border-top: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -280,7 +280,7 @@
   content: 'or';
   margin: 0 3px 0 1px;
   color: var(--text-faint);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 kbd {
@@ -292,7 +292,7 @@ kbd {
   background: var(--canvas-bg);
   color: var(--text-muted);
   font: inherit;
-  font-size: 11px;
+  font-size: var(--text-xs);
   line-height: 1.4;
   text-align: center;
   white-space: nowrap;
@@ -332,7 +332,7 @@ kbd {
 
 .menu-summary {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 /* ---- Circuit tabs ---- */
@@ -442,7 +442,7 @@ kbd {
 .palette h2 {
   margin: 0 0 6px;
   padding: 0 2px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -560,7 +560,7 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--canvas-bg);
-  font-size: 12px;
+  font-size: var(--text-sm);
   cursor: grab;
   touch-action: none;
   user-select: none;
@@ -617,7 +617,7 @@ kbd {
 .palette-note {
   margin: 0 2px 16px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .canvas-wrap {
@@ -647,7 +647,7 @@ kbd {
   place-items: center;
   padding: 16px;
   color: var(--text-muted);
-  font-size: 14px;
+  font-size: var(--text-lg);
   text-align: center;
   pointer-events: none;
 }
@@ -664,13 +664,13 @@ kbd {
 .empty-card h2 {
   margin: 0 0 4px;
   color: var(--text);
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
 .empty-card p {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--text-md);
 }
 
 .empty-actions {
@@ -708,7 +708,7 @@ kbd {
 
 .stepper-value {
   min-width: 34px;
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
@@ -812,7 +812,7 @@ kbd {
 
 .inspector h2 {
   margin: 0 0 6px;
-  font-size: 13px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
@@ -900,7 +900,7 @@ kbd {
 .wire-value,
 .probe-value {
   color: var(--text);
-  font-size: 18px;
+  font-size: var(--text-xl);
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -922,14 +922,14 @@ kbd {
 
 .gate-table-title {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .gate-table table {
   border-collapse: separate;
   border-spacing: 2px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -954,7 +954,7 @@ kbd {
 .gate-table .gate-table-corner {
   width: auto;
   padding-right: 4px;
-  font-size: 11px;
+  font-size: var(--text-xs);
   white-space: nowrap;
 }
 
@@ -969,7 +969,7 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
-  font-size: 12px;
+  font-size: var(--text-sm);
   pointer-events: none;
   /* It waits a moment, so sweeping the pointer across wires shows nothing. */
   animation: probe-in 0.01s 0.3s both;
@@ -1068,7 +1068,7 @@ kbd {
 
 .dialog h2 {
   margin: 0 0 8px;
-  font-size: 15px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
@@ -1115,7 +1115,7 @@ kbd {
 
 .settings h2 {
   margin: 0;
-  font-size: 14px;
+  font-size: var(--text-lg);
   font-weight: 600;
 }
 
@@ -1127,7 +1127,7 @@ kbd {
 
 .settings h3 {
   margin: 0 0 8px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
   color: var(--text-muted);
 }
@@ -1135,7 +1135,7 @@ kbd {
 .note {
   margin: 8px 0 0;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .kits {
@@ -1193,7 +1193,7 @@ kbd {
 
 .kit-summary {
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .kit-off .kit-summary {
@@ -1205,7 +1205,7 @@ kbd {
   border: 1px solid var(--border);
   border-radius: 999px;
   color: var(--text-muted);
-  font-size: 11px;
+  font-size: var(--text-xs);
   font-weight: 400;
 }
 
@@ -1238,7 +1238,7 @@ kbd {
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 7px;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -1294,14 +1294,14 @@ label.swatch:focus-within {
 
 .timing-head h2 {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .timing-span {
   flex: 1;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1369,7 +1369,7 @@ label.swatch:focus-within {
   background: var(--surface);
   border-top: 1px solid var(--border);
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 
@@ -1566,14 +1566,14 @@ label.swatch:focus-within {
 
 .steps h2 {
   margin: 0 6px 0 0;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
 .steps-count {
   min-width: 56px;
   text-align: center;
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
@@ -1581,7 +1581,7 @@ label.swatch:focus-within {
 .steps-label {
   margin-left: 6px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .steps-note {
@@ -1601,7 +1601,7 @@ label.swatch:focus-within {
   min-width: 200px;
   margin: 0 6px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 .steps .button:disabled {
@@ -1643,7 +1643,7 @@ label.swatch:focus-within {
   background: transparent;
   color: var(--text);
   font: inherit;
-  font-size: 15px;
+  font-size: var(--text-lg);
 }
 
 .commands-field input::placeholder {
@@ -1660,7 +1660,7 @@ label.swatch:focus-within {
 .commands-group {
   padding: 8px 10px 3px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -1698,7 +1698,7 @@ label.swatch:focus-within {
 .command-detail {
   overflow: hidden;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1717,7 +1717,7 @@ label.swatch:focus-within {
   margin: 0;
   padding: 7px 14px;
   border-top: 1px solid var(--border);
-  font-size: 12px;
+  font-size: var(--text-sm);
 }
 
 /* ---- List of shortcuts ---- */
@@ -1750,7 +1750,7 @@ label.swatch:focus-within {
 .shortcuts h3 {
   margin: 8px 0 4px;
   color: var(--text-muted);
-  font-size: 12px;
+  font-size: var(--text-sm);
   font-weight: 600;
 }
 
@@ -1779,4 +1779,155 @@ label.swatch:focus-within {
 
 .shortcut dd {
   margin: 0;
+}
+
+/* ---- Key to the wire colors, in the corner of the canvas ---- */
+
+.legend {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 236px;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  font-size: var(--text-xs);
+  pointer-events: none;
+}
+
+.legend ul {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legend-values {
+  gap: 3px;
+}
+
+.legend-chip {
+  display: grid;
+  place-items: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 3px;
+  border-radius: 4px;
+  font-weight: 600;
+}
+
+.legend-lines {
+  gap: 4px 10px;
+  color: var(--text-muted);
+}
+
+.legend-lines li {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legend-line {
+  width: 18px;
+  border-top: 2px dashed var(--text);
+}
+
+.legend-unknown {
+  border-top-style: dotted;
+}
+
+.legend-conflict {
+  border-top-width: 4px;
+}
+
+/* ---- The tour of a first visit ---- */
+
+.tour {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  max-width: none;
+  height: 100vh;
+  max-height: none;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  border: 0;
+  background: none;
+  color: var(--text);
+}
+
+.tour::backdrop {
+  background: none;
+}
+
+/* The ring leaves its piece clear and shades everything else. */
+.tour-ring {
+  position: fixed;
+  border: 2px solid var(--accent);
+  border-radius: 10px;
+  box-shadow: 0 0 0 200vmax rgba(10, 16, 14, 0.5);
+  pointer-events: none;
+  transition:
+    left 180ms ease-out,
+    top 180ms ease-out,
+    width 180ms ease-out,
+    height 180ms ease-out;
+}
+
+.tour-card {
+  position: fixed;
+  width: 300px;
+  max-width: calc(100vw - 16px);
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+}
+
+.tour-count {
+  margin: 0 0 4px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.tour-card h2 {
+  margin: 0 0 6px;
+  font-size: var(--text-lg);
+  font-weight: 600;
+}
+
+.tour-card p:not(.tour-count) {
+  margin: 0 0 14px;
+  color: var(--text-muted);
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tour-space {
+  flex: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-ring {
+    transition: none;
+  }
+}
+
+@media (max-width: 640px) {
+  .legend {
+    display: none;
+  }
 }

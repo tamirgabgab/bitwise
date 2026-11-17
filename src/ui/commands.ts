@@ -333,6 +333,13 @@ export function listCommands(): Command[] {
     keywords: 'keys hotkeys help',
     run: chrome.openShortcuts,
   })
+  commands.push({
+    id: 'help.tour',
+    group: 'Help',
+    title: 'Take the tour',
+    keywords: 'intro introduction guide welcome help start',
+    run: chrome.startTour,
+  })
   return commands
 }
 

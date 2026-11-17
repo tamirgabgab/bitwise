@@ -8,7 +8,7 @@ import { withRecent } from './paletteModel.ts'
  */
 
 /** A window over the app. Only one is open at a time. */
-export type Overlay = 'commands' | 'shortcuts'
+export type Overlay = 'commands' | 'shortcuts' | 'tour'
 
 interface ChromeState {
   readonly overlay: Overlay | null
@@ -22,9 +22,13 @@ interface ChromeState {
   readonly recent: readonly string[]
   /** The height the timing diagram was dragged to, or null for its own. */
   readonly timingHeight: number | null
+  /** True once the tour of a first visit has been shown. */
+  readonly tourDone: boolean
 
   openCommands(query?: string): void
   openShortcuts(): void
+  startTour(): void
+  endTour(): void
   closeOverlay(): void
   setSettingsOpen(open: boolean): void
   toggleSection(id: string): void
@@ -34,7 +38,7 @@ interface ChromeState {
 
 const KEY = 'cedar-logic.chrome'
 
-type Kept = Pick<ChromeState, 'collapsed' | 'recent' | 'timingHeight'>
+type Kept = Pick<ChromeState, 'collapsed' | 'recent' | 'timingHeight' | 'tourDone'>
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item) => typeof item === 'string').slice(0, 32) : []
@@ -50,17 +54,21 @@ function load(): Kept {
         collapsed: strings(data.collapsed),
         recent: strings(data.recent),
         timingHeight: typeof height === 'number' && height > 0 ? height : null,
+        tourDone: data.tourDone === true,
       }
     }
   } catch {
     // Storage can be unavailable or hold something else; start fresh.
   }
-  return { collapsed: [], recent: [], timingHeight: null }
+  return { collapsed: [], recent: [], timingHeight: null, tourDone: false }
 }
 
-function save({ collapsed, recent, timingHeight }: Kept): void {
+function save({ collapsed, recent, timingHeight, tourDone }: Kept): void {
   try {
-    globalThis.localStorage?.setItem(KEY, JSON.stringify({ collapsed, recent, timingHeight }))
+    globalThis.localStorage?.setItem(
+      KEY,
+      JSON.stringify({ collapsed, recent, timingHeight, tourDone }),
+    )
   } catch {
     // Not being able to remember the palette is harmless.
   }
@@ -77,6 +85,14 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   },
   openShortcuts() {
     set({ overlay: 'shortcuts' })
+  },
+  startTour() {
+    // Seen once is enough: it does not come back by itself after this.
+    set({ overlay: 'tour', tourDone: true })
+    save(get())
+  },
+  endTour() {
+    if (get().overlay === 'tour') set({ overlay: null })
   },
   closeOverlay() {
     set({ overlay: null })

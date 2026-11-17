@@ -11,7 +11,9 @@ import type { Point, Rotation } from './geometry.ts'
 import { hitTest, itemsInRect } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
 import { isPokeable, readLiveValues } from './liveValues.ts'
+import type { LiveValues } from './liveValues.ts'
 import { useProbe } from './probeStore.ts'
+import { WirePulses, flowDirections } from './pulses.ts'
 import { renderScene } from './render.ts'
 import type { Scene } from './render.ts'
 import { routeWire } from './routing.ts'
@@ -113,6 +115,9 @@ export class CanvasController {
   private frame = 0
   private spaceDown = false
   private centered = false
+  private readonly pulses = new WirePulses()
+  /** Set when the user asked the system for less motion: no waves then. */
+  private readonly calm = window.matchMedia('(prefers-reduced-motion: reduce)')
 
   constructor(canvas: HTMLCanvasElement) {
     const ctx = canvas.getContext('2d')
@@ -147,6 +152,7 @@ export class CanvasController {
           // Another drawing is on screen: whatever was being dragged is gone.
           this.mode = { kind: 'idle' }
           this.previewDoc = null
+          this.pulses.reset()
           this.hover = null
           this.hoverPoke = false
           this.probe(null)
@@ -274,6 +280,7 @@ export class CanvasController {
       highlight = this.hover.pos
     }
 
+    const live = readLiveValues(doc, currentBridge())
     renderScene(this.ctx, this.width, this.height, this.pixelRatio, this.theme, {
       doc,
       selection: state.selection,
@@ -282,11 +289,34 @@ export class CanvasController {
       wirePreview,
       marquee: mode.kind === 'marquee' ? rectFromPoints(mode.start, mode.current) : null,
       ghost: this.ghostOf(state),
-      live: readLiveValues(doc, currentBridge()),
+      live,
       style: this.valueStyle(state.settings),
+      pulse: this.pulseOf(doc, live),
       active: this.followsChanges() ? evaluatedParts() : NO_PARTS,
       marks: breakpointMarks(doc),
     })
+  }
+
+  /**
+   * Notes which wires changed since the last frame, and gives the waves that
+   * are running over them. While one runs, the canvas keeps redrawing.
+   */
+  private pulseOf(doc: CircuitDoc, live: LiveValues): Scene['pulse'] {
+    if (this.calm.matches) return undefined
+    const now = performance.now()
+    const values = new Map<string, string>()
+    for (const wire of Object.values(doc.wires)) {
+      const value = live.at(wire.from)
+      values.set(wire.id, `${value.signal.join(',')}|${value.conflict}`)
+    }
+    this.pulses.observe(values, now)
+    if (!this.pulses.active(now)) return undefined
+    this.requestDraw()
+    const directions = flowDirections(doc)
+    return (id) => {
+      const progress = this.pulses.progress(id, now)
+      return progress === undefined ? undefined : { progress, direction: directions.get(id) ?? 0 }
+    }
   }
 
   /**

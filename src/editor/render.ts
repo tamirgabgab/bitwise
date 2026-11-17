@@ -40,8 +40,18 @@ export interface Scene {
   readonly active: ReadonlySet<string>
   /** Where a breakpoint sits on a wire. */
   readonly marks: readonly Point[]
+  /** The wave on a wire whose value just changed: how far it is, and which way it runs. */
+  readonly pulse?: (wireId: string) => WirePulse | undefined
   /** Leave the grid out, as for a picture of the circuit. */
   readonly paper?: boolean
+}
+
+/** A wave on its way along a wire. */
+export interface WirePulse {
+  /** From 0, just started, to 1, gone. */
+  readonly progress: number
+  /** 1 from the first end of the wire to the second, -1 the other way, 0 unknown. */
+  readonly direction: number
 }
 
 const STROKE = 0.13
@@ -106,6 +116,37 @@ function strokeWire(ctx: CanvasRenderingContext2D, path: readonly Point[], look:
   ctx.lineWidth = WIRE_STROKE * look.weight
   ctx.stroke()
   ctx.setLineDash([])
+}
+
+/**
+ * The wave over a wire that just changed: a glow in the color of the new
+ * value that fades, and gaps that run the way the value travels.
+ */
+function strokePulse(
+  ctx: CanvasRenderingContext2D,
+  path: readonly Point[],
+  look: WireLook,
+  pulse: WirePulse,
+  theme: CanvasTheme,
+): void {
+  const fade = 1 - pulse.progress
+  ctx.globalAlpha = 0.4 * fade
+  tracePath(ctx, path)
+  ctx.strokeStyle = look.color
+  ctx.lineWidth = WIRE_STROKE * look.weight + 0.36
+  ctx.stroke()
+  if (pulse.direction !== 0) {
+    ctx.globalAlpha = 0.85 * fade
+    tracePath(ctx, path)
+    ctx.setLineDash([0.22, 0.9])
+    ctx.lineDashOffset = -pulse.direction * pulse.progress * 3.36
+    ctx.strokeStyle = theme.background
+    ctx.lineWidth = WIRE_STROKE * look.weight * 0.5
+    ctx.stroke()
+    ctx.setLineDash([])
+    ctx.lineDashOffset = 0
+  }
+  ctx.globalAlpha = 1
 }
 
 /** How the wire that carries `value` is stroked. */
@@ -330,7 +371,10 @@ export function renderScene(
       ctx.stroke()
     }
     const value = live.at(wire.from)
-    strokeWire(ctx, path, wireLook(style, value))
+    const look = wireLook(style, value)
+    strokeWire(ctx, path, look)
+    const pulse = scene.pulse?.(wire.id)
+    if (pulse) strokePulse(ctx, path, look, pulse, theme)
     if (value.signal.length > 1 && !value.mixed) {
       for (let i = 1; i < path.length; i++) {
         const from = path[i - 1]

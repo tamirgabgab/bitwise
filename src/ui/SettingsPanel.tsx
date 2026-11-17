@@ -1,5 +1,4 @@
 import { useEffect, useRef } from 'react'
-import type { CSSProperties } from 'react'
 import {
   GATE_PRESETS,
   MAX_RADIX,
@@ -8,8 +7,9 @@ import {
   presetUniversal,
 } from '../core/index.ts'
 import type { GatePreset } from '../core/index.ts'
-import { gradientColor, inkOn, useEditor, valueText } from '../editor/index.ts'
+import { useEditor, valueText } from '../editor/index.ts'
 import { CloseIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
+import { hasOwnColors, swatchStyle, usesClassicColors } from './swatch.ts'
 
 /** Why a kit cannot be picked at this radix. */
 function unavailableReason(preset: GatePreset): string {
@@ -116,19 +116,9 @@ function ColorSection() {
   const { updateSettings, setPaletteColor, resetPalette } = useEditor.getState()
   const { radix, classicColors, palette } = settings
 
-  const classic = radix === 2 && classicColors
-  const editable = !classic && radix <= palette.length
+  const classic = usesClassicColors(settings)
+  const editable = hasOwnColors(settings)
   const digits = Array.from({ length: radix }, (_, digit) => digit)
-  const swatchStyle = (digit: number): CSSProperties => {
-    // The classic colors belong to the page theme, so they come from its CSS.
-    if (classic) {
-      return digit === 0
-        ? { background: 'var(--signal-low)', color: 'var(--canvas-bg)' }
-        : { background: 'var(--signal-high)', color: '#ffffff' }
-    }
-    const color = editable ? palette[digit] : gradientColor(digit / (radix - 1))
-    return { background: color, color: inkOn(color) }
-  }
 
   return (
     <section>
@@ -150,7 +140,7 @@ function ColorSection() {
             <label
               key={digit}
               className="swatch"
-              style={swatchStyle(digit)}
+              style={swatchStyle(settings, digit)}
               title={`Color of value ${text}`}
             >
               {text}
@@ -162,7 +152,7 @@ function ColorSection() {
               />
             </label>
           ) : (
-            <span key={digit} className="swatch" style={swatchStyle(digit)}>
+            <span key={digit} className="swatch" style={swatchStyle(settings, digit)}>
               {text}
             </span>
           )
