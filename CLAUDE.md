@@ -121,8 +121,11 @@ Run lint, test and build before calling a change done. CI runs the same three.
   the timing diagram misses nothing. `useSim` holds what the chrome shows
   (running, speed, tick, conflicts, clocks, oscillating).
 - The timing diagram (`scope.ts`, `scopeRender.ts`) picks its own rows: the
-  clocks, switches and outputs of the open circuit. Each circuit has its own
-  `Recorder`, which keeps only the changes.
+  clocks, switches and outputs of the open circuit, plus any wire the user
+  right-clicked (`toggleWatch` in `session.ts`). Each circuit has its own
+  `Recorder`, which keeps only the changes. Zoom, freeze and the cursor are
+  a `ScopeView` that lives in `TimingPanel`; freezing stops only the
+  scrolling, never the simulation.
 - `liveValues.ts` reads what each wire carries and `valueStyle.ts` decides
   how it is drawn: the classic look at radix 2, a palette up to 10 values,
   a gradient above. Z is dashed, X dotted, a conflict thick and dashed.
@@ -142,6 +145,12 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `svgExport.ts` draws a circuit through the same `render.ts` code as the
   screen, into `SvgContext`, which records the canvas calls as SVG. A new
   canvas call in `render.ts` needs its counterpart there.
+- The longest path (`criticalPath` in `core/cost.ts`) is marked on the
+  canvas while `useSim.criticalShown` is on. `criticalMarks` in
+  `session.ts` maps it to parts and wires, cached until the next edit.
+- Dragging a selected wire moves the straight stretch under the pointer
+  (`runAt` in `wireLayout.ts`): `bendWire` puts a junction at each end of
+  it and moves them, so the file format has no bends of its own.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
   live only for the session. Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.
@@ -155,6 +164,9 @@ Run lint, test and build before calling a change done. CI runs the same three.
   the project: the open overlay (command search, shortcuts, tour), folded
   palette sections, parts used lately, the height of the timing panel and
   whether the tour was shown. It is saved under its own storage key.
+- The slash key opens the command search as quick add (`quickAdd` in
+  `useChrome`): it lists only commands with `place`, and puts the part at
+  `canvasRuntime.pointerGrid()`, or mid-canvas when the pointer is away.
 - `listCommands()` (`commands.ts`) is the one list of actions behind the
   command search. A command with a shortcut must also be in `shortcuts.ts`;
   a test checks it.
@@ -188,6 +200,10 @@ Run lint, test and build before calling a change done. CI runs the same three.
   with user-facing errors) and `src/editor/project.ts` (lenient load). They
   do not import each other and meet in `src/ui` (`persistence.ts`); change
   both together, and `projectRoundTrip.test.ts` checks they still match.
+- The browser keeps a list of projects (`src/io/storage.ts`): an index under
+  `cedar-logic.projects` and each project's text under its own key. New
+  projects, opened files and examples join the list instead of replacing the
+  open one; `persistence.ts` asks before replacing only when storage is off.
 - TypeScript runs with `erasableSyntaxOnly`: no enums, namespaces or
   parameter properties. Use union types and `as const` objects.
 - Relative imports include the `.ts` / `.tsx` extension.

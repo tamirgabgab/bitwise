@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM) and three rounds of interface work (finding things, the workspace, polish and a first-visit tour). What comes next is touch and phone support, or the rest of the list under "After the MVP".
+Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM), three rounds of interface work (finding things, the workspace, polish and a first-visit tour) and a round of fixes and additions after a review in the browser (readability, the full timing diagram, a richer inspector, a list of projects, the critical path, quick add and wire dragging). What comes next is a code review and a simplify pass, then touch and phone support, or the rest of the list under "After the MVP".
 
 ## Decisions
 
@@ -318,7 +318,8 @@ Built:
 Known limits:
 
 - A flip-flop is one digit wide. Registers come with buses, after the MVP.
-- The timing diagram has a fixed scale of 4 pixels per tick and no cursor.
+- The timing diagram had a fixed scale of 4 pixels per tick and no cursor.
+  Both came later: zoom, freeze and a cursor with values.
 - A push button has no row in the timing diagram.
 
 ### Phase 6: polish
@@ -387,9 +388,10 @@ count, save it, close the browser, and load it back.
   comparison, decoder output) is 0 or the top value. A wire between pins of
   different widths is drawn like a conflict and each side keeps to itself.
   Left to do: RAM and ROM.
-- **Timing diagram.** Signals over time, oscilloscope style. A small one
-  arrived in Phase 5; what is left is choosing any wire, zooming in time,
-  and a cursor to read values off.
+- **Timing diagram.** Done. Signals over time, oscilloscope style: any wire
+  by a right-click, zoom in time, a freeze that stops the scrolling, a
+  cursor that reads every row's value, and a step trace in value colors
+  above radix 2.
 - **State-diagram (FSM) editor.** Draw states and transitions, run them as a
   component, and later convert them to a flip-flop circuit automatically.
 - **Testing and sharing.** Automatic truth table (n^k rows), testbench, share

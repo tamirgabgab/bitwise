@@ -26,15 +26,20 @@ What works today:
   input modulo n, so it is one digit of a counter. A number display shows
   several wires as one number.
 - **Timing diagram.** A panel under the canvas follows the clocks, switches
-  and outputs over the last ticks. A step button runs to the next clock
-  edge, and a circuit that oscillates without a clock is pointed out.
-- **Saving.** The project is kept in the browser as you work, and can be
-  saved to and opened from a JSON file. Six ready-made examples are in the
-  top bar, two of them on buses.
+  and outputs over the last ticks, and any wire you right-click. Zoom in
+  time, freeze the view while the circuit runs on, and point at a tick to
+  read every row. A step button runs to the next clock edge, and a circuit
+  that oscillates without a clock is pointed out.
+- **Saving.** The browser keeps a list of projects as you work: switch
+  between them, rename, copy or delete. A project can be saved to and opened
+  from a JSON file. Six ready-made examples are in the File menu, two of
+  them on buses, and each opens as a project of its own.
 - **Finding out what a circuit does.** Point at a wire to see its value and
   what drives it, pause the run when a wire takes a chosen value, step one
   tick back, and read the gate count and the longest delay in the status
-  bar. A switch can have a keyboard key.
+  bar; click the delay to see that path on the canvas. The inspector shows
+  what every pin of a part carries and what a memory part keeps. A switch
+  can have a keyboard key.
 - **More parts for n-valued logic.** A switch that cycles through every
   value, converters between one digit and several bits, and the table of
   any gate at the current radix when you point at it in the palette.
@@ -44,7 +49,8 @@ What works today:
   adder, comparator, register and counter work on whole buses at any radix.
 - **Editing help.** Align and spread parts, copy by dragging with Alt, turn
   a selection into a named circuit, and write notes on the canvas. Wires
-  find their way around parts.
+  find their way around parts, and a selected wire can be dragged aside.
+  The slash key adds a part where the pointer is.
 - **Showing a circuit.** Save a list of steps, each with switch values and
   a note, and walk through them with the arrow keys. Export the drawing as
   SVG.
