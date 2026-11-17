@@ -1,34 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import type { PointerEvent as ReactPointerEvent } from 'react'
-import { findPreset, sandboxGates } from '../core/index.ts'
 import {
   SUB_TYPE,
   canPlace,
-  canvasRuntime,
   interfaceOf,
   readCanvasTheme,
   renderSymbolIcon,
   useEditor,
 } from '../editor/index.ts'
+import { useChrome } from './chrome.ts'
 import { GateTable } from './GateTable.tsx'
-import { ChipIcon } from './icons.tsx'
+import { ChevronIcon, ChipIcon, SearchIcon } from './icons.tsx'
+import { matchesQuery, paletteSections, recentIn, searchSections } from './paletteModel.ts'
 import { hasGateTable, partHint, partName } from './parts.ts'
+import { beginPlacing, placeAtCenter } from './placing.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
-
-const IO_PARTS: readonly string[] = ['input', 'button', 'output', 'display']
-const SEQUENTIAL_PARTS: readonly string[] = ['clock', 'cycle', 'sr', 'dff', 'tff', 'jkff']
-const BIT_PARTS: readonly string[] = ['tobits', 'frombits']
-const BUS_PARTS: readonly string[] = ['split', 'merge']
-const LARGE_PARTS: readonly string[] = [
-  'mux',
-  'demux',
-  'decoder',
-  'adder',
-  'compare',
-  'register',
-  'counter',
-]
-const NOTE_PARTS: readonly string[] = ['text']
 
 /** The gate whose table is on show, and where its button is. */
 interface TableTip {
@@ -57,62 +42,47 @@ function SymbolIcon({ type }: { type: string }) {
   return <canvas ref={ref} aria-hidden="true" />
 }
 
-/**
- * Starts carrying a part from the palette. It follows the pointer as a ghost
- * and is placed where the button is released, if that is over the canvas.
- * For a named circuit, `type` is `SUB_TYPE` and `circuit` says which one.
- */
-function beginPlacing(type: string, event: ReactPointerEvent, circuit?: string): void {
-  if (event.button !== 0) return
-  const { setPlacing, addComponent } = useEditor.getState()
-  const gridAt = (e: PointerEvent) =>
-    canvasRuntime.current?.clientToGrid(e.clientX, e.clientY) ?? null
-
-  const move = (e: PointerEvent) => setPlacing({ type, circuit, pos: gridAt(e) })
-  const stop = () => {
-    window.removeEventListener('pointermove', move)
-    window.removeEventListener('pointerup', up)
-    window.removeEventListener('pointercancel', stop)
-    setPlacing(null)
-  }
-  const up = (e: PointerEvent) => {
-    const pos = gridAt(e)
-    stop()
-    if (pos) addComponent(type, pos, circuit)
-  }
-
-  setPlacing({ type, circuit, pos: null })
-  window.addEventListener('pointermove', move)
-  window.addEventListener('pointerup', up)
-  window.addEventListener('pointercancel', stop)
-}
-
-/** A plain click, or Enter on the keyboard, drops the part mid-canvas. */
-function placeAtCenter(type: string, circuit?: string): void {
-  const center = canvasRuntime.current?.gridCenter() ?? { x: 0, y: 0 }
-  useEditor.getState().addComponent(type, center, circuit)
-}
-
 function count(amount: number, noun: string): string {
   return `${amount} ${noun}${amount === 1 ? '' : 's'}`
 }
 
 /** The other circuits of the project, each ready to be used as a part. */
-function CircuitParts() {
+function CircuitParts({ query }: { query: string }) {
   const circuits = useEditor((state) => state.circuits)
   const order = useEditor((state) => state.order)
   const active = useEditor((state) => state.active)
-  const others = order.filter((id) => id !== active)
+  const folded = useChrome((state) => state.collapsed.includes('circuits'))
+  const searching = query.trim() !== ''
+  const others = order.filter((id) => id !== active && matchesQuery(query, circuits[id].name))
+
+  // A search that finds no circuit says nothing about circuits at all.
+  if (searching && others.length === 0) return null
 
   return (
     <section>
-      <h2>Circuits</h2>
-      {others.length === 0 ? (
+      <h2>
+        {searching ? (
+          'Circuits'
+        ) : (
+          <button
+            type="button"
+            className="palette-head"
+            aria-expanded={!folded}
+            aria-controls="palette-circuits"
+            onClick={() => useChrome.getState().toggleSection('circuits')}
+          >
+            <ChevronIcon />
+            <span className="palette-title">Circuits</span>
+            <span className="palette-count">{others.length}</span>
+          </button>
+        )}
+      </h2>
+      {folded && !searching ? null : others.length === 0 ? (
         <p className="palette-note">
           Add a circuit with + above the canvas. It shows up here as a part you can use.
         </p>
       ) : (
-        <div className="palette-list">
+        <div id="palette-circuits" className="palette-list">
           {others.map((id) => {
             const circuit = circuits[id]
             const pins = interfaceOf(circuit.doc)
@@ -148,25 +118,51 @@ function CircuitParts() {
   )
 }
 
+interface PartButtonProps {
+  type: string
+  radix: number
+  onShowTable(type: string, button: HTMLElement): void
+  onHideTable(): void
+}
+
+function PartButton({ type, radix, onShowTable, onHideTable }: PartButtonProps) {
+  return (
+    <button
+      type="button"
+      className="part"
+      title={`${partName(type)}: ${partHint(type, radix)}. Drag onto the canvas, or click.`}
+      onPointerDown={(event) => {
+        onHideTable()
+        beginPlacing(type, event)
+      }}
+      onClick={() => placeAtCenter(type)}
+      onPointerEnter={(event) => onShowTable(type, event.currentTarget)}
+      onPointerLeave={onHideTable}
+      onFocus={(event) => onShowTable(type, event.currentTarget)}
+      onBlur={onHideTable}
+    >
+      <SymbolIcon type={type} />
+      {partName(type)}
+    </button>
+  )
+}
+
 export function Palette() {
   const radix = useEditor((state) => state.settings.radix)
-  const presetId = useEditor((state) => state.settings.preset)
+  const preset = useEditor((state) => state.settings.preset)
   const sandbox = useEditor((state) => state.settings.sandbox)
-
-  const preset = findPreset(presetId)
-  const sections = [
-    {
-      title: sandbox ? 'All gates' : (preset?.name ?? 'Gates'),
-      types: sandbox ? sandboxGates(radix) : (preset?.gates ?? []),
-    },
-    { title: 'Inputs and outputs', types: IO_PARTS },
-    { title: 'Sequential', types: SEQUENTIAL_PARTS },
-    { title: 'Digits and bits', types: BIT_PARTS },
-    { title: 'Buses', types: BUS_PARTS },
-    { title: 'Larger parts', types: LARGE_PARTS },
-    { title: 'Notes', types: NOTE_PARTS },
-  ]
+  const collapsed = useChrome((state) => state.collapsed)
+  const recent = useChrome((state) => state.recent)
+  const [query, setQuery] = useState('')
   const [tip, setTip] = useState<TableTip | null>(null)
+
+  const searching = query.trim() !== ''
+  const all = paletteSections({ radix, preset, sandbox })
+  const lately = recentIn(recent, all)
+  const sections = searching
+    ? searchSections(all, query, radix)
+    : [...(lately.length > 0 ? [{ id: 'recent', title: 'Used lately', types: lately }] : []), ...all]
+
   const showTable = (type: string, button: HTMLElement): void => {
     if (!hasGateTable(type)) return
     const rect = button.getBoundingClientRect()
@@ -176,34 +172,75 @@ export function Palette() {
 
   return (
     <nav className="palette" aria-label="Parts">
-      {sections.map((section) => (
-        <section key={section.title}>
-          <h2>{section.title}</h2>
-          <div className="palette-grid">
-            {section.types.map((type) => (
-              <button
-                key={type}
-                type="button"
-                className="part"
-                title={`${partName(type)}: ${partHint(type, radix)}. Drag onto the canvas, or click.`}
-                onPointerDown={(event) => {
-                  hideTable()
-                  beginPlacing(type, event)
-                }}
-                onClick={() => placeAtCenter(type)}
-                onPointerEnter={(event) => showTable(type, event.currentTarget)}
-                onPointerLeave={hideTable}
-                onFocus={(event) => showTable(type, event.currentTarget)}
-                onBlur={hideTable}
-              >
-                <SymbolIcon type={type} />
-                {partName(type)}
-              </button>
-            ))}
-          </div>
-        </section>
-      ))}
-      <CircuitParts />
+      <label className="palette-search">
+        <SearchIcon />
+        <span className="visually-hidden">Search parts</span>
+        <input
+          type="search"
+          placeholder="Search parts"
+          autoComplete="off"
+          spellCheck={false}
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.code === 'Escape' && query !== '') {
+              setQuery('')
+              event.stopPropagation()
+            } else if (event.code === 'Enter' && searching && sections.length > 0) {
+              // Enter adds the first part the search found.
+              placeAtCenter(sections[0].types[0])
+            }
+          }}
+        />
+      </label>
+      {sections.map((section) => {
+        const folded = !searching && collapsed.includes(section.id)
+        return (
+          <section key={section.id}>
+            <h2>
+              {searching ? (
+                section.title
+              ) : (
+                <button
+                  type="button"
+                  className="palette-head"
+                  aria-expanded={!folded}
+                  aria-controls={`palette-${section.id}`}
+                  onClick={() => useChrome.getState().toggleSection(section.id)}
+                >
+                  <ChevronIcon />
+                  <span className="palette-title">{section.title}</span>
+                  <span className="palette-count">{section.types.length}</span>
+                </button>
+              )}
+            </h2>
+            <div id={`palette-${section.id}`} className="palette-grid" hidden={folded}>
+              {section.types.map((type) => (
+                <PartButton
+                  key={type}
+                  type={type}
+                  radix={radix}
+                  onShowTable={showTable}
+                  onHideTable={hideTable}
+                />
+              ))}
+            </div>
+          </section>
+        )
+      })}
+      <CircuitParts query={query} />
+      {searching && sections.length === 0 && (
+        <p className="palette-note palette-none">
+          No built-in part matches “{query.trim()}”.{' '}
+          <button
+            type="button"
+            className="link"
+            onClick={() => useChrome.getState().openCommands(query.trim())}
+          >
+            Search all actions
+          </button>
+        </p>
+      )}
       {tip && <GateTable type={tip.type} anchor={tip} />}
     </nav>
   )

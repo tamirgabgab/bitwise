@@ -252,3 +252,28 @@ export const StepsIcon = () => (
     <path d="M6 15.5h6M7.5 6.5v3l2.8-1.5Z" />
   </Icon>
 )
+
+export const SearchIcon = () => (
+  <Icon>
+    <circle cx="8" cy="8" r="4.5" />
+    <path d="M11.4 11.4 15 15" />
+  </Icon>
+)
+
+/** Points down; a folded section turns it to point right. */
+export const ChevronIcon = () => (
+  <svg
+    className="chevron"
+    width="10"
+    height="10"
+    viewBox="0 0 10 10"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="1.5"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    aria-hidden="true"
+  >
+    <path d="M2 3.5 5 6.5 8 3.5" />
+  </svg>
+)

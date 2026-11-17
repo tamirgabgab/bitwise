@@ -83,8 +83,10 @@ type Mode =
       target: Hit | null
     }
 
+/** True for a key press that belongs to a text field or to a window over the app. */
 function isTypingTarget(target: EventTarget | null): boolean {
   if (!(target instanceof HTMLElement)) return false
+  if (target.closest('dialog')) return true
   return target.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target.tagName)
 }
 

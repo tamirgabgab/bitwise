@@ -6,7 +6,6 @@ import {
   MAX_ZOOM,
   MIN_ZOOM,
   SIM_SPEEDS,
-  canvasRuntime,
   restartSimulation,
   stepBack,
   stepSimulation,
@@ -15,20 +14,19 @@ import {
   useSim,
 } from '../editor/index.ts'
 import type { SimSpeed } from '../editor/index.ts'
+import { useChrome } from './chrome.ts'
+import { zoomAroundCenter } from './commands.ts'
 import {
   BrandMark,
+  ChevronIcon,
   DeleteIcon,
-  ExamplesIcon,
   MoonIcon,
-  NewIcon,
-  OpenIcon,
   PauseIcon,
-  PictureIcon,
   PlayIcon,
   RedoIcon,
   RestartIcon,
   RotateIcon,
-  SaveIcon,
+  SearchIcon,
   StepBackIcon,
   StepEdgeIcon,
   StepIcon,
@@ -39,6 +37,7 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from './icons.tsx'
+import { Keys } from './Keys.tsx'
 import {
   exportCircuitSvg,
   openExample,
@@ -73,11 +72,6 @@ function ToolButton({ label, shortcut, disabled, onClick, children }: ToolButton
   )
 }
 
-function zoomAroundCenter(factor: number): void {
-  const center = canvasRuntime.current?.screenCenter() ?? { x: 0, y: 0 }
-  useEditor.getState().zoomAt(factor, center.x, center.y)
-}
-
 function speedLabel(speed: SimSpeed): string {
   if (speed === 'max') return 'Full speed'
   return speed === 1 ? '1 tick/s' : `${speed} ticks/s`
@@ -87,22 +81,20 @@ function SimControls() {
   const running = useSim((state) => state.running)
   const speed = useSim((state) => state.speed)
   const hasClock = useSim((state) => state.clocks > 0)
-  const scopeOpen = useSim((state) => state.scopeOpen)
   const canStepBack = useSim((state) => state.canStepBack)
-  const stepsOpen = useEditor((state) => state.stepsOpen)
-  const { setRunning, setSpeed, setScopeOpen } = useSim.getState()
+  const { setRunning, setSpeed } = useSim.getState()
 
   return (
     <div className="tool-group">
-      {running ? (
-        <ToolButton label="Pause the simulation" onClick={() => setRunning(false)}>
-          <PauseIcon />
-        </ToolButton>
-      ) : (
-        <ToolButton label="Run the simulation" onClick={() => setRunning(true)}>
-          <PlayIcon />
-        </ToolButton>
-      )}
+      <button
+        type="button"
+        className={running ? 'run run-on' : 'run'}
+        title={running ? 'Pause the simulation' : 'Run the simulation'}
+        onClick={() => setRunning(!running)}
+      >
+        {running ? <PauseIcon /> : <PlayIcon />}
+        {running ? 'Pause' : 'Run'}
+      </button>
       <ToolButton
         label={
           canStepBack || running
@@ -147,6 +139,18 @@ function SimControls() {
           </option>
         ))}
       </select>
+    </div>
+  )
+}
+
+/** The panels that open under the canvas. */
+function PanelToggles() {
+  const scopeOpen = useSim((state) => state.scopeOpen)
+  const stepsOpen = useEditor((state) => state.stepsOpen)
+  const { setScopeOpen } = useSim.getState()
+
+  return (
+    <div className="tool-group">
       <button
         type="button"
         className="tool"
@@ -171,8 +175,27 @@ function SimControls() {
   )
 }
 
-/** The ready-made projects, in a menu that drops from its button. */
-function ExamplesMenu() {
+interface MenuRowProps {
+  name: string
+  summary?: string
+  shortcut?: string
+  onPick: () => void
+}
+
+function MenuRow({ name, summary, shortcut, onPick }: MenuRowProps) {
+  return (
+    <button type="button" role="menuitem" className="menu-item" onClick={onPick}>
+      <span className="menu-text">
+        <span className="menu-name">{name}</span>
+        {summary && <span className="menu-summary">{summary}</span>}
+      </span>
+      {shortcut && <Keys combo={shortcut} />}
+    </button>
+  )
+}
+
+/** Everything about the project as a whole, in a menu that drops from its button. */
+function FileMenu() {
   const [left, setLeft] = useState<number | null>(null)
   const button = useRef<HTMLButtonElement>(null)
   const menu = useRef<HTMLDivElement>(null)
@@ -207,32 +230,37 @@ function ExamplesMenu() {
     const index = items.indexOf(document.activeElement as HTMLElement)
     items[(index + by + items.length) % items.length]?.focus()
   }
+  /** Closes the menu and then does what the row says. */
+  const pick = (action: () => void) => (): void => {
+    setLeft(null)
+    action()
+  }
 
   return (
     <>
       <button
         ref={button}
         type="button"
-        className="tool"
-        aria-label="Open an example"
+        className="tool menu-button"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Open an example"
+        title="Project files, examples and shortcuts"
         onClick={() => {
           // The bar can scroll sideways on a phone, so the menu is placed on
           // the screen and not inside the bar.
           const rect = button.current?.getBoundingClientRect()
-          setLeft(open || !rect ? null : Math.max(8, Math.min(rect.left, window.innerWidth - 308)))
+          setLeft(open || !rect ? null : Math.max(8, Math.min(rect.left, window.innerWidth - 328)))
         }}
       >
-        <ExamplesIcon />
+        File
+        <ChevronIcon />
       </button>
       {open && (
         <div
           ref={menu}
           className="menu"
           role="menu"
-          aria-label="Examples"
+          aria-label="File"
           style={{ left }}
           onKeyDown={(event) => {
             if (event.code === 'ArrowDown') step(1)
@@ -241,33 +269,39 @@ function ExamplesMenu() {
             event.preventDefault()
           }}
         >
+          <MenuRow name="New project" onPick={pick(() => void startNewProject())} />
+          <MenuRow
+            name="Open a project file"
+            shortcut="Ctrl+O"
+            onPick={pick(() => void openProjectFile())}
+          />
+          <MenuRow name="Save the project as a file" shortcut="Ctrl+S" onPick={pick(saveProjectFile)} />
+          <MenuRow name="Export this circuit as an SVG picture" onPick={pick(exportCircuitSvg)} />
+          <div className="menu-heading" role="separator">
+            Open an example
+          </div>
           {EXAMPLES.map((example) => (
-            <button
+            <MenuRow
               key={example.id}
-              type="button"
-              role="menuitem"
-              className="menu-item"
-              onClick={() => {
-                setLeft(null)
-                void openExample(example)
-              }}
-            >
-              <span className="menu-name">{example.name}</span>
-              <span className="menu-summary">{example.summary}</span>
-            </button>
+              name={example.name}
+              summary={example.summary}
+              onPick={pick(() => void openExample(example))}
+            />
           ))}
+          <div className="menu-rule" role="separator" />
+          <MenuRow
+            name="Show keyboard shortcuts"
+            shortcut="?"
+            onPick={pick(useChrome.getState().openShortcuts)}
+          />
         </div>
       )}
     </>
   )
 }
 
-interface ToolbarProps {
-  settingsOpen: boolean
-  onToggleSettings: () => void
-}
-
-export function Toolbar({ settingsOpen, onToggleSettings }: ToolbarProps) {
+export function Toolbar() {
+  const settingsOpen = useChrome((state) => state.settingsOpen)
   const canUndo = useEditor((state) => state.past.length > 0)
   const canRedo = useEditor((state) => state.future.length > 0)
   const hasSelection = useEditor((state) => state.selection.size > 0)
@@ -293,19 +327,7 @@ export function Toolbar({ settingsOpen, onToggleSettings }: ToolbarProps) {
       </h1>
 
       <div className="tool-group">
-        <ToolButton label="New project" onClick={() => void startNewProject()}>
-          <NewIcon />
-        </ToolButton>
-        <ToolButton label="Open a project file" shortcut="Ctrl+O" onClick={() => void openProjectFile()}>
-          <OpenIcon />
-        </ToolButton>
-        <ToolButton label="Save the project as a file" shortcut="Ctrl+S" onClick={saveProjectFile}>
-          <SaveIcon />
-        </ToolButton>
-        <ToolButton label="Export this circuit as an SVG picture" onClick={exportCircuitSvg}>
-          <PictureIcon />
-        </ToolButton>
-        <ExamplesMenu />
+        <FileMenu />
       </div>
 
       <div className="tool-group">
@@ -332,17 +354,30 @@ export function Toolbar({ settingsOpen, onToggleSettings }: ToolbarProps) {
       </div>
 
       <SimControls />
+      <PanelToggles />
 
       <div className="spacer" />
 
       <div className="tool-group">
         <button
           type="button"
+          className="tool search-button"
+          aria-label="Search actions"
+          aria-keyshortcuts="Control+K"
+          title="Search actions, parts, circuits and examples (Ctrl+K)"
+          onClick={() => useChrome.getState().openCommands()}
+        >
+          <SearchIcon />
+          <span className="search-label">Search</span>
+          <Keys combo="Ctrl+K" />
+        </button>
+        <button
+          type="button"
           className="tool logic-button"
           aria-expanded={settingsOpen}
           aria-controls="logic-settings"
           title="Logic settings: values per wire, gate kit and colors"
-          onClick={onToggleSettings}
+          onClick={() => useChrome.getState().setSettingsOpen(!settingsOpen)}
         >
           <span className="logic-radix">Radix {radix}</span>
           <span className="logic-kit">{kit}</span>

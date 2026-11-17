@@ -167,9 +167,11 @@
   position: fixed;
   top: 46px;
   z-index: 20;
-  width: 300px;
+  width: 320px;
   max-width: calc(100vw - 16px);
+  max-height: calc(100vh - 56px);
   padding: 4px;
+  overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -178,8 +180,9 @@
 
 .menu-item {
   display: flex;
-  flex-direction: column;
-  align-items: flex-start;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
   width: 100%;
   padding: 7px 10px;
   border: 0;
@@ -193,8 +196,138 @@
   background: var(--hover);
 }
 
+.menu-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
 .menu-name {
   font-weight: 500;
+}
+
+.menu-heading {
+  margin-top: 4px;
+  padding: 8px 10px 3px;
+  border-top: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.menu-rule {
+  margin: 4px 0;
+  border-top: 1px solid var(--border);
+}
+
+/* A tool with a word on it that opens a menu. */
+.menu-button {
+  display: flex;
+  gap: 5px;
+  width: auto;
+  padding: 0 8px 0 10px;
+  font-weight: 500;
+}
+
+.menu-button[aria-expanded='true'] {
+  background: var(--hover);
+}
+
+/* ---- Run: the one button of the bar that is always wanted ---- */
+
+.run {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 78px;
+  height: 30px;
+  padding: 0 12px 0 8px;
+  border: 1px solid var(--accent);
+  border-radius: 6px;
+  background: var(--accent-soft);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.run:hover {
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+/* While it runs there is nothing to call for: the button steps back. */
+.run-on {
+  border-color: var(--border);
+  background: var(--canvas-bg);
+}
+
+.run-on:hover {
+  background: var(--hover);
+  box-shadow: none;
+}
+
+.run + .tool {
+  margin-left: 4px;
+}
+
+/* ---- Keycaps ---- */
+
+.keys {
+  display: inline-flex;
+  flex: none;
+  gap: 3px;
+}
+
+.shortcut .keys + .keys::before {
+  content: 'or';
+  margin: 0 3px 0 1px;
+  color: var(--text-faint);
+  font-size: 12px;
+}
+
+kbd {
+  min-width: 20px;
+  padding: 1px 5px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: var(--canvas-bg);
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+  white-space: nowrap;
+}
+
+/* ---- The button that opens the command search ---- */
+
+.search-button {
+  display: flex;
+  gap: 6px;
+  width: auto;
+  height: 28px;
+  padding: 0 6px 0 8px;
+  border: 1px solid var(--border);
+  background: var(--canvas-bg);
+  color: var(--text-muted);
+}
+
+.search-button:hover:not(:disabled) {
+  background: var(--canvas-bg);
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.search-label {
+  margin-right: 10px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .menu-summary {
@@ -299,7 +432,7 @@
 
 .palette {
   flex: none;
-  width: 168px;
+  width: 188px;
   padding: 12px 10px;
   overflow-y: auto;
   background: var(--surface);
@@ -307,10 +440,103 @@
 }
 
 .palette h2 {
-  margin: 0 2px 6px;
+  margin: 0 0 6px;
+  padding: 0 2px;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-muted);
+}
+
+.palette-search {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 30px;
+  margin-bottom: 12px;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--canvas-bg);
+  color: var(--text-muted);
+}
+
+.palette-search:focus-within {
+  border-color: var(--accent);
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.palette-search svg {
+  flex: none;
+}
+
+.palette-search input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+}
+
+.palette-search input::placeholder {
+  color: var(--text-faint);
+}
+
+/* A section heading that folds its section away. */
+.palette-head {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: calc(100% + 4px);
+  margin: -3px -2px;
+  padding: 3px 2px;
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  color: inherit;
+  font-weight: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.palette-head:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.palette-head .chevron {
+  flex: none;
+}
+
+.palette-head[aria-expanded='false'] .chevron {
+  transform: rotate(-90deg);
+}
+
+.palette-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.palette-count {
+  color: var(--text-faint);
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.palette section:has(> [hidden]) h2,
+.palette section:has(> h2:only-child) h2 {
+  margin-bottom: 10px;
+}
+
+.palette-none .link {
+  display: block;
+  margin-top: 4px;
 }
 
 .palette-grid {
@@ -318,6 +544,11 @@
   grid-template-columns: 1fr 1fr;
   gap: 6px;
   margin-bottom: 16px;
+}
+
+/* The class sets a display, so the attribute needs saying again. */
+.palette-grid[hidden] {
+  display: none;
 }
 
 .part {
@@ -421,9 +652,37 @@
   pointer-events: none;
 }
 
-.empty-hint p {
-  max-width: 34ch;
+.empty-card {
+  max-width: 340px;
+  padding: 20px 24px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  pointer-events: auto;
+}
+
+.empty-card h2 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.empty-card p {
   margin: 0;
+  font-size: 13px;
+}
+
+.empty-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.empty-actions .button {
+  height: 32px;
 }
 
 /* ---- Steppers: a value with a button on each side ---- */
@@ -1028,7 +1287,8 @@ label.swatch:focus-within {
 /* ---- Mid-width screens: the top bar gives up what it can spare ---- */
 
 @media (max-width: 1120px) {
-  .logic-kit {
+  .logic-kit,
+  .search-label {
     display: none;
   }
 
@@ -1079,8 +1339,27 @@ label.swatch:focus-within {
     border-bottom: 1px solid var(--border);
   }
 
-  .palette h2 {
+  .palette h2,
+  .palette-search {
     display: none;
+  }
+
+  /* The strip has no headings to unfold a section with. */
+  .palette-grid[hidden] {
+    display: flex;
+  }
+
+  .search-label,
+  .search-button .keys {
+    display: none;
+  }
+
+  .search-button {
+    width: 32px;
+    padding: 0;
+    justify-content: center;
+    border: 0;
+    background: transparent;
   }
 
   .palette-grid,
@@ -1185,4 +1464,176 @@ label.swatch:focus-within {
 .steps .button:disabled {
   color: var(--text-faint);
   cursor: default;
+}
+
+/* ---- Command search ---- */
+
+.commands {
+  width: 560px;
+  margin-top: 12vh;
+  overflow: hidden;
+}
+
+.commands-box {
+  display: flex;
+  flex-direction: column;
+  max-height: min(70vh, 520px);
+}
+
+.commands-field {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 8px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.commands-field input {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 15px;
+}
+
+.commands-field input::placeholder {
+  color: var(--text-faint);
+}
+
+.commands-list {
+  flex: 1;
+  min-height: 0;
+  padding: 4px;
+  overflow-y: auto;
+}
+
+.commands-group {
+  padding: 8px 10px 3px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.command {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 34px;
+  padding: 5px 10px;
+  border-radius: 7px;
+  cursor: pointer;
+}
+
+.command[aria-selected='true'] {
+  background: var(--hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.command[aria-disabled='true'] {
+  color: var(--text-faint);
+  cursor: default;
+}
+
+.command-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.command-title {
+  font-weight: 500;
+}
+
+.command-detail {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.command[aria-disabled='true'] .command-detail {
+  color: inherit;
+}
+
+.dialog .commands-empty {
+  margin: 0;
+  padding: 18px 12px;
+}
+
+.dialog .commands-foot {
+  flex: none;
+  margin: 0;
+  padding: 7px 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+}
+
+/* ---- List of shortcuts ---- */
+
+.shortcuts {
+  width: 720px;
+}
+
+.shortcuts-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 10px 10px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.shortcuts-head h2 {
+  margin: 0;
+}
+
+.shortcuts-groups {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 4px 28px;
+  max-height: min(72vh, 640px);
+  padding: 12px 20px 18px;
+  overflow-y: auto;
+}
+
+.shortcuts h3 {
+  margin: 8px 0 4px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.shortcuts dl {
+  margin: 0;
+}
+
+.shortcut {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 5px 0;
+  border-top: 1px solid var(--border);
+}
+
+.shortcut dt {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  order: 2;
+  justify-content: flex-end;
+  max-width: 55%;
+  row-gap: 4px;
+}
+
+.shortcut dd {
+  margin: 0;
 }
