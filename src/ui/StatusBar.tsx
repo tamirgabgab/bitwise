@@ -112,13 +112,10 @@ export function StatusBar() {
               {plural(gates, 'gate')}, depth {depth}
             </button>
           ))}
-        {stored ? (
-          <span className="stored" title="The project is kept in this browser as you work">
-            Saved in this browser
-          </span>
-        ) : (
+        {/* Saving is the quiet default; only its failure is worth a word. */}
+        {!stored && (
           <span
-            className="conflict"
+            className="unsaved"
             title="The browser's storage is full or switched off. Save the project as a file to keep it"
           >
             Not saved in this browser

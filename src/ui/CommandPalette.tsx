@@ -151,10 +151,6 @@ function CommandSearch({
           )
         })}
       </div>
-      <p className="commands-foot">
-        <Keys combo="↑" /> <Keys combo="↓" /> to move, <Keys combo="Enter" /> to run,{' '}
-        <Keys combo="Esc" /> to close
-      </p>
     </div>
   )
 }

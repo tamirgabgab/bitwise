@@ -39,12 +39,7 @@
   margin: 0 10px 0 0;
   font-size: var(--text-lg);
   font-weight: 600;
-  letter-spacing: -0.01em;
   white-space: nowrap;
-}
-
-.brand svg {
-  color: var(--accent);
 }
 
 /* Groups are told apart by the space between them, not by rules. */
@@ -135,7 +130,7 @@
   height: 28px;
   padding: 0 12px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--canvas-bg);
   font-weight: 500;
   white-space: nowrap;
@@ -146,21 +141,19 @@
   background: var(--hover);
 }
 
-.button-main {
-  border-color: var(--accent);
-  background: var(--accent-soft);
-}
-
-.button-main:hover {
-  background: var(--accent-soft);
-  box-shadow: inset 0 0 0 1px var(--accent);
-}
-
-/* Red is the color of a conflict on a wire; here it marks the one button
-   that cannot be taken back. */
+/* The one button a window is for: ink on the surface, no hue. A button that
+   destroys something looks the same; its words name what goes. */
+.button-main,
 .button-danger {
-  border-color: var(--signal-high);
-  color: var(--signal-high);
+  border-color: var(--text);
+  background: var(--text);
+  color: var(--surface);
+}
+
+.button-main:hover,
+.button-danger:hover {
+  background: var(--text);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 /* ---- Menu that drops from a tool ---- */
@@ -176,8 +169,8 @@
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
 }
 
 .menu-item {
@@ -188,7 +181,7 @@
   width: 100%;
   padding: 7px 10px;
   border: 0;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -267,24 +260,24 @@
   height: 30px;
   padding: 0 12px 0 8px;
   border: 0;
-  background: var(--accent-soft);
+  background: transparent;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
   cursor: pointer;
 }
 
 .run:hover {
-  box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--hover);
 }
 
-/* While it runs there is nothing to call for: the button steps back. */
+/* Running is the active state, so it is the one that carries amber. */
 .run-on {
-  background: transparent;
+  background: var(--accent-soft);
 }
 
 .run-on:hover {
-  background: var(--hover);
-  box-shadow: none;
+  background: var(--accent-soft);
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .transport .speed {
@@ -344,12 +337,11 @@ kbd {
   min-width: 20px;
   padding: 1px 5px;
   border: 1px solid var(--border);
-  border-bottom-width: 2px;
-  border-radius: 5px;
-  background: var(--canvas-bg);
+  border-radius: var(--radius-control);
+  background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   line-height: 1.4;
   text-align: center;
   white-space: nowrap;
@@ -423,7 +415,7 @@ kbd {
   height: 100%;
   padding: 0 10px;
   border: 0;
-  border-radius: 6px 6px 0 0;
+  border-radius: var(--radius-control) var(--radius-control) 0 0;
   background: transparent;
   font-weight: 500;
   white-space: nowrap;
@@ -437,7 +429,7 @@ kbd {
 /* A name edited in place: a circuit tab, a project in the list. */
 .name-input {
   border: 1px solid var(--accent);
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: var(--canvas-bg);
   color: var(--text);
   font: inherit;
@@ -459,7 +451,7 @@ kbd {
   margin: 0 2px 0 -6px;
   padding: 0;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: var(--text-muted);
   cursor: pointer;
@@ -516,7 +508,7 @@ kbd {
   margin-bottom: 12px;
   padding: 0 6px;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   background: var(--canvas-bg);
   color: var(--text-muted);
 }
@@ -557,7 +549,7 @@ kbd {
   margin: -3px -2px;
   padding: 3px 2px;
   border: 0;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: transparent;
   color: inherit;
   font-weight: inherit;
@@ -619,9 +611,9 @@ kbd {
   align-items: center;
   gap: 1px;
   padding: 5px 2px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--canvas-bg);
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
   font-size: var(--text-sm);
   cursor: grab;
   touch-action: none;
@@ -630,6 +622,7 @@ kbd {
 
 .part:hover {
   border-color: var(--accent);
+  background: var(--hover);
 }
 
 .part canvas {
@@ -817,8 +810,8 @@ kbd {
   z-index: 2;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
   cursor: pointer;
   touch-action: none;
 }
@@ -849,9 +842,10 @@ kbd {
   align-items: center;
   gap: 6px;
   padding: 3px 4px 3px 14px;
+  border: 1px solid var(--border);
   background: var(--text);
-  border-radius: 8px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
   color: var(--surface);
   font-weight: 500;
   pointer-events: auto;
@@ -864,7 +858,7 @@ kbd {
 }
 
 .toast .tool:hover:not(:disabled) {
-  background: rgba(128, 128, 128, 0.35);
+  background: color-mix(in srgb, var(--surface) 22%, transparent);
 }
 
 @keyframes toast-in {
@@ -910,7 +904,7 @@ kbd {
   height: 28px;
   padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--canvas-bg);
   color: inherit;
   font: inherit;
@@ -926,7 +920,7 @@ kbd {
   max-width: 132px;
   padding: 0 4px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--canvas-bg);
   color: inherit;
   font: inherit;
@@ -943,7 +937,7 @@ kbd {
   min-width: 64px;
   height: 28px;
   padding: 0 10px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .inspector .field + .stepper,
@@ -980,8 +974,8 @@ kbd {
   padding: 8px 10px 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
   pointer-events: none;
   animation: probe-in 0.01s 0.35s both;
 }
@@ -1020,7 +1014,7 @@ kbd {
 .gate-table .gate-table-corner {
   width: auto;
   padding-right: 4px;
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   white-space: nowrap;
 }
 
@@ -1033,8 +1027,8 @@ kbd {
   padding: 7px 10px 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
   font-size: var(--text-sm);
   pointer-events: none;
   /* It waits a moment, so sweeping the pointer across wires shows nothing. */
@@ -1081,8 +1075,11 @@ kbd {
 
 .probe-conflict {
   margin-top: 4px;
-  color: var(--signal-high);
-  font-weight: 500;
+  color: var(--text);
+  font-weight: 600;
+  /* Thick and dashed, like a conflict on the canvas, with no hue. */
+  text-decoration: underline dashed 2px;
+  text-underline-offset: 3px;
 }
 
 .probe-note {
@@ -1118,10 +1115,10 @@ kbd {
   max-width: calc(100vw - 32px);
   padding: 0;
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius-panel);
   background: var(--surface);
   color: var(--text);
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  box-shadow: var(--shadow-float);
 }
 
 .dialog[open] {
@@ -1188,8 +1185,8 @@ kbd {
   overflow-y: auto;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.16);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
 }
 
 .settings-head {
@@ -1234,7 +1231,7 @@ kbd {
   align-items: flex-start;
   gap: 8px;
   padding: 6px 8px;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -1286,17 +1283,13 @@ kbd {
 }
 
 .tag {
-  padding: 0 6px;
-  border: 1px solid var(--border);
-  border-radius: 999px;
   color: var(--text-muted);
-  font-size: var(--text-xs);
+  font-size: var(--text-sm);
   font-weight: 400;
 }
 
 .tag-warn {
-  border-color: var(--accent);
-  color: var(--accent);
+  color: var(--text);
 }
 
 .check {
@@ -1322,7 +1315,7 @@ kbd {
   height: 28px;
   overflow: hidden;
   border: 1px solid var(--border);
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -1351,9 +1344,15 @@ label.swatch:focus-within {
   padding: 0;
   border: 0;
   background: none;
-  color: var(--accent);
+  color: var(--text);
   text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 2px;
   cursor: pointer;
+}
+
+.link:hover {
+  text-decoration-color: var(--accent);
 }
 
 /* ---- Timing diagram ---- */
@@ -1470,9 +1469,16 @@ label.swatch:focus-within {
   font-variant-numeric: tabular-nums;
 }
 
+.statusbar .unsaved {
+  color: var(--text);
+  font-weight: 600;
+}
+
 .statusbar .conflict {
-  color: var(--signal-high);
-  font-weight: 500;
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline dashed 2px;
+  text-underline-offset: 3px;
 }
 
 .statusbar .stopped {
@@ -1486,7 +1492,7 @@ label.swatch:focus-within {
   margin: 0 -6px;
   padding: 0 6px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-control);
   background: none;
   color: inherit;
   font: inherit;
@@ -1586,7 +1592,7 @@ label.swatch:focus-within {
     max-height: 45%;
     border-top: 1px solid var(--border);
     border-left: 0;
-    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.16);
+    box-shadow: var(--shadow-float);
   }
 
   .workspace:has(> .inspector) .settings {
@@ -1640,7 +1646,6 @@ label.swatch:focus-within {
     max-width: 148px;
   }
 
-  .statusbar .stored,
   .statusbar .cost {
     display: none;
   }
@@ -1700,7 +1705,7 @@ label.swatch:focus-within {
   height: 28px;
   padding: 0 8px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--canvas-bg);
   color: inherit;
   font: inherit;
@@ -1786,7 +1791,7 @@ label.swatch:focus-within {
   gap: 12px;
   min-height: 34px;
   padding: 5px 10px;
-  border-radius: 7px;
+  border-radius: var(--radius-control);
   cursor: pointer;
 }
 
@@ -1827,14 +1832,6 @@ label.swatch:focus-within {
   padding: 18px 12px;
 }
 
-.dialog .commands-foot {
-  flex: none;
-  margin: 0;
-  padding: 7px 14px;
-  border-top: 1px solid var(--border);
-  font-size: var(--text-sm);
-}
-
 /* ---- Projects kept in the browser ---- */
 
 .projects {
@@ -1869,7 +1866,7 @@ label.swatch:focus-within {
   gap: 2px;
   min-height: 48px;
   padding: 0 4px 0 0;
-  border-radius: 8px;
+  border-radius: var(--radius-control);
 }
 
 .project:hover {
@@ -1913,7 +1910,7 @@ label.swatch:focus-within {
   height: 32px;
   margin: 0 4px 0 6px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
 }
 
 .project-confirm {
@@ -1939,7 +1936,8 @@ label.swatch:focus-within {
 }
 
 .dialog .projects-warn {
-  color: var(--signal-high);
+  color: var(--text);
+  font-weight: 500;
 }
 
 /* ---- List of shortcuts ---- */
@@ -2017,9 +2015,9 @@ label.swatch:focus-within {
   padding: 8px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 8px;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
-  font-size: var(--text-xs);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
+  font-size: var(--text-sm);
   pointer-events: none;
 }
 
@@ -2095,7 +2093,7 @@ label.swatch:focus-within {
 .tour-ring {
   position: fixed;
   border: 2px solid var(--accent);
-  border-radius: 10px;
+  border-radius: var(--radius-panel);
   box-shadow: 0 0 0 200vmax rgba(10, 16, 14, 0.5);
   pointer-events: none;
 }
@@ -2107,8 +2105,8 @@ label.swatch:focus-within {
   padding: 16px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 16px 48px rgba(0, 0, 0, 0.24);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
 }
 
 .tour-count {
@@ -2174,5 +2172,14 @@ label.swatch:focus-within {
 
   .statusbar {
     height: 40px;
+  }
+
+  /* No keyboard to press: keys show only in the list of shortcuts. */
+  .keys {
+    display: none;
+  }
+
+  .shortcuts .keys {
+    display: inline-flex;
   }
 }

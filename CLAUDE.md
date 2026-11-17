@@ -200,7 +200,7 @@ Run lint, test and build before calling a change done. CI runs the same three.
   timing diagram) are set in IBM Plex Mono: `--font-mono` in CSS,
   `drawValue` in `render.ts`, `VALUE_FONT` in `scopeRender.ts`. Both
   canvases redraw on `document.fonts` `loadingdone`.
-- Font sizes come from the five `--text-*` variables in `src/index.css`.
+- Font sizes come from the four `--text-*` variables in `src/index.css`.
   Do not write a pixel size in `App.css`.
 - `.ux-profile.md` at the root is the visual and copy standard ("Instrument",
   on a Linear base) that the UX skills and `ux-audit` read. Read it before

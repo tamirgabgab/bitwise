@@ -20,6 +20,10 @@
      and blue are spoken for by the signal colors below. */
   --accent: #b86e00;
   --accent-soft: rgba(224, 150, 20, 0.26);
+  /* The one shadow, for floating layers only, always with a border. */
+  --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.07);
+  --radius-control: 4px;
+  --radius-panel: 6px;
 
   /* Signal colors follow the CedarLogic convention. */
   --signal-high: #d92d34;
@@ -28,7 +32,6 @@
   --signal-unknown: #2f6fed;
 
   /* The type scale. Every size in the app is one of these five. */
-  --text-xs: 11px;
   --text-sm: 12px;
   --text-md: 13px;
   --text-lg: 15px;
@@ -60,6 +63,7 @@
     --wire: #a3b4ae;
     --accent: #f2b33d;
     --accent-soft: rgba(242, 179, 61, 0.2);
+    --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.3);
     --signal-high: #ff5c61;
     --signal-low: #7b8a85;
     --signal-hiz: #3ecf8e;
@@ -82,6 +86,7 @@
   --wire: #a3b4ae;
   --accent: #f2b33d;
   --accent-soft: rgba(242, 179, 61, 0.2);
+  --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.3);
   --signal-high: #ff5c61;
   --signal-low: #7b8a85;
   --signal-hiz: #3ecf8e;
