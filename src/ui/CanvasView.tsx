@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { CanvasController, useEditor } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
-import { Inspector } from './Inspector.tsx'
+import { Minimap } from './Minimap.tsx'
 import { ProbeBubble } from './ProbeBubble.tsx'
 
 export function CanvasView() {
@@ -42,7 +42,7 @@ export function CanvasView() {
           </div>
         </div>
       )}
-      <Inspector />
+      <Minimap />
       <ProbeBubble />
     </div>
   )

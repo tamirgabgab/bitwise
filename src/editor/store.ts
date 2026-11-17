@@ -186,6 +186,8 @@ export interface EditorState {
    * and nothing says where to look. The canvas calls this with its size.
    */
   frame(width: number, height: number): void
+  /** Shows the whole open circuit on a canvas of the given size. */
+  fitToScreen(width: number, height: number): void
   setPlacing(placing: Placing | null): void
   setTheme(theme: ThemeChoice): void
   /**
@@ -547,6 +549,11 @@ export const useEditor = create<EditorState>()((set, get) => {
       unframed.delete(state.active)
       const bounds = docBounds(state.doc)
       set({ unframed, view: bounds ? fitView(bounds, width, height) : state.view })
+    },
+
+    fitToScreen(width, height) {
+      const bounds = docBounds(get().doc)
+      if (bounds && width > 0 && height > 0) set({ view: fitView(bounds, width, height) })
     },
 
     setPlacing(placing) {

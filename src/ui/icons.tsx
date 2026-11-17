@@ -277,3 +277,11 @@ export const ChevronIcon = () => (
     <path d="M2 3.5 5 6.5 8 3.5" />
   </svg>
 )
+
+/** Four corners: the whole drawing brought into the frame. */
+export const FitIcon = () => (
+  <Icon>
+    <path d="M3 6.5V3h3.5M11.5 3H15v3.5M15 11.5V15h-3.5M6.5 15H3v-3.5" />
+    <path d="M6.5 7h5v4h-5Z" />
+  </Icon>
+)

@@ -15,11 +15,12 @@ import {
 } from '../editor/index.ts'
 import type { SimSpeed } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
-import { zoomAroundCenter } from './commands.ts'
+import { fitToScreen, zoomAroundCenter } from './commands.ts'
 import {
   BrandMark,
   ChevronIcon,
   DeleteIcon,
+  FitIcon,
   MoonIcon,
   PauseIcon,
   PlayIcon,
@@ -407,6 +408,9 @@ export function Toolbar() {
           onClick={() => zoomAroundCenter(1.25)}
         >
           <ZoomInIcon />
+        </ToolButton>
+        <ToolButton label="Fit the circuit to the screen" onClick={fitToScreen}>
+          <FitIcon />
         </ToolButton>
       </div>
 

@@ -772,3 +772,28 @@ describe('placing a part that chooses', () => {
     expect(decoder.params.outputs).toBe(3)
   })
 })
+
+describe('fitToScreen', () => {
+  it('brings the whole circuit into a canvas of the given size', () => {
+    editor().addComponent('and', { x: 0, y: 0 })
+    editor().addComponent('and', { x: 100, y: 60 })
+    editor().setView({ panX: 9000, panY: 9000, zoom: 3 })
+    editor().fitToScreen(800, 600)
+    const { view } = editor()
+    expect(view.zoom).toBeLessThan(1)
+    for (const part of Object.values(editor().doc.components)) {
+      const x = part.pos.x * 16 * view.zoom + view.panX
+      const y = part.pos.y * 16 * view.zoom + view.panY
+      expect(x).toBeGreaterThan(0)
+      expect(x).toBeLessThan(800)
+      expect(y).toBeGreaterThan(0)
+      expect(y).toBeLessThan(600)
+    }
+  })
+
+  it('leaves the view alone for an empty circuit', () => {
+    editor().setView({ panX: 12, panY: 34, zoom: 2 })
+    editor().fitToScreen(800, 600)
+    expect(editor().view).toEqual({ panX: 12, panY: 34, zoom: 2 })
+  })
+})

@@ -13,6 +13,7 @@ import {
   setAsideLocal,
 } from '../io/index.ts'
 import { ask } from './dialogs.ts'
+import { toast } from './toasts.ts'
 
 /*
  * Where the editor and the file format meet. The project is kept in the
@@ -132,6 +133,7 @@ export function saveProjectFile(): void {
   const { circuits, order } = useEditor.getState()
   const name = safeFileName(circuits[order[0]].name, 'project')
   downloadText(`${name}.cedar.json`, projectText(true))
+  toast(`Saved the project as ${name}.cedar.json`)
 }
 
 /** Saves a picture of the open circuit, as it looks now, as an SVG file. */
@@ -139,7 +141,9 @@ export function exportCircuitSvg(): void {
   const svg = canvasRuntime.current?.svg()
   if (svg === undefined) return
   const { circuits, active } = useEditor.getState()
-  downloadText(`${safeFileName(circuits[active].name, 'circuit')}.svg`, svg, 'image/svg+xml')
+  const name = `${safeFileName(circuits[active].name, 'circuit')}.svg`
+  downloadText(name, svg, 'image/svg+xml')
+  toast(`Exported the circuit as ${name}`)
 }
 
 /** Lets the user pick a project file and opens it. */
@@ -149,6 +153,7 @@ export async function openProjectFile(): Promise<void> {
   if (!(await mayReplace(`“${file.name}”`))) return
   try {
     openProjectText(file.text)
+    toast(`Opened “${file.name}”`)
   } catch (error) {
     await ask({
       title: `“${file.name}” could not be opened`,
@@ -160,11 +165,14 @@ export async function openProjectFile(): Promise<void> {
 
 /** Starts over with one empty circuit. */
 export async function startNewProject(): Promise<void> {
-  if (await mayReplace('A new, empty project')) useEditor.getState().newProject()
+  if (!(await mayReplace('A new, empty project'))) return
+  useEditor.getState().newProject()
+  toast('Started a new project')
 }
 
 export async function openExample(example: Example): Promise<void> {
   if (await mayReplace(`The example “${example.name}”`)) {
     useEditor.getState().loadProject(example.build())
+    toast(`Opened the example “${example.name}”`)
   }
 }

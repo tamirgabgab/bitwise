@@ -6,6 +6,8 @@
 
 export { CanvasController } from './canvasController.ts'
 export { canvasRuntime } from './runtime.ts'
+export { minimapPan, minimapScene } from './minimap.ts'
+export type { MinimapScene } from './minimap.ts'
 export { defaultParamsOf, renderSymbolIcon } from './render.ts'
 export {
   MAX_DELAY,

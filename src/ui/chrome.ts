@@ -20,6 +20,8 @@ interface ChromeState {
   readonly collapsed: readonly string[]
   /** Types of the parts placed last, the latest first. */
   readonly recent: readonly string[]
+  /** The height the timing diagram was dragged to, or null for its own. */
+  readonly timingHeight: number | null
 
   openCommands(query?: string): void
   openShortcuts(): void
@@ -27,11 +29,12 @@ interface ChromeState {
   setSettingsOpen(open: boolean): void
   toggleSection(id: string): void
   noteUsed(type: string): void
+  setTimingHeight(height: number | null): void
 }
 
 const KEY = 'cedar-logic.chrome'
 
-type Kept = Pick<ChromeState, 'collapsed' | 'recent'>
+type Kept = Pick<ChromeState, 'collapsed' | 'recent' | 'timingHeight'>
 
 function strings(value: unknown): string[] {
   return Array.isArray(value) ? value.filter((item) => typeof item === 'string').slice(0, 32) : []
@@ -42,17 +45,22 @@ function load(): Kept {
     const stored = globalThis.localStorage?.getItem(KEY)
     if (stored) {
       const data = JSON.parse(stored) as Record<string, unknown>
-      return { collapsed: strings(data.collapsed), recent: strings(data.recent) }
+      const height = data.timingHeight
+      return {
+        collapsed: strings(data.collapsed),
+        recent: strings(data.recent),
+        timingHeight: typeof height === 'number' && height > 0 ? height : null,
+      }
     }
   } catch {
     // Storage can be unavailable or hold something else; start fresh.
   }
-  return { collapsed: [], recent: [] }
+  return { collapsed: [], recent: [], timingHeight: null }
 }
 
-function save(kept: Kept): void {
+function save({ collapsed, recent, timingHeight }: Kept): void {
   try {
-    globalThis.localStorage?.setItem(KEY, JSON.stringify(kept))
+    globalThis.localStorage?.setItem(KEY, JSON.stringify({ collapsed, recent, timingHeight }))
   } catch {
     // Not being able to remember the palette is harmless.
   }
@@ -77,16 +85,19 @@ export const useChrome = create<ChromeState>()((set, get) => ({
     set({ settingsOpen })
   },
   toggleSection(id) {
-    const { collapsed, recent } = get()
-    const next = collapsed.includes(id) ? collapsed.filter((item) => item !== id) : [...collapsed, id]
-    set({ collapsed: next })
-    save({ collapsed: next, recent })
+    const { collapsed } = get()
+    set({
+      collapsed: collapsed.includes(id) ? collapsed.filter((item) => item !== id) : [...collapsed, id],
+    })
+    save(get())
   },
   noteUsed(type) {
-    const { collapsed, recent } = get()
-    const next = withRecent(recent, type)
-    set({ recent: next })
-    save({ collapsed, recent: next })
+    set({ recent: withRecent(get().recent, type) })
+    save(get())
+  },
+  setTimingHeight(timingHeight) {
+    set({ timingHeight })
+    save(get())
   },
 }))
 

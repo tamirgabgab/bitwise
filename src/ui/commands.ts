@@ -51,6 +51,12 @@ export function zoomAroundCenter(factor: number): void {
   useEditor.getState().zoomAt(factor, center.x, center.y)
 }
 
+/** Shows the whole open circuit on the canvas. */
+export function fitToScreen(): void {
+  const size = canvasRuntime.current?.size()
+  if (size) useEditor.getState().fitToScreen(size.width, size.height)
+}
+
 /** The commands as they stand now: what is on or off depends on the state. */
 export function listCommands(): Command[] {
   const editor = useEditor.getState()
@@ -232,6 +238,14 @@ export function listCommands(): Command[] {
       group: 'View',
       title: 'Reset zoom to 100%',
       run: () => zoomAroundCenter(1 / zoom),
+    },
+    {
+      id: 'view.fit',
+      group: 'View',
+      title: 'Fit the circuit to the screen',
+      keywords: 'zoom all show whole center',
+      disabled: !hasParts,
+      run: fitToScreen,
     },
     {
       id: 'view.light',

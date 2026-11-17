@@ -178,6 +178,7 @@ export class CanvasController {
       gridCenter: () =>
         snapPoint(screenToWorld(useEditor.getState().view, this.width / 2, this.height / 2)),
       screenCenter: () => ({ x: this.width / 2, y: this.height / 2 }),
+      size: () => ({ width: this.width, height: this.height }),
       svg: () => {
         const state = useEditor.getState()
         return circuitSvg(

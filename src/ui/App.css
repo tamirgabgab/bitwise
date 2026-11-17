@@ -721,17 +721,93 @@ kbd {
 
 /* ---- Inspector: the settings of the selected part ---- */
 
+/* Docked on the right, and there only while something is selected. */
 .inspector {
+  flex: none;
+  width: 256px;
+  padding: 12px 14px 14px;
+  overflow-y: auto;
+  background: var(--surface);
+  border-left: 1px solid var(--border);
+  animation: inspector-in 140ms ease-out;
+}
+
+@keyframes inspector-in {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+}
+
+/* The settings panel floats in the same corner: it steps aside. */
+.workspace:has(> .inspector) .settings {
+  right: 264px;
+}
+
+/* ---- Overview map in the corner of the canvas ---- */
+
+.minimap {
   position: absolute;
-  top: 10px;
-  left: 10px;
+  right: 10px;
+  bottom: 10px;
   z-index: 2;
-  min-width: 196px;
-  padding: 8px 10px 10px;
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.minimap[hidden] {
+  display: none;
+}
+
+/* ---- Short messages above the status bar ---- */
+
+.toasts {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100vw - 24px);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+
+/* Text and surface swap places, so a message stands out in both themes. */
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 4px 3px 14px;
+  background: var(--text);
+  border-radius: 8px;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  color: var(--surface);
+  font-weight: 500;
+  pointer-events: auto;
+  animation: toast-in 140ms ease-out;
+}
+
+.toast .tool {
+  width: 28px;
+  height: 28px;
+}
+
+.toast .tool:hover:not(:disabled) {
+  background: rgba(128, 128, 128, 0.35);
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
 .inspector h2 {
@@ -979,7 +1055,9 @@ kbd {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dialog[open] {
+  .dialog[open],
+  .inspector,
+  .toast {
     animation: none;
   }
 }
@@ -1196,6 +1274,7 @@ label.swatch:focus-within {
 /* ---- Timing diagram ---- */
 
 .timing {
+  position: relative;
   display: flex;
   flex-direction: column;
   min-width: 0;
@@ -1234,6 +1313,37 @@ label.swatch:focus-within {
 .timing-body canvas {
   display: block;
   width: 100%;
+}
+
+/* The top edge of the panel, wide enough to catch with the pointer. */
+.panel-grip {
+  position: absolute;
+  top: -4px;
+  right: 0;
+  left: 0;
+  z-index: 4;
+  height: 8px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+
+.panel-grip::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  right: 0;
+  left: 0;
+  height: 2px;
+  background: transparent;
+}
+
+.panel-grip:hover::after,
+.panel-grip:focus-visible::after {
+  background: var(--accent);
+}
+
+.panel-grip:focus-visible {
+  outline: none;
 }
 
 .timing-empty {
@@ -1282,6 +1392,18 @@ label.swatch:focus-within {
 .statusbar .stopped {
   color: var(--accent);
   font-weight: 500;
+}
+
+/* ---- A laptop screen: the search button keeps its keys, not its word ---- */
+
+@media (max-width: 1360px) {
+  .search-label {
+    display: none;
+  }
+
+  .tool-group {
+    padding: 0 6px;
+  }
 }
 
 /* ---- Mid-width screens: the top bar gives up what it can spare ---- */
@@ -1341,6 +1463,27 @@ label.swatch:focus-within {
 
   .palette h2,
   .palette-search {
+    display: none;
+  }
+
+  .inspector {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 4;
+    width: auto;
+    max-height: 45%;
+    border-top: 1px solid var(--border);
+    border-left: 0;
+    box-shadow: 0 -6px 20px rgba(0, 0, 0, 0.16);
+  }
+
+  .workspace:has(> .inspector) .settings {
+    right: 8px;
+  }
+
+  .minimap {
     display: none;
   }
 
