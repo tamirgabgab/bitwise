@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 5 are done, which completes the MVP. Phase 6 (polish) is in progress.
+Status: Phases 0 to 6 are done. What comes next is the list under "After the MVP".
 
 ## Decisions
 

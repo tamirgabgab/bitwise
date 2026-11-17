@@ -106,6 +106,25 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `liveValues.ts` reads what each wire carries and `valueStyle.ts` decides
   how it is drawn: the classic look at radix 2, a palette up to 10 values,
   a gradient above. Z is dashed, X dotted, a conflict thick and dashed.
+- A wire must not run through a part. `wireLayout.ts` first tries the simple
+  channels of `routing.ts`; when all of them touch a part or another net,
+  `mazeRoute.ts` searches the grid for a way around. Text labels are not
+  obstacles. The search is bounded (`MARGIN`, `MAX_AREA`, `MAX_VISITS`), and
+  the layout runs for every drag preview, so keep it cheap.
+- A text label is a part of type `TEXT_TYPE` with a `text` field and no
+  pins. `flatten.ts` skips it, so the simulator never sees it.
+- `arrange.ts` aligns and spreads parts; `extract.ts` turns a selection
+  into a named circuit (switches and outputs stay behind, and every wire
+  that crosses the edge of the selection becomes a pin).
+- Presentation steps (`steps.ts`) belong to a circuit: a note and the
+  values of its switches. They are saved with the project but are not part
+  of undo. While the steps panel is open, the arrow keys walk the steps.
+- `svgExport.ts` draws a circuit through the same `render.ts` code as the
+  screen, into `SvgContext`, which records the canvas calls as SVG. A new
+  canvas call in `render.ts` needs its counterpart there.
+- Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
+  live only for the session. Step back uses a short history of simulator
+  states, `HISTORY_TICKS` in `simRunner.ts`.
 - Canvas colors come from CSS variables in `src/index.css`. Amber is the
   only accent color; the other hues are reserved for signal values.
 - Keyboard shortcuts match on `event.code`, so they work on any layout.

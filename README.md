@@ -31,11 +31,24 @@ What works today:
 - **Saving.** The project is kept in the browser as you work, and can be
   saved to and opened from a JSON file. Four ready-made examples are in the
   top bar, two of them counters.
+- **Finding out what a circuit does.** Point at a wire to see its value and
+  what drives it, pause the run when a wire takes a chosen value, step one
+  tick back, and read the gate count and the longest delay in the status
+  bar. A switch can have a keyboard key.
+- **More parts for n-valued logic.** A switch that cycles through every
+  value, converters between one digit and several bits, and the table of
+  any gate at the current radix when you point at it in the palette.
+- **Editing help.** Align and spread parts, copy by dragging with Alt, turn
+  a selection into a named circuit, and write notes on the canvas. Wires
+  find their way around parts.
+- **Showing a circuit.** Save a list of steps, each with switch values and
+  a note, and walk through them with the arrow keys. Export the drawing as
+  SVG.
 - **Simulation core.** Unknown (X) and floating (Z) values next to the
   digits, driver conflicts, and an event-driven engine with per-component
   delays.
 
-This completes the first version. See [docs/PLAN.md](docs/PLAN.md) for the roadmap and
+See [docs/PLAN.md](docs/PLAN.md) for the roadmap and
 [docs/n_ary_logic_sim_spec.md](docs/n_ary_logic_sim_spec.md) (in Hebrew) for
 the mathematics behind the gate kits.
 
