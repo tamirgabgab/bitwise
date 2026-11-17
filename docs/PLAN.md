@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 5 are done, which completes the MVP. Phase 6 (polish) is next.
+Status: Phases 0 to 5 are done, which completes the MVP. Phase 6 (polish) is in progress.
 
 ## Decisions
 
@@ -323,22 +323,50 @@ Known limits:
 
 ### Phase 6: polish
 
-- Width and delay in the inspector, next to the parameters it has now.
-- Text labels on the canvas.
-- Wire routing that goes around parts.
-- Pinch zoom and other touch gestures.
-- Export the circuit as an image.
+The owner widened this phase after Phase 5. It is built in four rounds,
+each pushed on its own.
 
-Added by the owner after Phase 5:
+Round A, tools for finding out what a circuit does:
 
-- **A keyboard key for a switch.** A key set in the inspector toggles the
-  switch, or holds the button down, while the canvas has the focus.
+- **A keyboard key for a switch.** Set in the inspector. It adds 1 modulo
+  the radix, with Shift it takes 1 away, and it holds a push button down.
 - **A probe on hover.** Pointing at a wire shows its value, its net and
   what drives it; on a conflict, which outputs disagree.
 - **Showing how a change spreads.** While stepping one tick at a time, the
   parts evaluated in that tick are highlighted.
+- **A breakpoint on a wire.** The run pauses when the wire takes a chosen
+  value or goes into conflict.
+- **Step back.** One tick back in time, out of a short history of states.
 - **Cost.** The number of gates and the longest delay from an input to an
-  output, in the status bar.
+  output, in the status bar. A named circuit counts as the gates inside it.
+- **Delay in the inspector**, next to the parameters it has now.
+
+Round B, parts for n-valued logic:
+
+- **The table of a gate.** Hovering a gate in the palette shows its n by n
+  table at the current radix, in the value colors.
+- **A cycling switch.** A source that walks through every value on its
+  own, a set number of ticks on each.
+- **Digit to bits and back.** One digit becomes several binary wires and
+  the other way round. A bit on a wire is 0 or the top value, like the
+  clock.
+
+Round C, editing:
+
+- **Align and distribute** the selected parts.
+- **Duplicate by dragging** with Alt, wires inside the selection included.
+- **Turn a selection into a named circuit**, replaced by one part.
+- **Text labels on the canvas.**
+
+Round D, showing and finishing:
+
+- **Steps to present.** A list of saved states (switch values and a note)
+  to walk through with the arrow keys.
+- **Export the circuit as SVG.**
+- **Wire routing that goes around parts.**
+
+Left out: width in the inspector waits for buses, and touch gestures were
+not chosen.
 
 Dark and light themes and the keyboard shortcuts were planned here and
 arrived early, in Phase 2.
