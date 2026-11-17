@@ -9,6 +9,7 @@ import {
   canvasRuntime,
   restartSimulation,
   stepSimulation,
+  stepToClockEdge,
   useEditor,
   useSim,
 } from '../editor/index.ts'
@@ -26,8 +27,10 @@ import {
   RestartIcon,
   RotateIcon,
   SaveIcon,
+  StepEdgeIcon,
   StepIcon,
   SunIcon,
+  TimingIcon,
   UndoIcon,
   ZoomInIcon,
   ZoomOutIcon,
@@ -73,7 +76,9 @@ function speedLabel(speed: SimSpeed): string {
 function SimControls() {
   const running = useSim((state) => state.running)
   const speed = useSim((state) => state.speed)
-  const { setRunning, setSpeed } = useSim.getState()
+  const hasClock = useSim((state) => state.clocks > 0)
+  const scopeOpen = useSim((state) => state.scopeOpen)
+  const { setRunning, setSpeed, setScopeOpen } = useSim.getState()
 
   return (
     <div className="tool-group">
@@ -88,6 +93,17 @@ function SimControls() {
       )}
       <ToolButton label="Step one tick" disabled={running} onClick={stepSimulation}>
         <StepIcon />
+      </ToolButton>
+      <ToolButton
+        label={
+          hasClock
+            ? 'Step to the next rising edge of the clock'
+            : 'Step to the next clock edge (this circuit has no clock)'
+        }
+        disabled={running || !hasClock}
+        onClick={stepToClockEdge}
+      >
+        <StepEdgeIcon />
       </ToolButton>
       <ToolButton label="Restart the circuit from time 0" onClick={restartSimulation}>
         <RestartIcon />
@@ -108,6 +124,16 @@ function SimControls() {
           </option>
         ))}
       </select>
+      <button
+        type="button"
+        className="tool"
+        aria-label="Timing diagram"
+        aria-pressed={scopeOpen}
+        title={scopeOpen ? 'Hide the timing diagram' : 'Show the timing diagram'}
+        onClick={() => setScopeOpen(!scopeOpen)}
+      >
+        <TimingIcon />
+      </button>
     </div>
   )
 }

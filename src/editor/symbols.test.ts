@@ -172,3 +172,42 @@ describe('symbolOf', () => {
     expect(symbolOf({ type: SUB_TYPE, params: {} }).pins).toEqual([])
   })
 })
+
+describe('the sequential parts and the number display', () => {
+  const symbol = (type: string, params?: Readonly<Record<string, number>>) =>
+    symbolFor(type, resolveParams(builtinComponents.get(type), params))
+
+  it('puts Set on top of a flip-flop and Reset below it', () => {
+    for (const type of ['dff', 'tff', 'jkff']) {
+      const pins = symbol(type).pins
+      expect(pins.find((pin) => pin.name === 'set')?.dir).toEqual({ x: 0, y: -1 })
+      expect(pins.find((pin) => pin.name === 'reset')?.dir).toEqual({ x: 0, y: 1 })
+    }
+  })
+
+  it('puts Q above its mirror on the right', () => {
+    for (const type of ['sr', 'dff', 'tff', 'jkff']) {
+      const pins = symbol(type).pins
+      const q = pins.find((pin) => pin.name === 'q')
+      const nq = pins.find((pin) => pin.name === 'nq')
+      expect(q && nq && q.pos.x === nq.pos.x && q.pos.y < nq.pos.y).toBe(true)
+    }
+  })
+
+  it('gives a display a readout over its digit pins, least significant first', () => {
+    for (let digits = 1; digits <= 8; digits++) {
+      const display = symbol('display', { digits })
+      expect(display.readout?.pins).toEqual(Array.from({ length: digits }, (_, i) => `in${i}`))
+      const rows = display.pins.map((pin) => pin.pos.y)
+      expect(rows).toEqual([...rows].sort((a, b) => a - b))
+      expect(rectContainsPoint(display.bounds, display.readout?.digits ?? { x: 99, y: 99 })).toBe(true)
+    }
+  })
+
+  it('has every size of display keep its pins apart', () => {
+    for (let digits = 1; digits <= 8; digits++) {
+      const pins = symbol('display', { digits }).pins
+      expect(new Set(pins.map((pin) => `${pin.pos.x},${pin.pos.y}`)).size).toBe(digits)
+    }
+  })
+})

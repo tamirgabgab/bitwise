@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Simulator, formatSignal } from '../core/index.ts'
-import { SimRunner } from './simRunner.ts'
+import { OSCILLATION_TICKS, SimRunner } from './simRunner.ts'
 
 /** An input into a chain of `length` inverters, each one tick slow. */
 function chain(length: number) {
@@ -104,5 +104,111 @@ describe('SimRunner', () => {
     runner.step()
     expect(read(gates[0])).toBe('1')
     expect(read(gates[1])).toBe('X')
+  })
+})
+
+describe('SimRunner with a clock', () => {
+  /** A clock into a T flip-flop held at T = 1, so Q flips on every edge. */
+  function toggler() {
+    const sim = new Simulator()
+    const clock = sim.addComponent('clock', { params: { half: 5 } })
+    const one = sim.addComponent('const')
+    const flip = sim.addComponent('tff')
+    sim.connect({ component: clock, port: 'out' }, { component: flip, port: 'clk' })
+    sim.connect({ component: one, port: 'out' }, { component: flip, port: 't' })
+    const q = () => formatSignal(sim.readPin({ component: flip, port: 'q' }))
+    return { sim, clocks: [{ component: clock, port: 'out' }], q }
+  }
+
+  it('keeps time moving, since a clock is never at rest', () => {
+    const { sim } = toggler()
+    const runner = new SimRunner(sim)
+    expect(runner.advance(1, 100)).toBe(true)
+    expect(runner.advance(1, 100)).toBe(true)
+    expect(sim.time).toBe(200)
+  })
+
+  it('steps to the next rising edge and lets it spread', () => {
+    const { sim, clocks, q } = toggler()
+    const runner = new SimRunner(sim)
+    expect(runner.stepToEdge(clocks)).toBe(true)
+    // The clock rises at tick 6 and the flip-flop answers one tick later.
+    expect(sim.time).toBe(7)
+    expect(q()).toBe('1')
+    expect(runner.stepToEdge(clocks)).toBe(true)
+    expect(sim.time).toBe(17)
+    expect(q()).toBe('0')
+  })
+
+  it('gives up when no clock ever rises', () => {
+    const { sim } = chain(3)
+    const runner = new SimRunner(sim)
+    expect(runner.stepToEdge([])).toBe(false)
+    expect(sim.time).toBe(2500)
+  })
+
+  it('calls back after every tick', () => {
+    const { sim } = toggler()
+    const seen: number[] = []
+    const runner = new SimRunner(sim, () => seen.push(sim.time))
+    runner.advance(0.03, 100)
+    runner.step()
+    expect(seen).toEqual([1, 2, 3, 4])
+  })
+
+  it('is not taken for an oscillator', () => {
+    const { sim } = toggler()
+    const runner = new SimRunner(sim)
+    runner.advance(10, 100)
+    expect(runner.oscillating).toBe(false)
+  })
+})
+
+describe('SimRunner on a circuit that goes round in circles', () => {
+  /** A NAND fed its own output: an oscillator once the switch is 1. */
+  function loop() {
+    const sim = new Simulator()
+    const input = sim.addComponent('input')
+    const nand = sim.addComponent('nand')
+    sim.connect({ component: input, port: 'out' }, { component: nand, port: 'in0' })
+    sim.connect({ component: nand, port: 'out' }, { component: nand, port: 'in1' })
+    sim.settle()
+    return { sim, input }
+  }
+
+  it('says so once it has gone on long enough', () => {
+    const { sim, input } = loop()
+    const runner = new SimRunner(sim)
+    runner.advance(1, 100)
+    expect(runner.oscillating).toBe(false)
+    sim.setState(input, [1])
+    runner.nudge()
+    runner.advance((OSCILLATION_TICKS - 1) / 100, 100)
+    expect(runner.oscillating).toBe(false)
+    runner.advance(0.01, 100)
+    expect(runner.oscillating).toBe(true)
+  })
+
+  it('starts counting again when the circuit is touched, and stops when it rests', () => {
+    const { sim, input } = loop()
+    const runner = new SimRunner(sim)
+    sim.setState(input, [1])
+    runner.advance(5, 100)
+    expect(runner.oscillating).toBe(true)
+    runner.nudge()
+    expect(runner.oscillating).toBe(false)
+    runner.advance(5, 100)
+    expect(runner.oscillating).toBe(true)
+    sim.setState(input, [0])
+    runner.advance(5, 100)
+    expect(runner.oscillating).toBe(false)
+  })
+
+  it('does not mistake a long chain that is still settling', () => {
+    const { sim } = chain(150)
+    const runner = new SimRunner(sim)
+    runner.advance(1.4, 100)
+    expect(sim.pendingEvents).toBeGreaterThan(0)
+    expect(runner.oscillating).toBe(false)
   })
 })

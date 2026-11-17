@@ -1,4 +1,4 @@
-import { addComponent, addSubcircuit, addWire, emptyDoc } from './document.ts'
+import { addComponent, addJunction, addSubcircuit, addWire, emptyDoc } from './document.ts'
 import type { AddComponentOptions, Terminal } from './document.ts'
 import { DEFAULT_SETTINGS, toProjectData } from './project.ts'
 import type { ProjectData, ProjectSettings } from './project.ts'
@@ -18,10 +18,14 @@ export interface Example {
   build(): ProjectData
 }
 
-/** A drawing in the making. Pins are written "part.pin", e.g. "c3.in0". */
+/**
+ * A drawing in the making. Pins are written "part.pin", e.g. "c3.in0", and
+ * a bend in a wire is written as `bend` gave it.
+ */
 function sketch() {
   let doc = emptyDoc()
   const pin = (ref: string): Terminal => {
+    if (ref.startsWith('@')) return { kind: 'junction', junction: ref.slice(1) }
     const [component, name] = ref.split('.')
     const sub = doc.components[component]?.sub
     // On a named circuit the pin is known by the label drawn on it.
@@ -45,6 +49,16 @@ function sketch() {
       const added = addWire(doc, pin(from), pin(to))
       if (!added) throw new Error(`Cannot wire ${from} to ${to}`)
       doc = added.doc
+    },
+    /** A point for wires to turn or branch at. */
+    bend(x: number, y: number): string {
+      const added = addJunction(doc, { x, y })
+      doc = added.doc
+      return `@${added.id}`
+    },
+    /** One wire after another, from each stop to the next. */
+    run(...stops: readonly string[]): void {
+      for (let i = 0; i + 1 < stops.length; i++) this.wire(stops[i], stops[i + 1])
     },
     done(id: string, name: string): Circuit {
       return { id, name, doc }
@@ -220,6 +234,94 @@ function ternaryGates(): ProjectData {
   })
 }
 
+/**
+ * A ripple counter: a row of flip-flops, each clocked by the mirrored output
+ * of the one before, so it steps when that one wraps around to 0. `stage`
+ * places one flip-flop and wires what makes it count.
+ */
+function rippleCounter(options: {
+  readonly type: 'jkff' | 'tff'
+  readonly stages: number
+  readonly radix: number
+}): Circuit {
+  const { type, stages } = options
+  const jk = type === 'jkff'
+  const counter = sketch()
+  const pitch = 18
+  // The row of the clock pins, and the rows of Q and its mirror.
+  const row = 14
+  const qRow = row - 2
+  const centre = jk ? row : row - 1
+  const resetRow = centre + (jk ? 4 : 3)
+
+  const clock = counter.part('clock', 2, row)
+  const reset = counter.part('button', 2, resetRow + 4, { label: 'Reset' })
+  const display = counter.part('display', 34 + pitch * stages, row, { params: { digits: stages } })
+  const displayX = 30 + pitch * stages
+  const firstDigit = row - Math.floor((stages - 1) / 2)
+
+  let previous = `${clock}.out`
+  let rail = `${reset}.out`
+  for (let i = 0; i < stages; i++) {
+    const x = 16 + pitch * i
+    const flip = counter.part(type, x, centre)
+    // Constants keep every stage counting.
+    if (jk) {
+      const j = counter.part('const', x - 7, row - 2, { params: { value: options.radix - 1 } })
+      const k = counter.part('const', x - 7, row + 2, { params: { value: options.radix - 1 } })
+      counter.wire(`${j}.out`, `${flip}.j`)
+      counter.wire(`${k}.out`, `${flip}.k`)
+    } else {
+      const t = counter.part('const', x - 7, row - 2, { params: { value: 1 } })
+      counter.wire(`${t}.out`, `${flip}.t`)
+    }
+    counter.wire(previous, `${flip}.clk`)
+
+    // Q goes up to a lamp, then over the top to its digit of the display.
+    const lamp = counter.part('output', x + 9, qRow - 4, { label: `Q${i}` })
+    const up = x + 5
+    const track = 1 + i
+    const column = displayX - 2 - 2 * i
+    const tap = counter.bend(up, qRow - 4)
+    counter.run(`${flip}.q`, counter.bend(up, qRow), tap, `${lamp}.in`)
+    counter.run(
+      tap,
+      counter.bend(up, track),
+      counter.bend(column, track),
+      counter.bend(column, firstDigit + i),
+      `${display}.in${i}`,
+    )
+
+    // The mirrored output clocks the next stage.
+    if (i === stages - 1) {
+      previous = ''
+    } else if (jk) {
+      const down = counter.bend(x + 8, row + 2)
+      const across = counter.bend(x + 8, row)
+      counter.run(`${flip}.nq`, down, across)
+      previous = across
+    } else {
+      previous = `${flip}.nq`
+    }
+
+    const below = counter.bend(x, resetRow + 4)
+    counter.wire(rail, below)
+    counter.wire(below, `${flip}.reset`)
+    rail = below
+  }
+  return counter.done('k1', 'Counter')
+}
+
+function binaryCounter(): ProjectData {
+  const counter = rippleCounter({ type: 'jkff', stages: 4, radix: 2 })
+  return project([counter], counter, {})
+}
+
+function ternaryCounter(): ProjectData {
+  const counter = rippleCounter({ type: 'tff', stages: 2, radix: 3 })
+  return project([counter], counter, { radix: 3, preset: 'kleene', showDigits: true })
+}
+
 export const EXAMPLES: readonly Example[] = [
   {
     id: 'binary-adder',
@@ -232,5 +334,17 @@ export const EXAMPLES: readonly Example[] = [
     name: 'Ternary gates',
     summary: 'Radix 3. Max, Is zero and Equal, built from NOT, AND and Shift',
     build: ternaryGates,
+  },
+  {
+    id: 'binary-counter',
+    name: 'Four-bit counter',
+    summary: 'Radix 2. Four JK flip-flops and a clock count from 0 to 15',
+    build: binaryCounter,
+  },
+  {
+    id: 'ternary-counter',
+    name: 'Ternary counter',
+    summary: 'Radix 3. Two T flip-flops count from 0 to 8, one ternary digit each',
+    build: ternaryCounter,
   },
 ]

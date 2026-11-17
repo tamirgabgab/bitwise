@@ -23,6 +23,7 @@ export function StatusBar() {
   const stable = useSim((state) => state.stable)
   const time = useSim((state) => state.time)
   const conflicts = useSim((state) => state.conflicts)
+  const oscillating = useSim((state) => state.oscillating)
 
   let hint: string
   if (isPlacing) {
@@ -52,6 +53,14 @@ export function StatusBar() {
         {conflicts > 0 && (
           <span className="conflict" title="Two outputs drive the same wire to different values">
             {plural(conflicts, 'wire')} in conflict
+          </span>
+        )}
+        {oscillating && (
+          <span
+            className="conflict"
+            title="This circuit has no clock, yet it keeps changing: a loop in it feeds itself and never comes to rest"
+          >
+            Never settles
           </span>
         )}
         <span>

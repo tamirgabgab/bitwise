@@ -3,7 +3,8 @@
   /* minmax(0, ...) keeps wide content, like the palette strip on a phone,
      from stretching the page past the screen. */
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  /* Bar, tabs, workspace, timing diagram (when open), status bar. */
+  grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   height: 100%;
 }
 
@@ -16,6 +17,18 @@
   padding: 0 12px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
+  /* If there are ever more tools than the bar is wide, it scrolls sideways
+     instead of pushing the page out of the window. */
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.topbar > * {
+  flex: none;
+}
+
+.topbar > .spacer {
+  flex: 1 0 0;
 }
 
 .brand {
@@ -746,6 +759,60 @@ label.swatch:focus-within {
   cursor: pointer;
 }
 
+/* ---- Timing diagram ---- */
+
+.timing {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  max-height: 38vh;
+  background: var(--canvas-bg);
+  border-top: 1px solid var(--border);
+}
+
+.timing-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 2px 6px 2px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.timing-head h2 {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.timing-span {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.timing-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.timing-body canvas {
+  display: block;
+  width: 100%;
+}
+
+.timing-empty {
+  margin: 0;
+  padding: 14px 12px;
+  color: var(--text-muted);
+}
+
+.tool[aria-pressed='true'] {
+  background: var(--hover);
+  color: var(--accent);
+}
+
 /* ---- Status bar ---- */
 
 .statusbar {
@@ -780,17 +847,7 @@ label.swatch:focus-within {
 
 /* ---- Mid-width screens: the top bar gives up what it can spare ---- */
 
-@media (max-width: 960px) {
-  /* More tools than the bar is wide: it scrolls sideways. */
-  .topbar {
-    overflow-x: auto;
-    scrollbar-width: none;
-  }
-
-  .topbar > * {
-    flex: none;
-  }
-
+@media (max-width: 1120px) {
   .logic-kit {
     display: none;
   }

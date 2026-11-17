@@ -82,6 +82,15 @@ export class SimBridge {
     return true
   }
 
+  /** The output pin of every clock, the ones inside named circuits too. */
+  clockPins(): PinRef[] {
+    const pins: PinRef[] = []
+    for (const entry of this.mirrored.values()) {
+      if (entry.type === 'clock') pins.push({ component: entry.simId, port: 'out' })
+    }
+    return pins
+  }
+
   /** The value of every switch of the drawing itself, by part id. */
   inputValues(): Record<string, number> {
     const values: Record<string, number> = {}

@@ -16,9 +16,16 @@ export interface SimState {
   readonly revision: number
   /** Goes up whenever a switch is put on another value. */
   readonly pokes: number
+  /** How many clocks the open circuit has, the ones inside its parts too. */
+  readonly clocks: number
+  /** True when a circuit without a clock keeps changing and never rests. */
+  readonly oscillating: boolean
+  /** Whether the timing diagram is on screen. */
+  readonly scopeOpen: boolean
 
   setRunning(running: boolean): void
   setSpeed(speed: SimSpeed): void
+  setScopeOpen(open: boolean): void
 }
 
 export const useSim = create<SimState>()((set) => ({
@@ -29,11 +36,17 @@ export const useSim = create<SimState>()((set) => ({
   conflicts: 0,
   revision: 0,
   pokes: 0,
+  clocks: 0,
+  oscillating: false,
+  scopeOpen: false,
 
   setRunning(running) {
     set({ running })
   },
   setSpeed(speed) {
     set({ speed })
+  },
+  setScopeOpen(scopeOpen) {
+    set({ scopeOpen })
   },
 }))

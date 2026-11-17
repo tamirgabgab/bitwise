@@ -208,7 +208,7 @@ export function setComponentParams(
   return stale.length > 0 ? deleteItems(next, stale) : next
 }
 
-function addJunction(doc: CircuitDoc, pos: Point): { doc: CircuitDoc; id: string } {
+export function addJunction(doc: CircuitDoc, pos: Point): { doc: CircuitDoc; id: string } {
   const id = `j${doc.nextId}`
   return {
     doc: { ...doc, junctions: { ...doc.junctions, [id]: { id, pos } }, nextId: doc.nextId + 1 },

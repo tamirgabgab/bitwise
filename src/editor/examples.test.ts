@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { numberValue } from '../core/index.ts'
 import { terminalKey } from './document.ts'
 import { EXAMPLES } from './examples.ts'
 import { fromProjectData } from './project.ts'
@@ -52,11 +53,74 @@ function* combinations(labels: readonly string[], radix: number): Generator<Reco
   }
 }
 
+/** The number the Q lamps of a counter show, Q0 being the lowest digit. */
+function countOf(project: LoadedProject, bridge: SimBridge): number | undefined {
+  const doc = project.circuits[project.active].doc
+  const lamps = Object.values(doc.components)
+    .filter((part) => part.type === 'output')
+    .sort((a, b) => (a.label ?? '').localeCompare(b.label ?? ''))
+  const digits = lamps.map((lamp) => {
+    const probe = bridge.probeTerminal(terminalKey({ kind: 'pin', component: lamp.id, port: 'in' }))
+    return probe ? probe.value[0] : NaN
+  })
+  return numberValue(digits, bridge.sim.radix)
+}
+
+/** Runs a counter example and reads it just before each rising clock edge. */
+function counted(id: string, edges: number): { seen: (number | undefined)[]; bridge: SimBridge } {
+  const project = load(id)
+  const bridge = new SimBridge()
+  bridge.sim.setRadix(project.settings.radix)
+  bridge.sync(project.circuits[project.active].doc, project.circuits)
+  // The clock first rises after 5 ticks and then every 10.
+  bridge.sim.run(5)
+  const seen = [countOf(project, bridge)]
+  for (let i = 0; i < edges; i++) {
+    bridge.sim.run(10)
+    seen.push(countOf(project, bridge))
+  }
+  return { seen, bridge }
+}
+
+describe('four-bit counter', () => {
+  it('counts from 0 to 15 and starts again', () => {
+    const { seen } = counted('binary-counter', 18)
+    expect(seen).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0, 1, 2])
+  })
+
+  it('goes back to 0 while Reset is held', () => {
+    const { seen, bridge } = counted('binary-counter', 5)
+    expect(seen[5]).toBe(5)
+    const project = load('binary-counter')
+    const doc = project.circuits[project.active].doc
+    const reset = Object.values(doc.components).find((part) => part.type === 'button')
+    expect(reset && bridge.setButton(reset.id, true)).toBe(true)
+    bridge.sim.run(30)
+    expect(countOf(project, bridge)).toBe(0)
+  })
+
+  it('shows the count on a number display with one digit per flip-flop', () => {
+    const project = load('binary-counter')
+    const parts = Object.values(project.circuits[project.active].doc.components)
+    expect(parts.filter((part) => part.type === 'jkff')).toHaveLength(4)
+    expect(parts.find((part) => part.type === 'display')?.params.digits).toBe(4)
+  })
+})
+
+describe('ternary counter', () => {
+  it('counts from 0 to 8 in radix 3 and starts again', () => {
+    const project = load('ternary-counter')
+    expect(project.settings.radix).toBe(3)
+    const { seen } = counted('ternary-counter', 10)
+    expect(seen).toEqual([0, 1, 2, 3, 4, 5, 6, 7, 8, 0, 1])
+  })
+})
+
 describe('every example', () => {
   it('is a well-formed project whose circuit parts all resolve', () => {
     for (const example of EXAMPLES) {
       const project = fromProjectData(example.build())
-      expect(project.order.length).toBeGreaterThan(1)
+      expect(project.order.length).toBeGreaterThan(0)
       for (const circuit of Object.values(project.circuits)) {
         for (const part of Object.values(circuit.doc.components)) {
           if (part.sub) expect(part.sub.name).toBe(project.circuits[part.sub.circuit].name)

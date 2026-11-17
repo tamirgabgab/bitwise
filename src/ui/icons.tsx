@@ -88,6 +88,22 @@ export const StepIcon = () => (
   </Icon>
 )
 
+/** A rising edge with an arrow running up to it. */
+export const StepEdgeIcon = () => (
+  <Icon>
+    <path d="M9.5 14.5h3v-11h3" />
+    <path d="M2.5 5.5 7 9l-4.5 3.5Z" />
+  </Icon>
+)
+
+/** Two square waves, one under the other. */
+export const TimingIcon = () => (
+  <Icon>
+    <path d="M2.5 7.5h3v-4h4v4h3v-4h3" />
+    <path d="M2.5 14.5h5v-4h4v4h4" />
+  </Icon>
+)
+
 export const RestartIcon = () => (
   <Icon>
     <path d="M14 3.5v11L6.5 9ZM4.5 3.5v11" />

@@ -11,7 +11,15 @@ export { MAX_LABEL, SUB_TYPE } from './document.ts'
 export { EXAMPLES } from './examples.ts'
 export type { Example } from './examples.ts'
 export type { ProjectData } from './project.ts'
-export { projectSnapshot, restartSimulation, stepSimulation } from './session.ts'
+export {
+  currentScope,
+  projectSnapshot,
+  restartSimulation,
+  stepSimulation,
+  stepToClockEdge,
+} from './session.ts'
+export type { ScopeSignal, Span } from './scope.ts'
+export { renderScope, scopeHeight, scopeTicks } from './scopeRender.ts'
 export { MAX_CIRCUIT_NAME, canPlace, interfaceOf, usersOf } from './subcircuit.ts'
 export { SIM_SPEEDS } from './simRunner.ts'
 export type { SimSpeed } from './simRunner.ts'

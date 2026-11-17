@@ -400,3 +400,15 @@ describe('SimBridge with named circuits', () => {
     expect(bridge.probeTerminal(terminalKey(pin('c3', 'in0')))).toBeDefined()
   })
 })
+
+describe('SimBridge.clockPins', () => {
+  it('finds every clock of the drawing', () => {
+    let doc = addComponent(emptyDoc(), 'clock', { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'not', { x: 8, y: 0 }).doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    expect(bridge.clockPins()).toEqual([{ component: bridge.simComponent('c1'), port: 'out' }])
+    bridge.sync(deleteItems(doc, ['c1']))
+    expect(bridge.clockPins()).toEqual([])
+  })
+})
