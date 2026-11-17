@@ -37,6 +37,14 @@ Run lint, test and build before calling a change done. CI runs the same three.
   available and universal. `presets.test.ts` proves it by construction;
   the mathematics is in `docs/n_ary_logic_sim_spec.md`.
 - Every pin and net has a width. Width 1 is a plain wire, more is a bus.
+  A net has one width: the editor never joins pins of different widths.
+- Larger parts work on buses and follow the flip-flop rules at radix n:
+  `components/bus.ts` (splitter, merger), `select.ts` (multiplexer,
+  demultiplexer, decoder: one select digit chooses among n ways),
+  `arith.ts` (adder, comparator) and `register.ts` (register, counter). A
+  flag such as a carry is 0 or the top value, and a control input is on
+  only at the top value. Unattached, `cin` is 0, `en` is on, and `load` and
+  `reset` are off.
 - A net is one electrical node. Several outputs may drive it: Z drivers are
   ignored, and two different digits read as X and set the net's `conflict`
   flag.
@@ -94,6 +102,18 @@ Run lint, test and build before calling a change done. CI runs the same three.
   must never contain itself: check `canPlace` before adding one.
 - The value of a switch lives in the simulator, not in the document, so
   toggling one is not an edit and is not undone.
+- A part gets its width from its `width` parameter (`widths.ts`, at most
+  `MAX_BUS` in the inspector). When a wire joins pins of different widths,
+  `SimBridge` keeps each width on a net of its own and reports the wire as
+  `mixed`; it is drawn like a conflict. The value of a wide switch is a
+  string of digits (`InputValue`), in steps and in the saved file.
+- A bus is drawn heavy and in the neutral wire color, with its value written
+  beside the longest straight run of the net. Value colors are for wires of
+  one digit.
+- Larger parts are drawn by `blockSymbol` in `symbols.ts`: a titled box with
+  inputs on the left, outputs on the right and steering pins underneath.
+  `placement.ts` says what a part starts with: a choosing part gets one way
+  for every value of the radix.
 - `session.ts` owns one `SimBridge` per circuit and the run loop; only the
   open circuit runs. `SimRunner` turns
   wall-clock time into ticks; time moves only while a change is waiting, and

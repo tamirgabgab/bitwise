@@ -29,8 +29,8 @@ What works today:
   and outputs over the last ticks. A step button runs to the next clock
   edge, and a circuit that oscillates without a clock is pointed out.
 - **Saving.** The project is kept in the browser as you work, and can be
-  saved to and opened from a JSON file. Four ready-made examples are in the
-  top bar, two of them counters.
+  saved to and opened from a JSON file. Six ready-made examples are in the
+  top bar, two of them on buses.
 - **Finding out what a circuit does.** Point at a wire to see its value and
   what drives it, pause the run when a wire takes a chosen value, step one
   tick back, and read the gate count and the longest delay in the status
@@ -38,6 +38,10 @@ What works today:
 - **More parts for n-valued logic.** A switch that cycles through every
   value, converters between one digit and several bits, and the table of
   any gate at the current radix when you point at it in the palette.
+- **Buses and larger parts.** Give any part a width and its wires become a
+  bus, drawn heavy with the value beside it. A splitter and a merger go
+  between a bus and its digits, and a multiplexer, demultiplexer, decoder,
+  adder, comparator, register and counter work on whole buses at any radix.
 - **Editing help.** Align and spread parts, copy by dragging with Alt, turn
   a selection into a named circuit, and write notes on the canvas. Wires
   find their way around parts.

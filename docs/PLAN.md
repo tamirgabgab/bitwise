@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 6 are done. What comes next is the list under "After the MVP".
+Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM). What comes next is the rest of the list under "After the MVP".
 
 ## Decisions
 
@@ -378,8 +378,15 @@ count, save it, close the browser, and load it back.
 
 ## After the MVP
 
-- **Buses and larger components.** Multi-bit wires, multiplexer, decoder,
-  adder, register, counter, RAM, ROM.
+- **Buses and larger components.** Done, except RAM and ROM. Any part can
+  be given a width in the inspector, a bus is drawn as a heavy line with its
+  value written beside it, and a splitter and a merger go between a bus and
+  its digits. The larger parts are a multiplexer, a demultiplexer, a
+  decoder, an adder, a comparator, a register and a counter, all defined
+  for any radix: one select digit chooses among n ways, and a flag (carry,
+  comparison, decoder output) is 0 or the top value. A wire between pins of
+  different widths is drawn like a conflict and each side keeps to itself.
+  Left to do: RAM and ROM.
 - **Timing diagram.** Signals over time, oscilloscope style. A small one
   arrived in Phase 5; what is left is choosing any wire, zooming in time,
   and a cursor to read values off.
