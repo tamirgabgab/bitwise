@@ -155,10 +155,13 @@ export function TimingPanel() {
     if (canvas.parentElement) observer.observe(canvas.parentElement)
     const scheme = window.matchMedia('(prefers-color-scheme: dark)')
     scheme.addEventListener('change', newTheme)
+    // The values are drawn in a face that may still be loading on the first frame.
+    document.fonts.addEventListener('loadingdone', request)
     return () => {
       for (const stop of stops) stop()
       observer.disconnect()
       scheme.removeEventListener('change', newTheme)
+      document.fonts.removeEventListener('loadingdone', request)
       cancelAnimationFrame(frame)
     }
   }, [open, rows, tickWidth, end, settings])

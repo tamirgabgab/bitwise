@@ -186,6 +186,10 @@ Run lint, test and build before calling a change done. CI runs the same three.
   in an SVG export, and never under `prefers-reduced-motion`.
 - A chip for a value gets its colors from `swatch.ts`, in the settings
   panel and in the legend alike.
+- Values (wire and probe readouts, digits and buses on the canvas, the
+  timing diagram) are set in IBM Plex Mono: `--font-mono` in CSS,
+  `drawValue` in `render.ts`, `VALUE_FONT` in `scopeRender.ts`. Both
+  canvases redraw on `document.fonts` `loadingdone`.
 - Font sizes come from the five `--text-*` variables in `src/index.css`.
   Do not write a pixel size in `App.css`.
 - `.ux-profile.md` at the root is the visual and copy standard ("Instrument",

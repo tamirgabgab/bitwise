@@ -34,6 +34,11 @@
   --text-lg: 15px;
   --text-xl: 18px;
 
+  /* Values (signals, buses, stored digits) are set in Plex Mono, so a
+     changing readout keeps its width. It falls back to Plex Sans, never to a
+     system monospace. */
+  --font-mono: 'IBM Plex Mono', 'IBM Plex Sans', system-ui, sans-serif;
+
   font-family: 'IBM Plex Sans', system-ui, 'Segoe UI', sans-serif;
   font-size: var(--text-md);
   line-height: 1.4;

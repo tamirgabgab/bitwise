@@ -174,6 +174,8 @@ export class CanvasController {
 
     const darkQuery = window.matchMedia('(prefers-color-scheme: dark)')
     this.listen(darkQuery, 'change', () => this.refreshTheme())
+    // Values are drawn in a face that may still be loading on the first frame.
+    this.listen(document.fonts, 'loadingdone', () => this.requestDraw())
 
     this.cleanups.push(
       useEditor.subscribe((state, previous) => {

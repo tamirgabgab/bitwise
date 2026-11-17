@@ -36,6 +36,8 @@ export const SCOPE_NAMES = 88
 const AXIS = 20
 const PAD = 7
 const FONT = '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif'
+/** Ticks and values are set in Plex Mono, falling back to Plex Sans (`--font-mono`). */
+const VALUE_FONT = '"IBM Plex Mono", "IBM Plex Sans", system-ui, sans-serif'
 
 /** Height of one row: taller with more values, so each level has room. */
 export function scopeRowHeight(radix: number): number {
@@ -121,7 +123,7 @@ export function renderScope(
   const rowHeight = scopeRowHeight(radix)
 
   // Tick numbers, and a faint line down the rows under each.
-  ctx.font = `500 10px ${FONT}`
+  ctx.font = `500 10px ${VALUE_FONT}`
   ctx.textBaseline = 'middle'
   ctx.textAlign = 'center'
   // A mark every 1, 2, 5, 10, 20, 50... ticks, whichever leaves room for its number.
@@ -186,7 +188,7 @@ export function renderScope(
         ctx.lineWidth = 1.5
         ctx.strokeRect(x0 + 1, high + 2, Math.max(0, x1 - x0 - 2), low - high - 4)
         if (x1 - x0 >= span.digit.length * 7 + 8) {
-          ctx.font = `600 10px ${FONT}`
+          ctx.font = `600 10px ${VALUE_FONT}`
           ctx.textAlign = 'center'
           ctx.fillStyle = theme.ink
           ctx.fillText(span.digit, (x0 + x1) / 2, middle + 1)
@@ -235,7 +237,7 @@ export function renderScope(
       previous = y
       // With more than two values the height alone is hard to read.
       if (radix > 2 && x1 - x0 >= 14) {
-        ctx.font = `600 10px ${FONT}`
+        ctx.font = `600 10px ${VALUE_FONT}`
         ctx.textAlign = 'center'
         ctx.fillStyle = theme.wire
         const above = span.digit < radix - 1
@@ -277,7 +279,7 @@ function drawCursor(
   ctx.stroke()
 
   // The tick, on a chip over the axis.
-  ctx.font = `600 10px ${FONT}`
+  ctx.font = `600 10px ${VALUE_FONT}`
   ctx.textAlign = 'center'
   const label = String(tick)
   const chip = ctx.measureText(label).width + 10

@@ -62,6 +62,8 @@ const PIN_DOT = 0.12
 const CORNER_RADIUS = 0.4
 const JUNCTION_DOT = 0.24
 const FONT = '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif'
+/** Values are set in Plex Mono, falling back to Plex Sans (`--font-mono`). */
+const VALUE_FONT = '"IBM Plex Mono", "IBM Plex Sans", system-ui, sans-serif'
 
 function drawGrid(
   ctx: CanvasRenderingContext2D,
@@ -196,6 +198,7 @@ function drawText(
   size: number,
   color: string,
   halo?: string,
+  family = FONT,
 ): void {
   const matrix = ctx.getTransform()
   const scale = Math.hypot(matrix.a, matrix.b)
@@ -205,7 +208,7 @@ function drawText(
   if (pixels === 0) return
   ctx.save()
   ctx.setTransform(1, 0, 0, 1, 0, 0)
-  ctx.font = `600 ${pixels}px ${FONT}`
+  ctx.font = `600 ${pixels}px ${family}`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
   // The visual middle of digits and capitals sits a little above the em middle.
@@ -219,6 +222,18 @@ function drawText(
   ctx.fillStyle = color
   ctx.fillText(text, x, baseline)
   ctx.restore()
+}
+
+/** Writes a value (a digit, a bus, a display reading) the way `drawText` does, in the value face. */
+function drawValue(
+  ctx: CanvasRenderingContext2D,
+  text: string,
+  at: Point,
+  size: number,
+  color: string,
+  halo?: string,
+): void {
+  drawText(ctx, text, at, size, color, halo, VALUE_FONT)
 }
 
 function drawFace(
@@ -249,12 +264,12 @@ function drawFace(
   if (digit === undefined) {
     const text = style ? style.label(signal) : formatSignal(signal)
     const size = Math.min(reach * 1.3, (2 * wide * 0.9) / (text.length * 0.6))
-    drawText(ctx, text, pos, size, theme.ink)
+    drawValue(ctx, text, pos, size, theme.ink)
     return
   }
   const text = style ? style.text(digit) : digitChar(digit)
   const size = reach * (text.length > 1 ? 1.05 : 1.4)
-  drawText(ctx, text, pos, size, fill ? inkOn(fill) : theme.ink)
+  drawValue(ctx, text, pos, size, fill ? inkOn(fill) : theme.ink)
 }
 
 /** Writes the number a display shows: its digits, and under them the decimal value. */
@@ -269,10 +284,10 @@ function drawReadout(
   const text = [...shown].reverse().map(digitChar).join('')
   const size = readout.size * Math.min(1, 5.2 / text.length)
   ctx.globalAlpha *= digits ? 1 : 0.4
-  drawText(ctx, text, readout.digits, size, theme.ink)
+  drawValue(ctx, text, readout.digits, size, theme.ink)
   const value = digits ? numberValue(digits, radix) : 0
   const decimal = value === undefined ? 'no number' : `= ${value}`
-  drawText(ctx, decimal, readout.decimal, 0.62, theme.ink)
+  drawValue(ctx, decimal, readout.decimal, 0.62, theme.ink)
   ctx.globalAlpha /= digits ? 1 : 0.4
 }
 
@@ -507,7 +522,7 @@ export function renderScene(
         const driven = live.outputSignal(component.id, pin.name)
         if (driven.length === 1) {
           const text = style.text(driven[0])
-          drawText(ctx, text, at, text.length > 1 ? 0.6 : 0.72, theme.ink, theme.background)
+          drawValue(ctx, text, at, text.length > 1 ? 0.6 : 0.72, theme.ink, theme.background)
         }
       }
     }
@@ -519,7 +534,7 @@ export function renderScene(
     const at = label.level
       ? { x: label.at.x, y: label.at.y - 0.62 }
       : { x: label.at.x + 0.5 + text.length * 0.19, y: label.at.y }
-    drawText(ctx, text, at, 0.64, theme.ink, theme.background)
+    drawValue(ctx, text, at, 0.64, theme.ink, theme.background)
   }
 
   for (const mark of scene.marks) {
