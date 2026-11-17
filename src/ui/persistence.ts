@@ -1,27 +1,46 @@
 import { create } from 'zustand'
 import { canvasRuntime, projectSnapshot, useEditor, useSim } from '../editor/index.ts'
-import type { Example } from '../editor/index.ts'
+import type { Example, ProjectData } from '../editor/index.ts'
 import {
   ProjectFileError,
+  chooseLocal,
+  createLocal,
+  deleteLocal,
   downloadText,
+  duplicateLocal,
+  freshName,
+  listLocal,
   loadLocal,
   parseProject,
   pickTextFile,
+  readLocal,
+  renameLocal,
   safeFileName,
   saveLocal,
   serializeProject,
   setAsideLocal,
 } from '../io/index.ts'
+import type { Library } from '../io/index.ts'
 import { ask } from './dialogs.ts'
 import { toast } from './toasts.ts'
 
 /*
- * Where the editor and the file format meet. The project is kept in the
- * browser as the user works, and goes to and from a file when they ask.
+ * Where the editor and the file format meet. The browser keeps a list of
+ * projects, and the open one is written to it as the user works. A project
+ * goes to and from a file when they ask.
  */
 
-/** Whether the last attempt to keep the project in the browser worked. */
-export const useStorage = create<{ ok: boolean }>()(() => ({ ok: true }))
+interface StorageState {
+  /** Whether the last attempt to keep the project in the browser worked. */
+  readonly ok: boolean
+  /** The projects the browser keeps, as they were last read. */
+  readonly library: Library
+}
+
+export const useStorage = create<StorageState>()(() => ({
+  ok: true,
+  library: { open: null, projects: [] },
+}))
 
 /** How long the project is left to settle before it is written. */
 const SAVE_DELAY = 400
@@ -38,10 +57,15 @@ export function openProjectText(text: string): void {
   useEditor.getState().loadProject(parseProject(text))
 }
 
+function publish(): void {
+  useStorage.setState({ library: listLocal() })
+}
+
 function saveNow(): void {
   if (timer !== undefined) clearTimeout(timer)
   timer = undefined
   useStorage.setState({ ok: saveLocal(projectText()) })
+  publish()
 }
 
 function saveSoon(): void {
@@ -53,14 +77,19 @@ function flush(): void {
   if (timer !== undefined) saveNow()
 }
 
+/** Drops a save that is waiting, for a project that is going away. */
+function forgetPendingSave(): void {
+  if (timer !== undefined) clearTimeout(timer)
+  timer = undefined
+}
+
 function reasonOf(error: unknown): string {
   return error instanceof ProjectFileError ? error.message : 'It is not a project file this app can read.'
 }
 
 /**
- * Brings back the project the browser kept from the last visit, and from
- * then on keeps the browser's copy current. Call once, before the first
- * render.
+ * Brings back the project that was open on the last visit, and from then
+ * on keeps the browser's copy current. Call once, before the first render.
  */
 export function startPersistence(): void {
   const stored = loadLocal()
@@ -77,6 +106,7 @@ export function startPersistence(): void {
       })
     }
   }
+  publish()
 
   useEditor.subscribe((state, previous) => {
     if (
@@ -128,10 +158,32 @@ function mayReplace(withWhat: string): Promise<boolean> {
   })
 }
 
+/**
+ * Opens a project as a new entry in the browser's list, so the one that was
+ * open stays in the list untouched. An empty open project is reused rather
+ * than left behind. Only when the browser keeps nothing does it ask first.
+ */
+async function openAsNew(base: string, what: string, apply: () => void): Promise<boolean> {
+  flush()
+  const { open, projects } = listLocal()
+  const reuse = open !== null && isEmpty()
+  const name = freshName(
+    base,
+    projects.filter((project) => !(reuse && project.id === open)).map((project) => project.name),
+  )
+  if (reuse) renameLocal(open, name)
+  else if (createLocal(name) === null && !(await mayReplace(what))) return false
+  apply()
+  saveNow()
+  return true
+}
+
 /** Saves the project as a file on the user's computer. */
 export function saveProjectFile(): void {
   const { circuits, order } = useEditor.getState()
-  const name = safeFileName(circuits[order[0]].name, 'project')
+  const { library } = useStorage.getState()
+  const listed = library.projects.find((project) => project.id === library.open)?.name
+  const name = safeFileName(listed ?? circuits[order[0]].name, 'project')
   downloadText(`${name}.cedar.json`, projectText(true))
   toast(`Saved the project as ${name}.cedar.json`)
 }
@@ -146,33 +198,112 @@ export function exportCircuitSvg(): void {
   toast(`Exported the circuit as ${name}`)
 }
 
-/** Lets the user pick a project file and opens it. */
+/** Lets the user pick a project file and opens it as a new project. */
 export async function openProjectFile(): Promise<void> {
   const file = await pickTextFile('.json,application/json')
   if (!file) return
-  if (!(await mayReplace(`“${file.name}”`))) return
+  let data: ProjectData
   try {
-    openProjectText(file.text)
-    toast(`Opened “${file.name}”`)
+    data = parseProject(file.text)
   } catch (error) {
     await ask({
       title: `“${file.name}” could not be opened`,
       body: `${reasonOf(error)}\nYour project is unchanged.`,
       confirm: 'Close',
     })
+    return
+  }
+  const base = file.name.replace(/(\.cedar)?\.json$/i, '')
+  if (await openAsNew(base, `“${file.name}”`, () => useEditor.getState().loadProject(data))) {
+    toast(`Opened “${file.name}”`)
   }
 }
 
-/** Starts over with one empty circuit. */
+/** Starts a new project with one empty circuit. */
 export async function startNewProject(): Promise<void> {
-  if (!(await mayReplace('A new, empty project'))) return
-  useEditor.getState().newProject()
-  toast('Started a new project')
+  if (await openAsNew('Untitled project', 'A new, empty project', useEditor.getState().newProject)) {
+    toast('Started a new project')
+  }
 }
 
+/** Opens an example as a project of its own. */
 export async function openExample(example: Example): Promise<void> {
-  if (await mayReplace(`The example “${example.name}”`)) {
-    useEditor.getState().loadProject(example.build())
+  const what = `The example “${example.name}”`
+  if (await openAsNew(example.name, what, () => useEditor.getState().loadProject(example.build()))) {
     toast(`Opened the example “${example.name}”`)
   }
+}
+
+function nameOf(id: string): string {
+  return listLocal().projects.find((project) => project.id === id)?.name ?? 'the project'
+}
+
+/** Opens another project of the browser's list. False if it could not be read. */
+export async function switchProject(id: string): Promise<boolean> {
+  const { open } = listLocal()
+  if (id === open) return true
+  flush()
+  const name = nameOf(id)
+  const text = readLocal(id)
+  // Chosen first, so the save that loading sets off goes to the right place.
+  chooseLocal(id)
+  try {
+    if (text === null) throw new Error('missing')
+    openProjectText(text)
+  } catch (error) {
+    if (open !== null) chooseLocal(open)
+    publish()
+    await ask({
+      title: `“${name}” could not be opened`,
+      body: `${reasonOf(error)}\nThe project you had open is unchanged.`,
+      confirm: 'Close',
+    })
+    return false
+  }
+  publish()
+  toast(`Opened “${name}”`)
+  return true
+}
+
+export function renameProject(id: string, name: string): void {
+  renameLocal(id, name)
+  publish()
+}
+
+/** Copies a project of the list under a new name. The open one stays open. */
+export function duplicateProject(id: string): void {
+  if (id === listLocal().open) flush()
+  const { projects } = listLocal()
+  const copy = freshName(`${nameOf(id)} copy`, projects.map((project) => project.name))
+  if (duplicateLocal(id, copy) !== null) toast(`Made a copy, “${copy}”`)
+  publish()
+}
+
+/**
+ * Removes a project from the browser once the user agrees. When it is the
+ * open one, the latest of the others opens, or a new empty project.
+ */
+export async function deleteProject(id: string): Promise<void> {
+  const name = nameOf(id)
+  const sure = await ask({
+    title: `Delete “${name}”?`,
+    body: 'It is removed from this browser and cannot be brought back. To keep a copy, save it to a file first.',
+    confirm: 'Delete project',
+    cancel: 'Keep it',
+    danger: true,
+  })
+  if (!sure) return
+  const wasOpen = id === listLocal().open
+  if (wasOpen) forgetPendingSave()
+  deleteLocal(id)
+  if (wasOpen) {
+    const next = [...listLocal().projects].sort((a, b) => b.saved - a.saved)[0]
+    if (!next || !(await switchProject(next.id))) {
+      createLocal(freshName('Untitled project', listLocal().projects.map((project) => project.name)))
+      useEditor.getState().newProject()
+      saveNow()
+    }
+  }
+  publish()
+  toast(`Deleted “${name}”`)
 }

@@ -69,6 +69,13 @@ export function listCommands(): Command[] {
   const commands: Command[] = [
     { id: 'file.new', group: 'File', title: 'New project', run: () => void startNewProject() },
     {
+      id: 'file.projects',
+      group: 'File',
+      title: 'Projects in this browser',
+      keywords: 'list switch rename duplicate copy delete library saved',
+      run: chrome.openProjects,
+    },
+    {
       id: 'file.open',
       group: 'File',
       title: 'Open a project file',

@@ -146,6 +146,22 @@ export const SaveIcon = () => (
   </Icon>
 )
 
+/** A pencil: give something a new name. */
+export const RenameIcon = () => (
+  <Icon>
+    <path d="M3 15l.8-3.2 8.4-8.4 2.4 2.4-8.4 8.4Z" />
+    <path d="M10.6 5l2.4 2.4" />
+  </Icon>
+)
+
+/** Two sheets: make a copy. */
+export const CopyIcon = () => (
+  <Icon>
+    <path d="M6.5 6.5h8v8h-8Z" />
+    <path d="M11.5 6.5v-3h-8v8h3" />
+  </Icon>
+)
+
 export const ExamplesIcon = () => (
   <Icon>
     <path d="M9 5v10M9 5a2 2 0 0 0-2-1.5H2.5v10H7A2 2 0 0 1 9 15M9 5a2 2 0 0 1 2-1.5h4.5v10H11A2 2 0 0 0 9 15" />

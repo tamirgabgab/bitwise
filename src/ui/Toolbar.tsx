@@ -272,6 +272,11 @@ function FileMenu() {
         >
           <MenuRow name="New project" onPick={pick(() => void startNewProject())} />
           <MenuRow
+            name="Projects in this browser"
+            summary="Switch, rename, copy or delete"
+            onPick={pick(useChrome.getState().openProjects)}
+          />
+          <MenuRow
             name="Open a project file"
             shortcut="Ctrl+O"
             onPick={pick(() => void openProjectFile())}
@@ -279,7 +284,7 @@ function FileMenu() {
           <MenuRow name="Save the project as a file" shortcut="Ctrl+S" onPick={pick(saveProjectFile)} />
           <MenuRow name="Export this circuit as an SVG picture" onPick={pick(exportCircuitSvg)} />
           <div className="menu-heading" role="separator">
-            Open an example
+            Open an example as a new project
           </div>
           {EXAMPLES.map((example) => (
             <MenuRow

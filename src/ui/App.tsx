@@ -7,6 +7,7 @@ import { DialogHost } from './DialogHost.tsx'
 import { Inspector } from './Inspector.tsx'
 import { Palette } from './Palette.tsx'
 import { SettingsPanel } from './SettingsPanel.tsx'
+import { ProjectsDialog } from './ProjectsDialog.tsx'
 import { ShortcutsSheet } from './ShortcutsSheet.tsx'
 import { StatusBar } from './StatusBar.tsx'
 import { StepsPanel } from './StepsPanel.tsx'
@@ -44,6 +45,7 @@ export function App() {
       <ToastHost />
       <CommandPalette />
       <ShortcutsSheet />
+      <ProjectsDialog />
       <Tour />
       <DialogHost />
     </div>

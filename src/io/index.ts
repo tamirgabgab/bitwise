@@ -21,4 +21,18 @@ export type {
   ProjectFile,
 } from './projectFile.ts'
 export { downloadText, pickTextFile, safeFileName } from './files.ts'
-export { loadLocal, saveLocal, setAsideLocal } from './storage.ts'
+export {
+  MAX_PROJECT_NAME,
+  chooseLocal,
+  createLocal,
+  deleteLocal,
+  duplicateLocal,
+  freshName,
+  listLocal,
+  loadLocal,
+  readLocal,
+  renameLocal,
+  saveLocal,
+  setAsideLocal,
+} from './storage.ts'
+export type { Library, StoredProject } from './storage.ts'
