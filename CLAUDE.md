@@ -127,7 +127,14 @@ Run lint, test and build before calling a change done. CI runs the same three.
   right-clicked (`toggleWatch` in `session.ts`). Each circuit has its own
   `Recorder`, which keeps only the changes. Zoom, freeze and the cursor are
   a `ScopeView` that lives in `TimingPanel`; freezing stops only the
-  scrolling, never the simulation.
+  scrolling, never the simulation. It is drawn like the screen of a scope:
+  every fifth mark is a major division down the rows, the others are small
+  crosses at the row edges, and a bus is a lane with crossed ends. This is
+  the one bold place of the chrome; the top bar and the empty canvas stay
+  quiet.
+- The simulation controls (run, steps, restart, speed) sit in one framed
+  strip, `.transport`. Under `pointer: coarse` the buttons of the bar are
+  40px.
 - `liveValues.ts` reads what each wire carries and `valueStyle.ts` decides
   how it is drawn: the classic look at radix 2, a palette up to 10 values,
   a gradient above. Z is dashed, X dotted, a conflict thick and dashed.

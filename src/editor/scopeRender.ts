@@ -122,26 +122,53 @@ export function renderScope(
   const x = (tick: number): number => SCOPE_NAMES + (tick - from) * tickWidth
   const rowHeight = scopeRowHeight(radix)
 
-  // Tick numbers, and a faint line down the rows under each.
+  // The ground of the names and of the tick numbers: a shade of the grid
+  // color, so it follows the theme without a color of its own.
+  ctx.fillStyle = theme.gridDot
+  ctx.globalAlpha = 0.16
+  ctx.fillRect(0, 0, width, AXIS)
+  ctx.fillRect(0, AXIS, SCOPE_NAMES, height - AXIS)
+  ctx.globalAlpha = 1
+
+  // A graticule, as on the screen of a scope: a mark every 1, 2, 5, 10,
+  // 20, 50... ticks, whichever leaves room for its number. Every fifth is a
+  // major division and runs down the rows; the others are small crosses
+  // where they meet the edge of a row.
   ctx.font = `500 10px ${VALUE_FONT}`
   ctx.textBaseline = 'middle'
   ctx.textAlign = 'center'
-  // A mark every 1, 2, 5, 10, 20, 50... ticks, whichever leaves room for its number.
   const marks = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000]
   const mark = marks.find((step) => step * tickWidth >= 36) ?? 1000
+  const rowCount = signals.length
   for (let tick = Math.ceil(from / mark) * mark; tick <= from + ticks; tick += mark) {
     const at = Math.round(x(tick)) + 0.5
+    const major = tick % (mark * 5) === 0
     ctx.strokeStyle = theme.gridDot
     ctx.lineWidth = 1
-    ctx.globalAlpha = tick % (mark * 5) === 0 ? 1 : 0.45
     ctx.beginPath()
-    ctx.moveTo(at, AXIS - 4)
-    ctx.lineTo(at, height)
+    ctx.moveTo(at, AXIS - (major ? 6 : 4))
+    if (major) {
+      ctx.lineTo(at, height)
+    } else {
+      ctx.lineTo(at, AXIS)
+      for (let row = 0; row <= rowCount; row++) {
+        const edge = AXIS + row * rowHeight
+        ctx.moveTo(at, edge - 3)
+        ctx.lineTo(at, edge + 3)
+      }
+    }
     ctx.stroke()
+    ctx.fillStyle = major ? theme.ink : theme.wire
+    ctx.globalAlpha = major ? 1 : 0.7
+    ctx.fillText(String(tick), at, AXIS / 2 - 1)
     ctx.globalAlpha = 1
-    ctx.fillStyle = theme.wire
-    ctx.fillText(String(tick), at, AXIS / 2)
   }
+  // The edge of the axis strip.
+  ctx.strokeStyle = theme.gridDot
+  ctx.beginPath()
+  ctx.moveTo(0, AXIS - 0.5)
+  ctx.lineTo(width, AXIS - 0.5)
+  ctx.stroke()
 
   signals.forEach((signal, index) => {
     const top = AXIS + index * rowHeight
@@ -150,12 +177,16 @@ export function renderScope(
     const level = (digit: number): number => low - (digit / (radix - 1)) * (low - high)
     const middle = (low + high) / 2
 
-    ctx.strokeStyle = theme.gridDot
-    ctx.lineWidth = 1
-    ctx.beginPath()
-    ctx.moveTo(0, top + 0.5)
-    ctx.lineTo(width, top + 0.5)
-    ctx.stroke()
+    if (index > 0) {
+      ctx.strokeStyle = theme.gridDot
+      ctx.lineWidth = 1
+      ctx.globalAlpha = 0.6
+      ctx.beginPath()
+      ctx.moveTo(0, top + 0.5)
+      ctx.lineTo(width, top + 0.5)
+      ctx.stroke()
+      ctx.globalAlpha = 1
+    }
 
     // With more than two values, a faint guide for each level the trace can take.
     if (radix > 2 && radix <= 8) {
@@ -183,11 +214,22 @@ export function renderScope(
       const x0 = x(span.from)
       const x1 = x(span.to)
       if (typeof span.digit === 'string') {
-        // A bus: a closed lane with the value written in it.
+        // A bus: the lane of timing-diagram notation, its ends crossing
+        // where the value changes, with the value written in it.
+        const slant = Math.min(4, Math.max(0, (x1 - x0) / 2 - 1))
         ctx.strokeStyle = theme.ink
-        ctx.lineWidth = 1.5
-        ctx.strokeRect(x0 + 1, high + 2, Math.max(0, x1 - x0 - 2), low - high - 4)
-        if (x1 - x0 >= span.digit.length * 7 + 8) {
+        ctx.lineWidth = 1.25
+        ctx.lineJoin = 'round'
+        ctx.beginPath()
+        ctx.moveTo(x0 + 1, middle)
+        ctx.lineTo(x0 + 1 + slant, high + 2)
+        ctx.lineTo(x1 - 1 - slant, high + 2)
+        ctx.lineTo(x1 - 1, middle)
+        ctx.lineTo(x1 - 1 - slant, low - 2)
+        ctx.lineTo(x0 + 1 + slant, low - 2)
+        ctx.closePath()
+        ctx.stroke()
+        if (x1 - x0 >= span.digit.length * 7 + 12) {
           ctx.font = `600 10px ${VALUE_FONT}`
           ctx.textAlign = 'center'
           ctx.fillStyle = theme.ink
@@ -284,9 +326,15 @@ function drawCursor(
   const label = String(tick)
   const chip = ctx.measureText(label).width + 10
   ctx.fillStyle = theme.accent
-  ctx.fillRect(line - chip / 2, 2, chip, AXIS - 4)
+  ctx.fillRect(line - chip / 2, 2, chip, AXIS - 6)
+  ctx.beginPath()
+  ctx.moveTo(line - 4, AXIS - 4)
+  ctx.lineTo(line + 4, AXIS - 4)
+  ctx.lineTo(line, AXIS)
+  ctx.closePath()
+  ctx.fill()
   ctx.fillStyle = theme.background
-  ctx.fillText(label, line, AXIS / 2)
+  ctx.fillText(label, line, AXIS / 2 - 1)
 
   ctx.textAlign = 'left'
   scene.signals.forEach((signal, index) => {
@@ -297,9 +345,10 @@ function drawCursor(
     const top = AXIS + index * rowHeight
     const width = ctx.measureText(text).width + 8
     ctx.fillStyle = theme.background
-    ctx.globalAlpha = 0.85
     ctx.fillRect(line + 3, top + rowHeight / 2 - 7, width, 14)
-    ctx.globalAlpha = 1
+    ctx.strokeStyle = theme.accent
+    ctx.lineWidth = 1
+    ctx.strokeRect(line + 3.5, top + rowHeight / 2 - 6.5, width - 1, 13)
     ctx.fillStyle = theme.ink
     ctx.fillText(text, line + 7, top + rowHeight / 2 + 1)
   })

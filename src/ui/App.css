@@ -13,8 +13,9 @@
 .topbar {
   display: flex;
   align-items: center;
+  gap: 6px;
   height: 44px;
-  padding: 0 12px;
+  padding: 0 10px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
   /* If there are ever more tools than the bar is wide, it scrolls sideways
@@ -35,7 +36,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 14px 0 0;
+  margin: 0 10px 0 0;
   font-size: var(--text-lg);
   font-weight: 600;
   letter-spacing: -0.01em;
@@ -46,12 +47,12 @@
   color: var(--accent);
 }
 
+/* Groups are told apart by the space between them, not by rules. */
 .tool-group {
   display: flex;
   align-items: center;
   gap: 2px;
-  padding: 0 8px;
-  border-left: 1px solid var(--border);
+  padding: 0 4px;
 }
 
 .tool-group:last-child {
@@ -65,7 +66,7 @@
   height: 32px;
   padding: 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 3px;
   background: transparent;
   cursor: pointer;
 }
@@ -83,6 +84,7 @@
   width: auto;
   min-width: 52px;
   padding: 0 6px;
+  font-family: var(--font-mono);
   font-variant-numeric: tabular-nums;
 }
 
@@ -95,7 +97,7 @@
   margin-left: 4px;
   padding: 0 4px;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 3px;
   background: var(--canvas-bg);
   color: inherit;
   font: inherit;
@@ -233,7 +235,29 @@
   background: var(--hover);
 }
 
-/* ---- Run: the one button of the bar that is always wanted ---- */
+/* ---- The transport: run, steps, restart and speed in one framed strip,
+   like the controls of a recorder. Run is the one amber thing in the bar. ---- */
+
+.transport {
+  gap: 0;
+  height: 32px;
+  margin: 0 4px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--canvas-bg);
+  overflow: hidden;
+}
+
+.transport > * + * {
+  border-left: 1px solid var(--border);
+}
+
+.transport .tool {
+  width: 32px;
+  height: 30px;
+  border-radius: 0;
+}
 
 .run {
   display: flex;
@@ -242,9 +266,9 @@
   min-width: 78px;
   height: 30px;
   padding: 0 12px 0 8px;
-  border: 1px solid var(--accent);
-  border-radius: 6px;
+  border: 0;
   background: var(--accent-soft);
+  color: var(--text);
   font-weight: 600;
   cursor: pointer;
 }
@@ -255,8 +279,7 @@
 
 /* While it runs there is nothing to call for: the button steps back. */
 .run-on {
-  border-color: var(--border);
-  background: var(--canvas-bg);
+  background: transparent;
 }
 
 .run-on:hover {
@@ -264,8 +287,42 @@
   box-shadow: none;
 }
 
-.run + .tool {
-  margin-left: 4px;
+.transport .speed {
+  height: 30px;
+  margin: 0;
+  padding: 0 6px;
+  border: 0;
+  border-left: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+}
+
+/* A finger needs a bigger target than a pointer: 40px in the bar. */
+@media (pointer: coarse) {
+  .topbar {
+    height: 52px;
+  }
+
+  .topbar .tool {
+    width: 40px;
+    height: 40px;
+  }
+
+  .topbar .transport {
+    height: 42px;
+  }
+
+  .topbar .transport .tool,
+  .topbar .run,
+  .topbar .transport .speed {
+    height: 40px;
+  }
+
+  .topbar .menu-button,
+  .topbar .logic-button,
+  .topbar .zoom-readout {
+    width: auto;
+  }
 }
 
 /* ---- Keycaps ---- */
@@ -650,43 +707,45 @@ kbd {
   display: grid;
   place-items: center;
   padding: 16px;
-  color: var(--text-muted);
-  font-size: var(--text-lg);
-  text-align: center;
   pointer-events: none;
 }
 
-.empty-card {
-  max-width: 340px;
-  padding: 20px 24px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 12px;
+/* Read out as the heading, left out of sight: the line below says it. */
+.empty-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+/* One quiet line, on a clearing in the grid rather than on a card. */
+.empty-line {
+  max-width: 72ch;
+  margin: 0;
+  padding: 6px 10px;
+  background: var(--canvas-bg);
+  color: var(--text-muted);
+  font-size: var(--text-md);
+  line-height: 1.5;
+  text-align: center;
   pointer-events: auto;
 }
 
-.empty-card h2 {
-  margin: 0 0 4px;
+.empty-link {
+  padding: 0;
+  border: 0;
+  background: none;
   color: var(--text);
-  font-size: var(--text-lg);
-  font-weight: 600;
+  font-weight: 500;
+  text-decoration: underline;
+  text-decoration-color: var(--border);
+  text-underline-offset: 3px;
+  cursor: pointer;
 }
 
-.empty-card p {
-  margin: 0;
-  font-size: var(--text-md);
-}
-
-.empty-actions {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
-  margin-top: 14px;
-}
-
-.empty-actions .button {
-  height: 32px;
+.empty-link:hover {
+  text-decoration-color: var(--accent);
 }
 
 /* ---- Steppers: a value with a button on each side ---- */
@@ -1545,8 +1604,8 @@ label.swatch:focus-within {
     display: none;
   }
 
-  .search-button {
-    width: 32px;
+  .topbar .search-button {
+    width: 40px;
     padding: 0;
     justify-content: center;
     border: 0;

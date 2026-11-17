@@ -21,26 +21,26 @@ export function CanvasView() {
       <canvas ref={ref} className="canvas" tabIndex={0} aria-label="Circuit canvas" />
       {isEmpty && !isPlacing && (
         <div className="empty-hint">
-          <div className="empty-card">
-            <h2>This circuit is empty</h2>
-            <p>Drag a part from the palette onto the canvas, or click one to add it here.</p>
-            <div className="empty-actions">
-              <button
-                type="button"
-                className="button button-main"
-                onClick={() => useChrome.getState().openCommands('example')}
-              >
-                Browse examples
-              </button>
-              <button
-                type="button"
-                className="button"
-                onClick={() => useChrome.getState().openCommands('add ')}
-              >
-                Search parts
-              </button>
-            </div>
-          </div>
+          <h2 className="empty-title">This circuit is empty</h2>
+          <p className="empty-line">
+            Drag or click a part in the palette,{' '}
+            <button
+              type="button"
+              className="empty-link"
+              onClick={() => useChrome.getState().openCommands('example')}
+            >
+              browse examples
+            </button>{' '}
+            or{' '}
+            <button
+              type="button"
+              className="empty-link"
+              onClick={() => useChrome.getState().openCommands('add ')}
+            >
+              search parts
+            </button>
+            .
+          </p>
         </div>
       )}
       <ValueLegend />

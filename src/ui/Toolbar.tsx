@@ -86,7 +86,7 @@ function SimControls() {
   const { setRunning, setSpeed } = useSim.getState()
 
   return (
-    <div className="tool-group">
+    <div className="tool-group transport" role="group" aria-label="Simulation">
       <button
         type="button"
         className={running ? 'run run-on' : 'run'}
