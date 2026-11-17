@@ -8,6 +8,7 @@ import {
   SIM_SPEEDS,
   canvasRuntime,
   restartSimulation,
+  stepBack,
   stepSimulation,
   stepToClockEdge,
   useEditor,
@@ -27,6 +28,7 @@ import {
   RestartIcon,
   RotateIcon,
   SaveIcon,
+  StepBackIcon,
   StepEdgeIcon,
   StepIcon,
   SunIcon,
@@ -78,6 +80,7 @@ function SimControls() {
   const speed = useSim((state) => state.speed)
   const hasClock = useSim((state) => state.clocks > 0)
   const scopeOpen = useSim((state) => state.scopeOpen)
+  const canStepBack = useSim((state) => state.canStepBack)
   const { setRunning, setSpeed, setScopeOpen } = useSim.getState()
 
   return (
@@ -91,6 +94,17 @@ function SimControls() {
           <PlayIcon />
         </ToolButton>
       )}
+      <ToolButton
+        label={
+          canStepBack || running
+            ? 'Step back one tick'
+            : 'Step back one tick (nothing to go back to yet)'
+        }
+        disabled={running || !canStepBack}
+        onClick={stepBack}
+      >
+        <StepBackIcon />
+      </ToolButton>
       <ToolButton label="Step one tick" disabled={running} onClick={stepSimulation}>
         <StepIcon />
       </ToolButton>

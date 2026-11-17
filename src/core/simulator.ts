@@ -9,6 +9,7 @@ import type {
 import { builtinComponents } from './components/index.ts'
 import { EventQueue } from './eventQueue.ts'
 import { MAX_WIDTH, X, Z, checkRadix, filled, resolve, signalsEqual } from './signal.ts'
+import type { SimEvent } from './eventQueue.ts'
 import type { Signal } from './signal.ts'
 
 export type ComponentId = number
@@ -48,6 +49,26 @@ export interface NetInfo {
 export interface Probe {
   readonly value: Signal
   readonly conflict: boolean
+}
+
+/**
+ * A circuit as it was at one moment: what `snapshot` hands out and `restore`
+ * takes back. Only the simulator that made it can read the rest of it.
+ */
+export interface SimSnapshot {
+  /** The tick the snapshot was taken at. */
+  readonly time: number
+}
+
+interface Snapshot extends SimSnapshot {
+  readonly shape: number
+  readonly seq: number
+  readonly wakes: number
+  readonly events: readonly SimEvent[]
+  /** State and wake of each component, then three entries per port. */
+  readonly parts: readonly unknown[]
+  /** Value and conflict flag of each net. */
+  readonly nets: readonly unknown[]
 }
 
 interface Port {
@@ -121,6 +142,12 @@ export class Simulator {
   private env: EvalEnv
   private wokeEnv: EvalEnv
   private wakes = 0
+  /** Goes up whenever the circuit itself changes, not just its values. */
+  private shape = 0
+  /** True while evaluations are being noted for `evaluated`. */
+  private noting = false
+  private notedAt = -1
+  private noted = new Set<ComponentId>()
 
   constructor(registry: ComponentRegistry = builtinComponents, radix = 2) {
     checkRadix(radix)
@@ -143,6 +170,7 @@ export class Simulator {
     if (radix === this.env.radix) return
     this.env = { radix, woke: false }
     this.wokeEnv = { radix, woke: true }
+    this.shape++
     this.restart()
   }
 
@@ -155,6 +183,7 @@ export class Simulator {
     this.queue.clear()
     this.wakes = 0
     this.now = 0
+    this.notedAt = -1
     for (const instance of this.instances.values()) {
       instance.state = instance.def.initialState?.(instance.params)
       instance.wakeSeq = 0
@@ -199,6 +228,78 @@ export class Simulator {
     return this.wakes
   }
 
+  /**
+   * The components that were evaluated because of what happened at the
+   * current tick: an output changing, a wake-up, or a state set from
+   * outside. Empty once time has moved on with nothing happening.
+   */
+  get evaluated(): readonly ComponentId[] {
+    return this.notedAt === this.now ? [...this.noted] : []
+  }
+
+  /**
+   * The circuit as it is right now, to return to with `restore`. Cheap:
+   * values are shared, not copied.
+   */
+  snapshot(): SimSnapshot {
+    const parts: unknown[] = []
+    for (const instance of this.instances.values()) {
+      parts.push(instance.state, instance.wakeSeq)
+      for (const port of instance.ports.values()) {
+        parts.push(port.driven, port.scheduled, port.appliedSeq)
+      }
+    }
+    const nets: unknown[] = []
+    for (const net of this.nets.values()) nets.push(net.value, net.conflict)
+    const snapshot: Snapshot = {
+      time: this.now,
+      shape: this.shape,
+      seq: this.seq,
+      wakes: this.wakes,
+      events: this.queue.snapshot(),
+      parts,
+      nets,
+    }
+    return snapshot
+  }
+
+  /** True while `restore` would still take this snapshot. */
+  restorable(snapshot: SimSnapshot): boolean {
+    return (snapshot as Snapshot).shape === this.shape
+  }
+
+  /**
+   * Puts the circuit back as it was when `snapshot` was taken: time, every
+   * value and state, and what was waiting to happen. Returns false, and
+   * changes nothing, if the circuit was edited since: a snapshot of other
+   * components and nets means nothing to this one.
+   */
+  restore(snapshot: SimSnapshot): boolean {
+    const saved = snapshot as Snapshot
+    if (!this.restorable(saved)) return false
+    let at = 0
+    for (const instance of this.instances.values()) {
+      instance.state = saved.parts[at++]
+      instance.wakeSeq = saved.parts[at++] as number
+      for (const port of instance.ports.values()) {
+        port.driven = saved.parts[at++] as Signal
+        port.scheduled = saved.parts[at++] as Signal
+        port.appliedSeq = saved.parts[at++] as number
+      }
+    }
+    at = 0
+    for (const net of this.nets.values()) {
+      net.value = saved.nets[at++] as Signal
+      net.conflict = saved.nets[at++] as boolean
+    }
+    this.queue.restore(saved.events)
+    this.now = saved.time
+    this.seq = saved.seq
+    this.wakes = saved.wakes
+    this.notedAt = -1
+    return true
+  }
+
   // ---- Components ----
 
   addComponent(type: string, options: AddComponentOptions = {}): ComponentId {
@@ -231,6 +332,7 @@ export class Simulator {
       ports,
     }
     this.instances.set(instance.id, instance)
+    this.shape++
     this.propagate([], [instance])
     return instance.id
   }
@@ -268,12 +370,14 @@ export class Simulator {
     // Events still queued for this component are dropped when they come up.
     if (instance.wakeSeq !== 0) this.wakes--
     this.instances.delete(id)
+    this.shape++
     this.propagate(touched)
   }
 
   setDelay(id: ComponentId, delay: number): void {
     checkDelay(delay)
     this.instance(id).delay = delay
+    this.shape++
   }
 
   /**
@@ -284,11 +388,14 @@ export class Simulator {
     const instance = this.instance(id)
     const previous = instance.state
     instance.state = state
+    this.noting = true
     try {
       this.evaluate(instance)
     } catch (error) {
       instance.state = previous
       throw error
+    } finally {
+      this.noting = false
     }
   }
 
@@ -327,6 +434,7 @@ export class Simulator {
       conflict: false,
     }
     this.nets.set(net.id, net)
+    this.shape++
     return net.id
   }
 
@@ -341,6 +449,7 @@ export class Simulator {
       if (port.spec.direction === 'in') readers.push(instance)
     }
     this.nets.delete(id)
+    this.shape++
     this.propagate([], readers)
   }
 
@@ -360,6 +469,7 @@ export class Simulator {
     }
     net.pins.set(pinKey(pin), { component: pin.component, port: pin.port })
     port.net = netId
+    this.shape++
     this.propagate([netId], port.spec.direction === 'in' ? [instance] : [])
   }
 
@@ -371,6 +481,7 @@ export class Simulator {
     const netId = port.net
     this.net(netId).pins.delete(pinKey(pin))
     port.net = undefined
+    this.shape++
     this.propagate([netId], port.spec.direction === 'in' ? [instance] : [])
   }
 
@@ -535,6 +646,7 @@ export class Simulator {
       if (port.spec.direction === 'in') readers.push(instance)
     }
     this.nets.delete(from)
+    this.shape++
     this.propagate([into], readers)
   }
 
@@ -564,7 +676,12 @@ export class Simulator {
       port.driven = next.value
       if (port.net !== undefined) touched.add(port.net)
     }
-    this.propagate(touched, woken, woken)
+    this.noting = true
+    try {
+      this.propagate(touched, woken, woken)
+    } finally {
+      this.noting = false
+    }
   }
 
   /**
@@ -618,6 +735,13 @@ export class Simulator {
    * output that differs from the change already on its way.
    */
   private evaluate(instance: Instance, woke = false): void {
+    if (this.noting) {
+      if (this.notedAt !== this.now) {
+        this.notedAt = this.now
+        this.noted = new Set()
+      }
+      this.noted.add(instance.id)
+    }
     const inputs: Record<string, Signal> = {}
     for (const port of instance.ports.values()) {
       if (port.spec.direction === 'in') inputs[port.spec.name] = this.inputValue(port)

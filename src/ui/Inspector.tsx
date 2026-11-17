@@ -1,9 +1,23 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { builtinComponents } from '../core/index.ts'
-import { MAX_LABEL, SUB_TYPE, useEditor, valueText } from '../editor/index.ts'
-import type { ProjectSettings } from '../editor/index.ts'
-import { ZoomInIcon, ZoomOutIcon } from './icons.tsx'
+import {
+  MAX_DELAY,
+  MAX_LABEL,
+  SUB_TYPE,
+  breakpointOn,
+  describeNode,
+  isSwitchKey,
+  keyName,
+  setBreakpoint,
+  takesKey,
+  useEditor,
+  useSim,
+  valueText,
+} from '../editor/index.ts'
+import type { BreakWhen, ProjectSettings, Terminal } from '../editor/index.ts'
+import { CloseIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { partName } from './parts.ts'
+import { pinName } from './probeText.ts'
 
 interface Field {
   /** The parameter this field changes. */
@@ -113,19 +127,164 @@ function NameField({ id, type, label }: NameFieldProps) {
   )
 }
 
+interface KeyFieldProps {
+  id: string
+  code: string | undefined
+}
+
 /**
- * The settings of the one selected part: a gate's number of inputs, the
- * value a constant gives, the name of a switch. Hidden when there is nothing
- * to set.
+ * The keyboard key that works a switch or a push button. Pressing the field
+ * and then a key sets it.
+ */
+function KeyField({ id, code }: KeyFieldProps) {
+  const [listening, setListening] = useState(false)
+  const [refused, setRefused] = useState(false)
+  const { setKey } = useEditor.getState()
+
+  return (
+    <>
+      <div className="field">
+        <span className="field-label">Key</span>
+        <button
+          type="button"
+          className="button key-button"
+          aria-label={
+            listening
+              ? 'Press a letter or a digit'
+              : code
+                ? `Key ${keyName(code)}. Press to change it`
+                : 'No key. Press to choose one'
+          }
+          onClick={() => {
+            setListening(!listening)
+            setRefused(false)
+          }}
+          onBlur={() => setListening(false)}
+          onKeyDown={(event) => {
+            if (!listening) return
+            // The key is for this field, not a shortcut of the canvas.
+            event.stopPropagation()
+            if (event.code === 'Tab') return
+            event.preventDefault()
+            if (event.code === 'Escape') {
+              setListening(false)
+            } else if (isSwitchKey(event.code)) {
+              setKey(id, event.code)
+              setListening(false)
+              setRefused(false)
+            } else if (!/^(Shift|Control|Alt|Meta)/.test(event.code)) {
+              setRefused(true)
+            }
+          }}
+        >
+          {listening ? 'Press a key' : code ? keyName(code) : 'Choose'}
+        </button>
+        <button
+          type="button"
+          className="tool"
+          aria-label="Remove the key"
+          title="Remove the key"
+          disabled={!code}
+          onClick={() => setKey(id, null)}
+        >
+          <CloseIcon />
+        </button>
+      </div>
+      {refused && <p className="note">Use a letter or a digit. R is taken: it rotates.</p>}
+    </>
+  )
+}
+
+function breakValue(when: BreakWhen | undefined): string {
+  return when === undefined ? 'never' : String(when)
+}
+
+/**
+ * What the selected wire carries and what drives it, and the breakpoint
+ * that pauses the run when the wire does something.
+ */
+function WirePanel({ terminal }: { terminal: Terminal }) {
+  const settings = useEditor((state) => state.settings)
+  // The reading follows the simulator, and the choice follows the breakpoints.
+  useSim((state) => state.revision)
+  useSim((state) => state.breakpoints)
+  const fieldId = useId()
+  const info = describeNode(terminal)
+  const when = breakpointOn(terminal)
+  const values = Array.from({ length: settings.radix }, (_, digit) => digit)
+
+  return (
+    <aside className="inspector" aria-label="Wire">
+      <h2>Wire</h2>
+      <p className="wire-reading">
+        <span className="wire-value">{valueText(info.value, settings)}</span>
+        <span>{info.conflict ? `${info.name}, in conflict` : info.name}</span>
+      </p>
+      {info.drivers.length === 0 ? (
+        <p className="note">Nothing drives it, so it floats.</p>
+      ) : (
+        <ul className="probe-pins">
+          {info.drivers.map((pin) => (
+            <li key={`${pin.part}:${pin.port}`}>
+              <span>{pinName(pin)}</span>
+              <span className="probe-pin-value">{valueText(pin.value, settings)}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className="field">
+        <label htmlFor={fieldId}>Pause when it</label>
+        <select
+          id={fieldId}
+          value={breakValue(when)}
+          onChange={(event) => {
+            const choice = event.target.value
+            setBreakpoint(
+              terminal,
+              choice === 'never'
+                ? null
+                : choice === 'change' || choice === 'conflict'
+                  ? choice
+                  : Number(choice),
+            )
+          }}
+        >
+          <option value="never">Never</option>
+          <option value="change">Changes</option>
+          <option value="conflict">Is in conflict</option>
+          {values.map((digit) => (
+            <option key={digit} value={digit}>
+              Becomes {valueText(digit, settings)}
+            </option>
+          ))}
+        </select>
+      </div>
+    </aside>
+  )
+}
+
+/**
+ * The settings of the one selected thing: a gate's number of inputs and its
+ * delay, the value a constant gives, the name and the key of a switch, the
+ * breakpoint of a wire. Hidden when there is nothing to set.
  */
 export function Inspector() {
-  const component = useEditor((state) => {
+  const selected = useEditor((state) => {
     if (state.selection.size !== 1) return null
     const [id] = state.selection
-    return state.doc.components[id] ?? null
+    return id
   })
+  const doc = useEditor((state) => state.doc)
   const settings = useEditor((state) => state.settings)
   const active = useEditor((state) => state.active)
+  if (selected === null) return null
+
+  const wire = doc.wires[selected]
+  if (wire) return <WirePanel key={selected} terminal={wire.from} />
+  if (doc.junctions[selected]) {
+    return <WirePanel key={selected} terminal={{ kind: 'junction', junction: selected }} />
+  }
+  const component = doc.components[selected]
   if (!component) return null
 
   if (component.type === SUB_TYPE) {
@@ -149,11 +308,17 @@ export function Inspector() {
     )
   }
 
-  const specs = builtinComponents.get(component.type).params
+  const def = builtinComponents.get(component.type)
+  const specs = def.params
   const fields = FIELDS.filter((field) => field.param in specs)
   const named = NAMED.includes(component.type)
-  if (fields.length === 0 && !named) return null
-  const { setParams } = useEditor.getState()
+  const keyed = takesKey(component.type)
+  // Only a part that turns inputs into outputs has a delay worth setting.
+  const ports = def.ports(component.params)
+  const timed =
+    ports.some((port) => port.direction === 'in') && ports.some((port) => port.direction === 'out')
+  if (fields.length === 0 && !named && !keyed && !timed) return null
+  const { setParams, setDelay } = useEditor.getState()
 
   return (
     <aside className="inspector" aria-label={`${partName(component.type)} settings`}>
@@ -169,6 +334,9 @@ export function Inspector() {
           />
           <p className="note">Shown on the pin when this circuit is used as a part.</p>
         </>
+      )}
+      {keyed && (
+        <KeyField key={`${active}:${component.id}`} id={component.id} code={component.key} />
       )}
       {fields.map((field) => {
         const [min, max] = field.range(settings.radix, specs[field.param])
@@ -203,6 +371,34 @@ export function Inspector() {
           </div>
         )
       })}
+      {timed && (
+        <div className="stepper" role="group" aria-label="Delay">
+          <span className="stepper-label" title="How many ticks the part takes to answer">
+            Delay
+          </span>
+          <button
+            type="button"
+            className="tool"
+            aria-label="Delay: lower"
+            disabled={component.delay <= 1}
+            onClick={() => setDelay(component.id, component.delay - 1)}
+          >
+            <ZoomOutIcon />
+          </button>
+          <output className="stepper-value" aria-live="polite">
+            {component.delay}
+          </output>
+          <button
+            type="button"
+            className="tool"
+            aria-label="Delay: higher"
+            disabled={component.delay >= MAX_DELAY}
+            onClick={() => setDelay(component.id, component.delay + 1)}
+          >
+            <ZoomInIcon />
+          </button>
+        </div>
+      )}
     </aside>
   )
 }

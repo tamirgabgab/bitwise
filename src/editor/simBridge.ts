@@ -1,5 +1,5 @@
-import { Simulator } from '../core/index.ts'
-import type { ComponentId, NetId, PinRef, Probe } from '../core/index.ts'
+import { Simulator, Z, circuitCost } from '../core/index.ts'
+import type { CircuitCost, ComponentId, Digit, NetId, PinRef, Probe } from '../core/index.ts'
 import type { CircuitDoc } from './document.ts'
 import { flatten } from './flatten.ts'
 import type { Library, Netlist } from './flatten.ts'
@@ -8,6 +8,27 @@ interface Mirrored {
   readonly simId: ComponentId
   readonly type: string
   readonly params: Readonly<Record<string, number>>
+}
+
+/** One pin on an electrical node, as a probe reports it. */
+export interface NodePin {
+  /** The part, by its path: `c3`, or `c7/c3` inside a named circuit. */
+  readonly part: string
+  readonly type: string
+  readonly port: string
+  /** True for an output, which puts a value on the node. */
+  readonly drives: boolean
+  /** What the pin drives, or what it reads. */
+  readonly value: Digit
+}
+
+/** Everything a probe held against a wire can tell. */
+export interface NodeReading {
+  /** The simulator's net, or undefined for a pin wired to nothing. */
+  readonly net: NetId | undefined
+  readonly value: Digit
+  readonly conflict: boolean
+  readonly pins: readonly NodePin[]
 }
 
 function pinKey(pin: PinRef): string {
@@ -30,6 +51,8 @@ export class SimBridge {
   readonly sim: Simulator
   private readonly mirrored = new Map<string, Mirrored>()
   private netlist: Netlist | undefined
+  /** The path of each simulator component, worked out when first asked. */
+  private paths: Map<ComponentId, string> | undefined
   private last: { readonly doc: CircuitDoc; readonly library: Library } | undefined
 
   constructor(sim: Simulator = new Simulator()) {
@@ -80,6 +103,64 @@ export class SimBridge {
     const state = this.sim.getState(entry.simId) as readonly number[]
     this.sim.setState(entry.simId, state.map(() => digit))
     return true
+  }
+
+  /** The path of the part a simulator component stands in for. */
+  private pathOf(simId: ComponentId): string | undefined {
+    if (!this.paths) {
+      this.paths = new Map()
+      for (const [key, entry] of this.mirrored) this.paths.set(entry.simId, key)
+    }
+    return this.paths.get(simId)
+  }
+
+  /**
+   * The parts of the drawing that were evaluated at the current tick. A part
+   * that stands for a named circuit counts when anything inside it was.
+   */
+  evaluatedParts(): Set<string> {
+    const parts = new Set<string>()
+    for (const simId of this.sim.evaluated) {
+      const path = this.pathOf(simId)
+      if (path !== undefined) parts.add(path.split('/')[0])
+    }
+    return parts
+  }
+
+  /** The number of gates and the longest path of the flattened circuit. */
+  cost(): CircuitCost {
+    return circuitCost(this.sim)
+  }
+
+  /**
+   * What sits on the node at a terminal of the drawing, by `terminalKey`:
+   * its value and every pin on it. Undefined when no part is on that node.
+   */
+  describeTerminal(key: string): NodeReading | undefined {
+    const pin = this.netlist?.probes.get(key)
+    if (pin === undefined) return undefined
+    const simId = this.simComponent(pin.part)
+    if (simId === undefined) return undefined
+    const sim = this.sim
+    const ref: PinRef = { component: simId, port: pin.port }
+    const net = sim.netOf(ref)
+    const refs = net === undefined ? [ref] : sim.getNet(net).pins
+    const pins: NodePin[] = []
+    for (const other of refs) {
+      const info = sim.getComponent(other.component)
+      const spec = info.ports.find((port) => port.name === other.port)
+      const part = this.pathOf(other.component)
+      if (!spec || part === undefined) continue
+      pins.push({
+        part,
+        type: info.type,
+        port: other.port,
+        drives: spec.direction === 'out',
+        value: sim.readPin(other)[0] ?? Z,
+      })
+    }
+    const probe = sim.probe(ref)
+    return { net, value: probe.value[0] ?? Z, conflict: probe.conflict, pins }
   }
 
   /** The output pin of every clock, the ones inside named circuits too. */
@@ -139,6 +220,7 @@ export class SimBridge {
   }
 
   private syncComponents(netlist: Netlist): void {
+    this.paths = undefined
     for (const [key, entry] of this.mirrored) {
       const part = netlist.parts.get(key)
       // An id can come back as a different part after undo and a new edit.

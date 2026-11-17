@@ -107,3 +107,37 @@ describe('Recorder', () => {
     expect(recorder.spans('a', 0, 2)).toEqual([{ from: 0, to: 2, digit: 0 }])
   })
 })
+
+describe('Recorder.rewind', () => {
+  const at = (values: Readonly<Record<string, number>>) => new Map(Object.entries(values))
+
+  it('forgets what came after the tick it goes back to', () => {
+    const recorder = new Recorder()
+    recorder.sample(0, at({ a: 0 }))
+    recorder.sample(4, at({ a: 1 }))
+    recorder.sample(8, at({ a: 0, b: 1 }))
+    recorder.sample(9, at({ a: 0, b: 1 }))
+    recorder.rewind(6)
+    expect(recorder.time).toBe(6)
+    expect(recorder.spans('a', 0, 6)).toEqual([
+      { from: 0, to: 4, digit: 0 },
+      { from: 4, to: 6, digit: 1 },
+    ])
+    expect(recorder.spans('b', 0, 9)).toEqual([])
+    // Going on from there does not start the record over.
+    recorder.sample(7, at({ a: 1 }))
+    expect(recorder.spans('a', 0, 7)).toEqual([
+      { from: 0, to: 4, digit: 0 },
+      { from: 4, to: 7, digit: 1 },
+    ])
+  })
+
+  it('does nothing when asked to go forwards', () => {
+    const recorder = new Recorder()
+    recorder.sample(0, at({ a: 0 }))
+    recorder.sample(3, at({ a: 1 }))
+    recorder.rewind(10)
+    expect(recorder.time).toBe(3)
+    expect(recorder.spans('a', 0, 3)).toEqual([{ from: 0, to: 3, digit: 0 }])
+  })
+})

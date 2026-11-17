@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { Simulator, formatSignal } from '../core/index.ts'
-import { OSCILLATION_TICKS, SimRunner } from './simRunner.ts'
+import { HISTORY_TICKS, OSCILLATION_TICKS, SimRunner } from './simRunner.ts'
 
 /** An input into a chain of `length` inverters, each one tick slow. */
 function chain(length: number) {
@@ -150,7 +150,9 @@ describe('SimRunner with a clock', () => {
   it('calls back after every tick', () => {
     const { sim } = toggler()
     const seen: number[] = []
-    const runner = new SimRunner(sim, () => seen.push(sim.time))
+    const runner = new SimRunner(sim, () => {
+      seen.push(sim.time)
+    })
     runner.advance(0.03, 100)
     runner.step()
     expect(seen).toEqual([1, 2, 3, 4])
@@ -210,5 +212,87 @@ describe('SimRunner on a circuit that goes round in circles', () => {
     runner.advance(1.4, 100)
     expect(sim.pendingEvents).toBeGreaterThan(0)
     expect(runner.oscillating).toBe(false)
+  })
+})
+
+describe('SimRunner.stepBack', () => {
+  it('undoes one tick at a time', () => {
+    const { sim, input, gates, read } = chain(3)
+    const runner = new SimRunner(sim)
+    sim.settle()
+    expect(runner.canStepBack).toBe(false)
+    sim.setState(input, [1])
+    const start = sim.time
+    // The switch answers after one tick, and each gate one tick after that.
+    runner.step()
+    runner.step()
+    runner.step()
+    expect(read(gates[1])).toBe('1')
+    expect(runner.canStepBack).toBe(true)
+    expect(runner.stepBack()).toBe(true)
+    expect(sim.time).toBe(start + 2)
+    expect(read(gates[1])).toBe('0')
+    expect(read(gates[0])).toBe('0')
+    expect(runner.stepBack()).toBe(true)
+    expect(sim.time).toBe(start + 1)
+    expect(read(gates[0])).toBe('1')
+    expect(runner.stepBack()).toBe(true)
+    expect(sim.time).toBe(start)
+    expect(runner.stepBack()).toBe(false)
+  })
+
+  it('plays the same way forwards again', () => {
+    const { sim, input, gates, read } = chain(3)
+    const runner = new SimRunner(sim)
+    sim.settle()
+    sim.setState(input, [1])
+    runner.advance(0.05, 100)
+    const seen = gates.map(read)
+    runner.stepBack()
+    runner.stepBack()
+    runner.step()
+    runner.step()
+    expect(gates.map(read)).toEqual(seen)
+  })
+
+  it('keeps only so many ticks', () => {
+    const { sim } = chain(1)
+    const clock = sim.addComponent('clock')
+    expect(clock).toBeGreaterThan(0)
+    const runner = new SimRunner(sim)
+    runner.advance(10, 100)
+    let back = 0
+    while (runner.stepBack()) back++
+    expect(back).toBe(HISTORY_TICKS)
+    expect(sim.time).toBe(1000 - HISTORY_TICKS)
+  })
+
+  it('cannot go back past an edit of the circuit', () => {
+    const { sim, input } = chain(3)
+    const runner = new SimRunner(sim)
+    sim.setState(input, [1])
+    runner.step()
+    sim.addComponent('not')
+    expect(runner.canStepBack).toBe(false)
+    expect(runner.stepBack()).toBe(false)
+  })
+
+  it('forgets when told to', () => {
+    const { sim } = chain(3)
+    const runner = new SimRunner(sim)
+    runner.step()
+    runner.forget()
+    expect(runner.canStepBack).toBe(false)
+  })
+})
+
+describe('SimRunner with a listener that asks to stop', () => {
+  it('stops in the middle of a frame', () => {
+    const { sim } = chain(50)
+    const runner = new SimRunner(sim, () => sim.time === 7)
+    expect(runner.advance(0.3, 100)).toBe(true)
+    expect(sim.time).toBe(7)
+    runner.advance(1, 'max')
+    expect(sim.pendingEvents).toBe(0)
   })
 })

@@ -37,6 +37,17 @@ export class EventQueue {
     this.heap.length = 0
   }
 
+  /** Every waiting event, to put back later with `restore`. */
+  snapshot(): SimEvent[] {
+    return this.heap.slice()
+  }
+
+  /** Puts back what `snapshot` returned. */
+  restore(events: readonly SimEvent[]): void {
+    this.heap.length = 0
+    for (const event of events) this.heap.push(event)
+  }
+
   push(event: SimEvent): void {
     const heap = this.heap
     let index = heap.length

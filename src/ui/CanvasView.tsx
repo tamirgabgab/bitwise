@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { CanvasController, useEditor } from '../editor/index.ts'
 import { Inspector } from './Inspector.tsx'
+import { ProbeBubble } from './ProbeBubble.tsx'
 
 export function CanvasView() {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -22,6 +23,7 @@ export function CanvasView() {
         </div>
       )}
       <Inspector />
+      <ProbeBubble />
     </div>
   )
 }

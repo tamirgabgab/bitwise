@@ -255,7 +255,7 @@ function rippleCounter(options: {
   const resetRow = centre + (jk ? 4 : 3)
 
   const clock = counter.part('clock', 2, row)
-  const reset = counter.part('button', 2, resetRow + 4, { label: 'Reset' })
+  const reset = counter.part('button', 2, resetRow + 4, { label: 'Reset', key: 'Digit0' })
   const display = counter.part('display', 34 + pitch * stages, row, { params: { digits: stages } })
   const displayX = 30 + pitch * stages
   const firstDigit = row - Math.floor((stages - 1) / 2)

@@ -98,6 +98,21 @@ export class Recorder {
   }
 
   /**
+   * Forgets everything after `time`, for when the circuit steps back to it.
+   */
+  rewind(time: number): void {
+    if (time >= this.last) return
+    this.last = time
+    for (const [key, track] of this.tracks) {
+      while (track.times.length > 0 && track.times[track.times.length - 1] > time) {
+        track.times.pop()
+        track.digits.pop()
+      }
+      if (track.times.length === 0) this.tracks.delete(key)
+    }
+  }
+
+  /**
    * Notes the value of every signal at `time`. A signal left out of `values`
    * is forgotten. Time going backwards means the circuit started over, and
    * the record starts over with it.

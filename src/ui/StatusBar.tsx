@@ -1,4 +1,4 @@
-import { SUB_TYPE, useEditor, useSim } from '../editor/index.ts'
+import { SUB_TYPE, useEditor, useSim, valueText } from '../editor/index.ts'
 import { useStorage } from './persistence.ts'
 
 function plural(count: number, noun: string): string {
@@ -24,10 +24,21 @@ export function StatusBar() {
   const time = useSim((state) => state.time)
   const conflicts = useSim((state) => state.conflicts)
   const oscillating = useSim((state) => state.oscillating)
+  const gates = useSim((state) => state.gates)
+  const depth = useSim((state) => state.depth)
+  const breakHit = useSim((state) => state.breakHit)
+  const settings = useEditor((state) => state.settings)
+  const wireSelected = useEditor((state) => {
+    if (state.selection.size !== 1) return false
+    const [id] = state.selection
+    return id in state.doc.wires || id in state.doc.junctions
+  })
 
   let hint: string
   if (isPlacing) {
     hint = 'Release over the canvas to place the part.'
+  } else if (wireSelected) {
+    hint = 'The panel shows what this wire carries. It can also pause the run for you.'
   } else if (circuitSelected) {
     hint = 'Double-click the part to open its circuit. Drag to move, R to rotate.'
   } else if (selected > 0) {
@@ -55,6 +66,14 @@ export function StatusBar() {
             {plural(conflicts, 'wire')} in conflict
           </span>
         )}
+        {breakHit && (
+          <span className="stopped" title="A breakpoint on a wire paused the run">
+            Paused at a breakpoint:{' '}
+            {breakHit.conflict
+              ? 'the wire is in conflict'
+              : `the wire is ${valueText(breakHit.digit, settings)}`}
+          </span>
+        )}
         {oscillating && (
           <span
             className="conflict"
@@ -69,6 +88,18 @@ export function StatusBar() {
         <span>
           {plural(parts, 'part')}, {plural(wires, 'wire')}
         </span>
+        {gates > 0 && (
+          <span
+            className="cost"
+            title={
+              depth === undefined
+                ? 'Parts that do work, counting the ones inside named circuits. The circuit has a loop, so it has no longest path'
+                : 'Parts that do work, counting the ones inside named circuits, and the longest path through them in ticks'
+            }
+          >
+            {plural(gates, 'gate')}, {depth === undefined ? 'has a loop' : `depth ${depth}`}
+          </span>
+        )}
         {stored ? (
           <span className="stored" title="The project is kept in this browser as you work">
             Saved in this browser

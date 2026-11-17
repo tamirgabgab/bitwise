@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_DELAY,
+  isSwitchKey,
+  keyName,
+  setComponentDelay,
+  setComponentKey,
   MAX_LABEL,
   SUB_TYPE,
   addComponent,
@@ -341,5 +346,69 @@ describe('parts that stand for a named circuit', () => {
     const pasted = pasteFragment(doc, copyItems(doc, [id]), { x: 12, y: 0 })
     const copy = pasted.ids.find((other) => other in pasted.doc.components)!
     expect(pasted.doc.components[copy].sub).toBe(sub)
+  })
+})
+
+describe('the keyboard key of a switch', () => {
+  it('takes letters and digits, but not R', () => {
+    expect(isSwitchKey('KeyA')).toBe(true)
+    expect(isSwitchKey('Digit7')).toBe(true)
+    expect(isSwitchKey('KeyR')).toBe(false)
+    expect(isSwitchKey('Space')).toBe(false)
+    expect(isSwitchKey('a')).toBe(false)
+    expect(isSwitchKey(undefined)).toBe(false)
+    expect(keyName('KeyA')).toBe('A')
+    expect(keyName('Digit7')).toBe('7')
+  })
+
+  it('is set, changed and taken away', () => {
+    const start = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }).doc
+    const keyed = setComponentKey(start, 'c1', 'KeyA')
+    expect(keyed.components.c1.key).toBe('KeyA')
+    expect(setComponentKey(keyed, 'c1', 'KeyA')).toBe(keyed)
+    expect(setComponentKey(keyed, 'c1', 'Digit2').components.c1.key).toBe('Digit2')
+    const cleared = setComponentKey(keyed, 'c1', null)
+    expect('key' in cleared.components.c1).toBe(false)
+    expect(setComponentKey(start, 'c1', null)).toBe(start)
+  })
+
+  it('goes only on a switch or a push button, and only if it is a key a switch can have', () => {
+    let doc = addComponent(emptyDoc(), 'and', { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'button', { x: 0, y: 6 }).doc
+    expect(setComponentKey(doc, 'c1', 'KeyA')).toBe(doc)
+    expect(setComponentKey(doc, 'c2', 'KeyR')).toBe(doc)
+    expect(setComponentKey(doc, 'c2', 'Enter')).toBe(doc)
+    expect(setComponentKey(doc, 'c9', 'KeyA')).toBe(doc)
+    expect(setComponentKey(doc, 'c2', 'KeyB').components.c2.key).toBe('KeyB')
+  })
+
+  it('can come with a new part', () => {
+    const doc = addComponent(emptyDoc(), 'button', { x: 0, y: 0 }, { key: 'Digit0' }).doc
+    expect(doc.components.c1.key).toBe('Digit0')
+    expect('key' in addComponent(doc, 'and', { x: 9, y: 0 }, { key: 'KeyA' }).doc.components.c2).toBe(false)
+  })
+
+  it('travels with a copy', () => {
+    const doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }, { key: 'KeyQ' }).doc
+    const pasted = pasteFragment(doc, copyItems(doc, ['c1']), { x: 4, y: 4 })
+    expect(pasted.doc.components[pasted.ids[0]].key).toBe('KeyQ')
+  })
+})
+
+describe('setComponentDelay', () => {
+  it('sets a delay from 1 up to the limit', () => {
+    const doc = addComponent(emptyDoc(), 'and', { x: 0, y: 0 }).doc
+    expect(setComponentDelay(doc, 'c1', 5).components.c1.delay).toBe(5)
+    expect(setComponentDelay(doc, 'c1', MAX_DELAY).components.c1.delay).toBe(MAX_DELAY)
+    expect(setComponentDelay(doc, 'c1', 1)).toBe(doc)
+  })
+
+  it('never lets a delay of 0 through, nor a fraction, nor one too long', () => {
+    const doc = addComponent(emptyDoc(), 'and', { x: 0, y: 0 }).doc
+    expect(setComponentDelay(doc, 'c1', 0)).toBe(doc)
+    expect(setComponentDelay(doc, 'c1', -3)).toBe(doc)
+    expect(setComponentDelay(doc, 'c1', 1.5)).toBe(doc)
+    expect(setComponentDelay(doc, 'c1', MAX_DELAY + 1)).toBe(doc)
+    expect(setComponentDelay(doc, 'c7', 2)).toBe(doc)
   })
 })

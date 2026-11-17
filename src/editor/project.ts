@@ -7,7 +7,7 @@ import {
   presetAvailable,
   resolveParams,
 } from '../core/index.ts'
-import { MAX_LABEL, SUB_TYPE, deleteItems } from './document.ts'
+import { MAX_LABEL, SUB_TYPE, deleteItems, isSwitchKey, takesKey } from './document.ts'
 import type { CircuitDoc, DocComponent, DocJunction, DocWire, Terminal } from './document.ts'
 import type { Point, Rotation } from './geometry.ts'
 import {
@@ -66,6 +66,8 @@ export interface ComponentData {
   readonly pos: Point
   readonly rotation: number
   readonly label?: string
+  /** The keyboard key that works a switch or a push button. */
+  readonly key?: string
   /** On a part that stands for a named circuit: the id of that circuit. */
   readonly circuit?: string
 }
@@ -117,6 +119,7 @@ function docToData(doc: CircuitDoc): Pick<CircuitData, 'nextId' | 'components' |
       pos: component.pos,
       rotation: component.rotation,
       ...(component.label ? { label: component.label } : {}),
+      ...(component.key ? { key: component.key } : {}),
       ...(component.sub ? { circuit: component.sub.circuit } : {}),
     })),
     junctions: Object.values(doc.junctions),
@@ -179,6 +182,7 @@ function componentOf(data: ComponentData): DocComponent | undefined {
   const delay = Number.isInteger(data.delay) && data.delay >= 1 ? data.delay : 1
   const label = typeof data.label === 'string' ? data.label.trim().slice(0, MAX_LABEL) : ''
   const named = label === '' ? {} : { label }
+  const keyed = takesKey(data.type) && isSwitchKey(data.key) ? { key: data.key } : {}
 
   if (data.type === SUB_TYPE) {
     if (typeof data.circuit !== 'string') return undefined
@@ -189,7 +193,7 @@ function componentOf(data: ComponentData): DocComponent | undefined {
   if (!builtinComponents.has(data.type)) return undefined
   try {
     const params = resolveParams(builtinComponents.get(data.type), data.params)
-    return { id: data.id, type: data.type, params, delay, pos, rotation, ...named }
+    return { id: data.id, type: data.type, params, delay, pos, rotation, ...named, ...keyed }
   } catch {
     return undefined
   }

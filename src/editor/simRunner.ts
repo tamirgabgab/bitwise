@@ -1,5 +1,5 @@
 import { clockLevel } from '../core/index.ts'
-import type { PinRef, Simulator } from '../core/index.ts'
+import type { PinRef, SimSnapshot, Simulator } from '../core/index.ts'
 
 /** Ticks per second, or 'max' to let every change settle at once. */
 export type SimSpeed = number | 'max'
@@ -19,6 +19,9 @@ const EDGE_BUDGET = 2500
  */
 export const OSCILLATION_TICKS = 200
 
+/** How many ticks back `stepBack` can go. */
+export const HISTORY_TICKS = 256
+
 /**
  * Turns passing wall-clock time into simulator ticks.
  *
@@ -28,14 +31,19 @@ export const OSCILLATION_TICKS = 200
  */
 export class SimRunner {
   private readonly sim: Simulator
-  private readonly onTick: (() => void) | undefined
+  private readonly onTick: (() => boolean | void) | undefined
+  /** The circuit as it was before each of the last ticks, oldest first. */
+  private history: SimSnapshot[] = []
   /** Fraction of a tick left over from earlier frames. */
   private carry = 0
   /** The tick at which the circuit was last at rest, or last given a push. */
   private quietAt = 0
 
-  /** `onTick` is called after every single tick, for whoever keeps a record. */
-  constructor(sim: Simulator, onTick?: () => void) {
+  /**
+   * `onTick` is called after every single tick, for whoever keeps a record.
+   * When it returns true the run stops right there, as at a breakpoint.
+   */
+  constructor(sim: Simulator, onTick?: () => boolean | void) {
     this.sim = sim
     this.onTick = onTick
   }
@@ -52,14 +60,21 @@ export class SimRunner {
       return false
     }
     if (speed === 'max') {
-      for (let i = 0; i < TICK_BUDGET && sim.pendingEvents > 0; i++) this.tick()
+      for (let i = 0; i < TICK_BUDGET && sim.pendingEvents > 0; i++) {
+        if (this.tick()) break
+      }
       return true
     }
     this.carry += seconds * speed
     const ticks = Math.min(Math.floor(this.carry), TICK_BUDGET)
     if (ticks < 1) return false
     this.carry = ticks === TICK_BUDGET ? 0 : this.carry - ticks
-    for (let i = 0; i < ticks; i++) this.tick()
+    for (let i = 0; i < ticks; i++) {
+      if (this.tick()) {
+        this.carry = 0
+        break
+      }
+    }
     return true
   }
 
@@ -83,7 +98,7 @@ export class SimRunner {
     let spent = 0
     let rose = false
     while (!rose && spent < EDGE_BUDGET) {
-      this.tick()
+      if (this.tick()) return false
       spent++
       const after = levels()
       rose = after.some((level, index) => level === 'high' && before[index] === 'low')
@@ -93,10 +108,38 @@ export class SimRunner {
     // What is left in the queue once only wake-ups remain is the next half
     // of the clock, which belongs to the next step.
     while (sim.pendingEvents > sim.pendingWakes && spent < EDGE_BUDGET) {
-      this.tick()
+      if (this.tick()) break
       spent++
     }
     return true
+  }
+
+  /** True when there is an earlier tick to go back to. */
+  get canStepBack(): boolean {
+    const last = this.history[this.history.length - 1]
+    return last !== undefined && this.sim.restorable(last)
+  }
+
+  /**
+   * Goes back to how the circuit was before its latest tick. Returns false
+   * when there is nothing to go back to: at most `HISTORY_TICKS` ticks are
+   * kept, and none from before the circuit was last edited.
+   */
+  stepBack(): boolean {
+    this.carry = 0
+    const last = this.history.pop()
+    if (last === undefined) return false
+    if (!this.sim.restore(last)) {
+      this.history = []
+      return false
+    }
+    this.quietAt = Math.min(this.quietAt, this.sim.time)
+    return true
+  }
+
+  /** Drops the history, for when the circuit starts over. */
+  forget(): void {
+    this.history = []
   }
 
   /**
@@ -121,8 +164,12 @@ export class SimRunner {
     )
   }
 
-  private tick(): void {
+  /** Moves on one tick. Returns true if the listener asked to stop. */
+  private tick(): boolean {
+    const history = this.history
+    history.push(this.sim.snapshot())
+    if (history.length > HISTORY_TICKS) history.shift()
     this.sim.run(1)
-    this.onTick?.()
+    return this.onTick?.() === true
   }
 }

@@ -104,9 +104,18 @@ export const TimingIcon = () => (
   </Icon>
 )
 
+/** The step icon turned round: one tick back. */
+export const StepBackIcon = () => (
+  <Icon>
+    <path d="M14 3.5v11L7 9ZM4.5 3.5v11" />
+  </Icon>
+)
+
+/** Back to the start: an arrow going round, against the clock. */
 export const RestartIcon = () => (
   <Icon>
-    <path d="M14 3.5v11L6.5 9ZM4.5 3.5v11" />
+    <path d="M3.5 9a5.5 5.5 0 1 0 1.9-4.2" />
+    <path d="M5 1.8v3.4h3.4" />
   </Icon>
 )
 

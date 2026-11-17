@@ -45,6 +45,8 @@ export interface FileComponent {
   /** Quarter turns clockwise, 0 to 3. */
   readonly rotation: number
   readonly label?: string
+  /** The keyboard key that works a switch or a push button, as a key code. */
+  readonly key?: string
   /** On a part of type "circuit": the id of the circuit it stands for. */
   readonly circuit?: string
 }
@@ -212,6 +214,15 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
   }
   const label = typeof value.label === 'string' && value.label.trim() !== '' ? value.label : undefined
   const named = label === undefined ? {} : { label }
+  const key = value.key
+  if (key !== undefined) {
+    const fits =
+      typeof key === 'string' && /^(Key[A-Z]|Digit[0-9])$/.test(key) && key !== 'KeyR'
+    if (!fits || (value.type !== 'input' && value.type !== 'button')) {
+      fail(`${what} has a keyboard key it cannot have.`)
+    }
+  }
+  const keyed = typeof key === 'string' ? { key } : {}
 
   if (value.type === CIRCUIT_PART) {
     if (typeof value.circuit !== 'string' || !circuitIds.has(value.circuit)) {
@@ -232,7 +243,7 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
   } catch (error) {
     fail(`${what}: ${error instanceof Error ? error.message : 'invalid parameters'}.`)
   }
-  return { id, type: value.type, params, delay, pos, rotation, ...named }
+  return { id, type: value.type, params, delay, pos, rotation, ...named, ...keyed }
 }
 
 function terminalOf(

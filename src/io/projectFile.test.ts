@@ -233,3 +233,35 @@ describe('serializeProject', () => {
     expect(serializeProject(project, true)).toContain('\n  ')
   })
 })
+
+describe('the keyboard key of a part', () => {
+  const withPart = (part: Record<string, unknown>): string =>
+    JSON.stringify({
+      format: 'cedar-logic',
+      version: FILE_FORMAT_VERSION,
+      settings: {},
+      active: 'k1',
+      circuits: [
+        {
+          id: 'k1',
+          name: 'Main',
+          nextId: 2,
+          components: [{ id: 'c1', pos: { x: 0, y: 0 }, ...part }],
+          junctions: [],
+          wires: [],
+        },
+      ],
+    })
+
+  it('is read on a switch and on a push button', () => {
+    expect(parseProject(withPart({ type: 'input', key: 'KeyA' })).circuits[0].components[0].key).toBe('KeyA')
+    expect(parseProject(withPart({ type: 'button', key: 'Digit3' })).circuits[0].components[0].key).toBe('Digit3')
+    expect('key' in parseProject(withPart({ type: 'input' })).circuits[0].components[0]).toBe(false)
+  })
+
+  it('is refused on any other part, and when it is no key a switch can have', () => {
+    expect(() => parseProject(withPart({ type: 'and', key: 'KeyA' }))).toThrow(/keyboard key/)
+    expect(() => parseProject(withPart({ type: 'input', key: 'KeyR' }))).toThrow(/keyboard key/)
+    expect(() => parseProject(withPart({ type: 'input', key: 7 }))).toThrow(/keyboard key/)
+  })
+})

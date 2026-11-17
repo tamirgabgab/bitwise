@@ -29,12 +29,38 @@ export interface DocComponent {
    * name of the pin when the circuit is used as a part of another one.
    */
   readonly label?: string
+  /**
+   * On a switch or a push button: the keyboard key that works it, as a
+   * `KeyboardEvent.code`.
+   */
+  readonly key?: string
   /** Set on a part that stands for a named circuit; its type is `SUB_TYPE`. */
   readonly sub?: SubRef
 }
 
 /** The longest label a part can have. */
 export const MAX_LABEL = 16
+
+/** The slowest a part can be made, in ticks. */
+export const MAX_DELAY = 99
+
+/**
+ * The keys a switch can be given: the letters and the digits, except R,
+ * which turns the selected parts.
+ */
+export function isSwitchKey(code: unknown): code is string {
+  return typeof code === 'string' && /^(Key[A-Z]|Digit[0-9])$/.test(code) && code !== 'KeyR'
+}
+
+/** What is printed on a key: "A" for `KeyA`, "7" for `Digit7`. */
+export function keyName(code: string): string {
+  return code.replace(/^(Key|Digit)/, '')
+}
+
+/** The parts a key can work. */
+export function takesKey(type: string): boolean {
+  return type === 'input' || type === 'button'
+}
 
 /** A dot where wires meet. Also usable as a bend point for a single wire. */
 export interface DocJunction {
@@ -117,6 +143,8 @@ export interface AddComponentOptions {
   readonly params?: Readonly<Record<string, number>>
   readonly delay?: number
   readonly rotation?: Rotation
+  /** The keyboard key of a switch or a push button. */
+  readonly key?: string
 }
 
 /** Adds a part. Throws if the type or its parameters are not valid. */
@@ -136,6 +164,7 @@ export function addComponent(
     pos,
     rotation: options.rotation ?? 0,
     ...(options.label?.trim() ? { label: options.label.trim().slice(0, MAX_LABEL) } : {}),
+    ...(takesKey(type) && isSwitchKey(options.key) ? { key: options.key } : {}),
   }
   return {
     doc: { ...doc, components: { ...doc.components, [id]: component }, nextId: doc.nextId + 1 },
@@ -175,6 +204,29 @@ export function setComponentLabel(doc: CircuitDoc, id: string, label: string): C
   const next: DocComponent = { ...component, label: text }
   if (text === '') delete (next as { label?: string }).label
   return { ...doc, components: { ...doc.components, [id]: next } }
+}
+
+/**
+ * Gives a switch or a push button a keyboard key, or takes it away when
+ * `code` is null. Anything that is not such a part or such a key is ignored.
+ */
+export function setComponentKey(doc: CircuitDoc, id: string, code: string | null): CircuitDoc {
+  const component = doc.components[id]
+  if (!component || !takesKey(component.type)) return doc
+  if (code !== null && !isSwitchKey(code)) return doc
+  if ((component.key ?? null) === code) return doc
+  const next: DocComponent = { ...component, ...(code === null ? {} : { key: code }) }
+  if (code === null) delete (next as { key?: string }).key
+  return { ...doc, components: { ...doc.components, [id]: next } }
+}
+
+/** Sets how many ticks a part takes to answer, from 1 to `MAX_DELAY`. */
+export function setComponentDelay(doc: CircuitDoc, id: string, delay: number): CircuitDoc {
+  const component = doc.components[id]
+  if (!component || component.type === SUB_TYPE) return doc
+  if (!Number.isInteger(delay) || delay < 1 || delay > MAX_DELAY) return doc
+  if (delay === component.delay) return doc
+  return { ...doc, components: { ...doc.components, [id]: { ...component, delay } } }
 }
 
 /**

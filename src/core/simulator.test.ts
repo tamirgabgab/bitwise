@@ -684,3 +684,130 @@ describe('a component that wakes itself', () => {
     expect(() => sim.addComponent('ticker')).toThrow(/wake/)
   })
 })
+
+describe('snapshot and restore', () => {
+  /** A switch into a chain of two inverters. */
+  function chainOfTwo() {
+    const sim = new Simulator()
+    const input = sim.addComponent('input')
+    const first = sim.addComponent('not')
+    const second = sim.addComponent('not')
+    sim.connect({ component: input, port: 'out' }, { component: first, port: 'in' })
+    sim.connect({ component: first, port: 'out' }, { component: second, port: 'in' })
+    const out = () => formatSignal(sim.readPin({ component: second, port: 'out' }))
+    return { sim, input, first, out }
+  }
+
+  it('goes back to an earlier moment and plays the same way again', () => {
+    const { sim, input, out } = chainOfTwo()
+    sim.settle()
+    sim.setState(input, [1])
+    sim.run(1)
+    const middle = sim.snapshot()
+    expect(middle.time).toBe(sim.time)
+    const pending = sim.pendingEvents
+    sim.settle()
+    const end = sim.time
+    expect(out()).toBe('1')
+
+    expect(sim.restore(middle)).toBe(true)
+    expect(sim.time).toBe(middle.time)
+    expect(sim.pendingEvents).toBe(pending)
+    expect(out()).toBe('0')
+    sim.settle()
+    expect(sim.time).toBe(end)
+    expect(out()).toBe('1')
+  })
+
+  it('takes a switch back to what it was on', () => {
+    const { sim, input, out } = chainOfTwo()
+    sim.settle()
+    const before = sim.snapshot()
+    sim.setState(input, [1])
+    sim.settle()
+    expect(out()).toBe('1')
+    expect(sim.restore(before)).toBe(true)
+    expect(sim.getState(input)).toEqual([0])
+    sim.settle()
+    expect(out()).toBe('0')
+  })
+
+  it('keeps a clock ticking as it did', () => {
+    const sim = new Simulator()
+    const clock = sim.addComponent('clock', { params: { half: 3 } })
+    const read = () => formatSignal(sim.readPin({ component: clock, port: 'out' }))
+    sim.run(10)
+    const saved = sim.snapshot()
+    const seen: string[] = []
+    for (let i = 0; i < 12; i++) {
+      sim.run(1)
+      seen.push(read())
+    }
+    expect(sim.restore(saved)).toBe(true)
+    expect(sim.pendingWakes).toBe(1)
+    const again: string[] = []
+    for (let i = 0; i < 12; i++) {
+      sim.run(1)
+      again.push(read())
+    }
+    expect(again).toEqual(seen)
+  })
+
+  it('refuses a snapshot of a circuit that was edited since', () => {
+    const { sim, first, out } = chainOfTwo()
+    sim.settle()
+    const saved = sim.snapshot()
+    expect(sim.restorable(saved)).toBe(true)
+    const extra = sim.addComponent('not')
+    expect(sim.restorable(saved)).toBe(false)
+    expect(sim.restore(saved)).toBe(false)
+    sim.removeComponent(extra)
+    expect(sim.restore(saved)).toBe(false)
+    const other = sim.snapshot()
+    sim.setDelay(first, 4)
+    expect(sim.restore(other)).toBe(false)
+    expect(out()).toBe('0')
+  })
+})
+
+describe('evaluated', () => {
+  it('names the components a change reached at this tick', () => {
+    const sim = new Simulator()
+    const input = sim.addComponent('input')
+    const first = sim.addComponent('not')
+    const second = sim.addComponent('not')
+    sim.connect({ component: input, port: 'out' }, { component: first, port: 'in' })
+    sim.connect({ component: first, port: 'out' }, { component: second, port: 'in' })
+    sim.settle()
+    sim.run(1)
+    expect(sim.evaluated).toEqual([])
+
+    sim.setState(input, [1])
+    expect(sim.evaluated).toEqual([input])
+    sim.run(1)
+    expect(sim.evaluated).toEqual([first])
+    sim.run(1)
+    expect(sim.evaluated).toEqual([second])
+    sim.run(1)
+    expect(sim.evaluated).toEqual([])
+  })
+
+  it('does not name what an edit or a restart evaluated', () => {
+    const sim = new Simulator()
+    const a = sim.addComponent('not')
+    const b = sim.addComponent('not')
+    sim.connect({ component: a, port: 'out' }, { component: b, port: 'in' })
+    expect(sim.evaluated).toEqual([])
+    sim.restart()
+    expect(sim.evaluated).toEqual([])
+  })
+
+  it('names a clock when it wakes', () => {
+    const sim = new Simulator()
+    const clock = sim.addComponent('clock', { params: { half: 2 } })
+    sim.run(1)
+    expect(sim.evaluated).toEqual([])
+    sim.run(1)
+    expect(sim.evaluated).toEqual([clock])
+  })
+})

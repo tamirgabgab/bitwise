@@ -16,6 +16,8 @@ import {
   moveItems,
   pasteFragment,
   rotateComponents,
+  setComponentDelay,
+  setComponentKey,
   setComponentLabel,
   setComponentParams,
 } from './document.ts'
@@ -137,6 +139,10 @@ export interface EditorState {
   setParams(id: string, changes: Readonly<Record<string, number>>): void
   /** Names a part. A blank label takes the name away. */
   setLabel(id: string, label: string): void
+  /** Gives a switch or a push button a keyboard key, or none for null. */
+  setKey(id: string, code: string | null): void
+  /** Sets how many ticks a part takes to answer. */
+  setDelay(id: string, delay: number): void
   setSelection(ids: Iterable<string>): void
   toggleSelected(id: string): void
   selectAll(): void
@@ -314,6 +320,14 @@ export const useEditor = create<EditorState>()((set, get) => {
 
     setLabel(id, label) {
       commit(setComponentLabel(get().doc, id, label))
+    },
+
+    setKey(id, code) {
+      commit(setComponentKey(get().doc, id, code))
+    },
+
+    setDelay(id, delay) {
+      commit(setComponentDelay(get().doc, id, delay))
     },
 
     setSelection(ids) {

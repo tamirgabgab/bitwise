@@ -412,3 +412,79 @@ describe('SimBridge.clockPins', () => {
     expect(bridge.clockPins()).toEqual([])
   })
 })
+
+describe('SimBridge.describeTerminal', () => {
+  it('lists the pins on a wire and says which of them drive it', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'not', { x: 8, y: 0 }).doc
+    doc = addComponent(doc, 'output', { x: 16, y: 0 }).doc
+    const from = { kind: 'pin', component: 'c1', port: 'out' } as const
+    doc = addWire(doc, from, { kind: 'pin', component: 'c2', port: 'in' })!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.sim.settle()
+    const reading = bridge.describeTerminal(terminalKey(from))
+    expect(reading?.value).toBe(0)
+    expect(reading?.conflict).toBe(false)
+    expect(reading?.pins).toEqual([
+      { part: 'c1', type: 'input', port: 'out', drives: true, value: 0 },
+      { part: 'c2', type: 'not', port: 'in', drives: false, value: 0 },
+    ])
+  })
+
+  it('shows both sides of a conflict', () => {
+    let doc = addComponent(emptyDoc(), 'const', { x: 0, y: 0 }, { params: { value: 0 } }).doc
+    doc = addComponent(doc, 'const', { x: 0, y: 4 }, { params: { value: 1 } }).doc
+    const a = { kind: 'pin', component: 'c1', port: 'out' } as const
+    doc = addWire(doc, a, { kind: 'pin', component: 'c2', port: 'out' })!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.sim.settle()
+    const reading = bridge.describeTerminal(terminalKey(a))
+    expect(reading?.conflict).toBe(true)
+    expect(reading?.pins.map((pin) => [pin.part, pin.drives, pin.value])).toEqual([
+      ['c1', true, 0],
+      ['c2', true, 1],
+    ])
+  })
+
+  it('reads a pin that is wired to nothing by itself', () => {
+    const doc = addComponent(emptyDoc(), 'const', { x: 0, y: 0 }, { params: { value: 1 } }).doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.sim.settle()
+    const reading = bridge.describeTerminal('p:c1:out')
+    expect(reading?.net).toBeUndefined()
+    expect(reading?.value).toBe(1)
+    expect(reading?.pins).toHaveLength(1)
+    expect(bridge.describeTerminal('p:c9:out')).toBeUndefined()
+  })
+})
+
+describe('SimBridge.evaluatedParts and cost', () => {
+  it('names the parts a change is passing through', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'not', { x: 8, y: 0 }).doc
+    doc = addComponent(doc, 'not', { x: 16, y: 0 }).doc
+    doc = addWire(
+      doc,
+      { kind: 'pin', component: 'c1', port: 'out' },
+      { kind: 'pin', component: 'c2', port: 'in' },
+    )!.doc
+    doc = addWire(
+      doc,
+      { kind: 'pin', component: 'c2', port: 'out' },
+      { kind: 'pin', component: 'c3', port: 'in' },
+    )!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.sim.settle()
+    expect(bridge.cost()).toEqual({ gates: 2, depth: 2 })
+    expect(bridge.cycleInput('c1', 1)).toBe(true)
+    expect([...bridge.evaluatedParts()]).toEqual(['c1'])
+    bridge.sim.run(1)
+    expect([...bridge.evaluatedParts()]).toEqual(['c2'])
+    bridge.sim.run(1)
+    expect([...bridge.evaluatedParts()]).toEqual(['c3'])
+  })
+})

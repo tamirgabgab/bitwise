@@ -1,16 +1,26 @@
-import { moveItems, sameTerminal, terminalEnd } from './document.ts'
-import type { CircuitDoc, WireEnd } from './document.ts'
+import { isSwitchKey, moveItems, sameTerminal, terminalEnd } from './document.ts'
+import type { CircuitDoc, Terminal, WireEnd } from './document.ts'
 import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
 import { hitTest, itemsInRect } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
 import { isPokeable, readLiveValues } from './liveValues.ts'
+import { useProbe } from './probeStore.ts'
 import { renderScene } from './render.ts'
 import type { Scene } from './render.ts'
 import { routeWire } from './routing.ts'
 import type { RouteEnd } from './routing.ts'
 import { canvasRuntime } from './runtime.ts'
-import { currentBridge, holdButton, pokeInput } from './session.ts'
+import {
+  breakpointMarks,
+  currentBridge,
+  evaluatedParts,
+  holdButton,
+  pokeInput,
+  pressKey,
+  releaseKey,
+  releaseKeys,
+} from './session.ts'
 import { useSim } from './simStore.ts'
 import { useEditor } from './store.ts'
 import type { EditorState, ProjectSettings } from './store.ts'
@@ -24,6 +34,11 @@ import { screenToWorld } from './view.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
 const DRAG_THRESHOLD = 4
+
+/** At this many ticks a second or fewer, the eye can follow a change spreading. */
+const SLOW_SPEED = 5
+
+const NO_PARTS: ReadonlySet<string> = new Set()
 
 type Mode =
   | { readonly kind: 'idle' }
@@ -97,6 +112,7 @@ export class CanvasController {
     this.listen(canvas, 'dblclick', this.onDoubleClick)
     this.listen(window, 'keydown', this.onKeyDown)
     this.listen(window, 'keyup', this.onKeyUp)
+    this.listen(window, 'blur', releaseKeys)
 
     const observer = new ResizeObserver(() => this.resize())
     observer.observe(canvas)
@@ -114,6 +130,7 @@ export class CanvasController {
           this.previewDoc = null
           this.hover = null
           this.hoverPoke = false
+          this.probe(null)
           this.setCursor()
           this.frameCircuit()
         }
@@ -121,7 +138,13 @@ export class CanvasController {
       }),
       // The simulator moved: wires and lamps may show new values.
       useSim.subscribe((state, previous) => {
-        if (state.revision !== previous.revision) this.requestDraw()
+        if (
+          state.revision !== previous.revision ||
+          state.running !== previous.running ||
+          state.speed !== previous.speed
+        ) {
+          this.requestDraw()
+        }
       }),
     )
 
@@ -139,6 +162,7 @@ export class CanvasController {
     }
     this.cleanups.push(() => {
       canvasRuntime.current = null
+      this.probe(null)
     })
 
     this.resize()
@@ -231,6 +255,33 @@ export class CanvasController {
       ghost: this.ghostOf(state),
       live: readLiveValues(doc, currentBridge()),
       style: this.valueStyle(state.settings),
+      active: this.followsChanges() ? evaluatedParts() : NO_PARTS,
+      marks: breakpointMarks(doc),
+    })
+  }
+
+  /**
+   * True when time moves slowly enough to watch a change go from part to
+   * part: stepping through a paused circuit, or running at a crawl.
+   */
+  private followsChanges(): boolean {
+    const { running, speed } = useSim.getState()
+    return !running || (speed !== 'max' && speed <= SLOW_SPEED)
+  }
+
+  /** Shows the probe on the wire under the pointer, or puts it away. */
+  private probe(hover: Hit | null, event?: MouseEvent): void {
+    let terminal: Terminal | undefined
+    if (hover?.kind === 'pin') terminal = hover.terminal
+    else if (hover?.kind === 'junction') terminal = { kind: 'junction', junction: hover.id }
+    else if (hover?.kind === 'wire') terminal = useEditor.getState().doc.wires[hover.id]?.from
+    if (!terminal || !event) {
+      if (useProbe.getState().at !== null) useProbe.setState({ at: null })
+      return
+    }
+    const rect = this.canvas.getBoundingClientRect()
+    useProbe.setState({
+      at: { x: event.clientX - rect.left, y: event.clientY - rect.top, terminal },
     })
   }
 
@@ -328,6 +379,7 @@ export class CanvasController {
 
   private readonly onPointerDown = (event: PointerEvent): void => {
     this.canvas.focus()
+    this.probe(null)
     if (event.button === 1 || (event.button === 0 && this.spaceDown)) {
       event.preventDefault()
       this.canvas.setPointerCapture(event.pointerId)
@@ -433,7 +485,10 @@ export class CanvasController {
         this.hover = hover
         this.hoverPoke = this.pokeTarget(state.doc, hover, world) !== null
         this.setCursor()
-        if (changed) this.requestDraw()
+        if (changed) {
+          this.probe(hover, event)
+          this.requestDraw()
+        }
       }
     }
   }
@@ -544,6 +599,7 @@ export class CanvasController {
     if (this.mode.kind !== 'idle' || this.hover === null) return
     this.hover = null
     this.hoverPoke = false
+    this.probe(null)
     this.setCursor()
     this.requestDraw()
   }
@@ -610,10 +666,14 @@ export class CanvasController {
       state.deleteSelection()
     } else if (code === 'KeyR') {
       state.rotateSelection()
+    } else if (isSwitchKey(code) && !event.altKey && !event.repeat) {
+      // A key the user gave to a switch or a push button of this circuit.
+      if (pressKey(code, event.shiftKey)) event.preventDefault()
     }
   }
 
   private readonly onKeyUp = (event: KeyboardEvent): void => {
+    if (isSwitchKey(event.code)) releaseKey(event.code)
     if (event.code !== 'Space') return
     this.spaceDown = false
     this.setCursor()

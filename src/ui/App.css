@@ -516,6 +516,129 @@
   font: inherit;
 }
 
+.field-label {
+  flex: 1;
+  color: var(--text-muted);
+}
+
+.field select {
+  height: 28px;
+  max-width: 132px;
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--canvas-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.field .tool {
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--border);
+  background: var(--canvas-bg);
+}
+
+.key-button {
+  min-width: 64px;
+  height: 28px;
+  padding: 0 10px;
+  font-weight: 600;
+}
+
+.inspector .field + .stepper,
+.inspector .stepper + .field,
+.inspector .field + .field,
+.inspector .note + .field,
+.inspector .probe-pins + .field {
+  margin-top: 6px;
+}
+
+.wire-reading {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 0 0 6px;
+  color: var(--text-muted);
+}
+
+.wire-value,
+.probe-value {
+  color: var(--text);
+  font-size: 18px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+/* ---- Probe: what the wire under the pointer carries ---- */
+
+.probe {
+  position: absolute;
+  z-index: 3;
+  max-width: 248px;
+  padding: 7px 10px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  font-size: 12px;
+  pointer-events: none;
+  /* It waits a moment, so sweeping the pointer across wires shows nothing. */
+  animation: probe-in 0.01s 0.3s both;
+}
+
+@keyframes probe-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.probe p {
+  margin: 0;
+}
+
+.probe-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--text-muted);
+}
+
+.probe-conflict {
+  margin-top: 4px;
+  color: var(--signal-high);
+  font-weight: 500;
+}
+
+.probe-note {
+  margin-top: 4px;
+  color: var(--text-muted);
+}
+
+.probe-pins {
+  margin: 5px 0 0;
+  padding: 5px 0 0;
+  border-top: 1px solid var(--border);
+  list-style: none;
+}
+
+.probe-pins li {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  color: var(--text-muted);
+}
+
+.probe-pin-value {
+  color: var(--text);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
 /* ---- Dialog: a question that has to be answered first ---- */
 
 .dialog {
@@ -845,6 +968,11 @@ label.swatch:focus-within {
   font-weight: 500;
 }
 
+.statusbar .stopped {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 /* ---- Mid-width screens: the top bar gives up what it can spare ---- */
 
 @media (max-width: 1120px) {
@@ -928,7 +1056,8 @@ label.swatch:focus-within {
     max-width: 148px;
   }
 
-  .statusbar .stored {
+  .statusbar .stored,
+  .statusbar .cost {
     display: none;
   }
 

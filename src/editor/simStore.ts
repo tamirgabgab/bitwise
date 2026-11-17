@@ -2,6 +2,20 @@ import { create } from 'zustand'
 import { DEFAULT_SPEED } from './simRunner.ts'
 import type { SimSpeed } from './simRunner.ts'
 
+/**
+ * When a breakpoint on a wire stops the run: on any change, when the wire
+ * goes into conflict, or when it takes one value.
+ */
+export type BreakWhen = 'change' | 'conflict' | number
+
+/** The breakpoint that stopped the run, and what the wire carried then. */
+export interface BreakHit {
+  /** `terminalKey` of the terminal the breakpoint sits on. */
+  readonly key: string
+  readonly digit: number
+  readonly conflict: boolean
+}
+
 /** What the app shell shows and controls about the running simulation. */
 export interface SimState {
   readonly running: boolean
@@ -22,6 +36,16 @@ export interface SimState {
   readonly oscillating: boolean
   /** Whether the timing diagram is on screen. */
   readonly scopeOpen: boolean
+  /** How many gates the open circuit has, the ones inside its parts too. */
+  readonly gates: number
+  /** Its longest path in ticks, or undefined when it has a loop. */
+  readonly depth: number | undefined
+  /** True when there is an earlier tick to step back to. */
+  readonly canStepBack: boolean
+  /** The breakpoints of the open circuit, by `terminalKey`. */
+  readonly breakpoints: Readonly<Record<string, BreakWhen>>
+  /** Set while the run stands still at a breakpoint. */
+  readonly breakHit: BreakHit | null
 
   setRunning(running: boolean): void
   setSpeed(speed: SimSpeed): void
@@ -39,9 +63,14 @@ export const useSim = create<SimState>()((set) => ({
   clocks: 0,
   oscillating: false,
   scopeOpen: false,
+  gates: 0,
+  depth: 0,
+  canStepBack: false,
+  breakpoints: {},
+  breakHit: null,
 
   setRunning(running) {
-    set({ running })
+    set(running ? { running, breakHit: null } : { running })
   },
   setSpeed(speed) {
     set({ speed })

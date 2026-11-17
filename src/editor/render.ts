@@ -1,6 +1,6 @@
 import { builtinComponents, digitChar, numberValue, resolveParams } from '../core/index.ts'
 import type { Digit } from '../core/index.ts'
-import { SUB_TYPE, junctionDegrees, terminalKey } from './document.ts'
+import { SUB_TYPE, junctionDegrees, keyName, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues } from './liveValues.ts'
@@ -28,6 +28,10 @@ export interface Scene {
   /** The values of the running circuit, and how to show them. */
   readonly live: LiveValues
   readonly style: ValueStyle
+  /** The parts a change is passing through at this tick, to be ringed. */
+  readonly active: ReadonlySet<string>
+  /** Where a breakpoint sits on a wire. */
+  readonly marks: readonly Point[]
 }
 
 const STROKE = 0.13
@@ -205,6 +209,7 @@ function drawPart(
   faceDigit: Digit | undefined,
   name?: string,
   number?: { readonly digits: readonly Digit[]; readonly radix: number },
+  keyCap?: string,
 ): void {
   ctx.save()
   ctx.translate(placement.pos.x, placement.pos.y)
@@ -230,6 +235,19 @@ function drawPart(
     // The name of the part, just above it.
     const { x0, x1, y0 } = symbol.bounds
     drawText(ctx, name, { x: (x0 + x1) / 2, y: y0 - 0.55 }, 0.68, theme.ink, theme.background)
+  }
+  if (keyCap) {
+    // The keyboard key that works the part, as a small keycap under it.
+    const { x0, x1, y1 } = symbol.bounds
+    const at = { x: (x0 + x1) / 2, y: y1 + 0.8 }
+    ctx.beginPath()
+    ctx.roundRect(at.x - 0.46, at.y - 0.46, 0.92, 0.92, 0.2)
+    ctx.fillStyle = theme.background
+    ctx.fill()
+    ctx.strokeStyle = theme.ink
+    ctx.lineWidth = 0.07
+    ctx.stroke()
+    drawText(ctx, keyCap, at, 0.6, theme.ink)
   }
   ctx.restore()
 }
@@ -318,6 +336,19 @@ export function renderScene(
       ctx.fill()
       ctx.restore()
     }
+    if (scene.active.has(component.id)) {
+      // A change is passing through this part right now.
+      const { x0, y0, x1, y1 } = symbol.bounds
+      ctx.save()
+      ctx.translate(component.pos.x, component.pos.y)
+      ctx.rotate((component.rotation * Math.PI) / 2)
+      ctx.beginPath()
+      ctx.roundRect(x0 - 0.35, y0 - 0.35, x1 - x0 + 0.7, y1 - y0 + 0.7, 0.4)
+      ctx.strokeStyle = theme.accent
+      ctx.lineWidth = 0.16
+      ctx.stroke()
+      ctx.restore()
+    }
     drawPart(
       ctx,
       symbol,
@@ -333,6 +364,7 @@ export function renderScene(
         ),
         radix: live.radix,
       },
+      component.key === undefined ? undefined : keyName(component.key),
     )
 
     ctx.save()
@@ -358,6 +390,23 @@ export function renderScene(
       }
     }
     ctx.restore()
+  }
+
+  for (const mark of scene.marks) {
+    // A breakpoint: a diamond around the point of the wire it sits on.
+    const reach = 0.48
+    ctx.beginPath()
+    ctx.moveTo(mark.x, mark.y - reach)
+    ctx.lineTo(mark.x + reach, mark.y)
+    ctx.lineTo(mark.x, mark.y + reach)
+    ctx.lineTo(mark.x - reach, mark.y)
+    ctx.closePath()
+    ctx.strokeStyle = theme.background
+    ctx.lineWidth = 0.26
+    ctx.stroke()
+    ctx.strokeStyle = theme.accent
+    ctx.lineWidth = 0.13
+    ctx.stroke()
   }
 
   if (scene.wirePreview && scene.wirePreview.length > 1) {
