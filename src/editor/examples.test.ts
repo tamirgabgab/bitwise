@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { numberValue } from '../core/index.ts'
+import { formatSignal, numberValue } from '../core/index.ts'
 import { terminalKey } from './document.ts'
 import { EXAMPLES } from './examples.ts'
 import { fromProjectData } from './project.ts'
@@ -181,5 +181,99 @@ describe('ternary gates', () => {
     for (const { A, B } of combinations(['A', 'B'], 3)) {
       expect(run(project, 'Equal', { A, B })).toEqual({ Equal: A === B ? 2 : 0 })
     }
+  })
+})
+
+/** What every named output of the open circuit shows, as text. */
+function shownText(project: LoadedProject, bridge: SimBridge): Record<string, string> {
+  const shown: Record<string, string> = {}
+  for (const part of Object.values(project.circuits[project.active].doc.components)) {
+    if (part.type !== 'output' || !part.label) continue
+    const probe = bridge.probeTerminal(terminalKey({ kind: 'pin', component: part.id, port: 'in' }))
+    shown[part.label] = probe ? formatSignal(probe.value) : '?'
+  }
+  return shown
+}
+
+describe('adder on a bus', () => {
+  const project = load('bus-adder')
+  const doc = project.circuits[project.active].doc
+
+  it('adds and compares the numbers of each of its steps', () => {
+    const bridge = new SimBridge()
+    bridge.sync(doc, project.circuits)
+    const expected = [
+      { Sum: '0101', Carry: '0', 'A<B': '0', 'A=B': '0', 'A>B': '1' },
+      { Sum: '0010', Carry: '1', 'A<B': '0', 'A=B': '1', 'A>B': '0' },
+      { Sum: '1100', Carry: '0', 'A<B': '0', 'A=B': '1', 'A>B': '0' },
+    ]
+    const steps = project.circuits[project.active].steps ?? []
+    expect(steps).toHaveLength(expected.length)
+    steps.forEach((step, index) => {
+      for (const [id, value] of Object.entries(step.inputs)) expect(bridge.setInput(id, value)).toBe(true)
+      bridge.sim.settle()
+      expect(shownText(project, bridge)).toEqual(expected[index])
+    })
+  })
+
+  it('joins no pins of different widths', () => {
+    const bridge = new SimBridge()
+    bridge.sync(doc, project.circuits)
+    for (const wire of Object.values(doc.wires)) {
+      expect(bridge.mixedAt(terminalKey(wire.from))).toBe(false)
+      expect(bridge.mixedAt(terminalKey(wire.to))).toBe(false)
+    }
+  })
+})
+
+describe('ternary bus counter', () => {
+  const project = load('bus-counter')
+  const doc = project.circuits[project.active].doc
+  const button = (label: string): string => {
+    const part = Object.values(doc.components).find((item) => item.type === 'button' && item.label === label)
+    if (!part) throw new Error(`No button ${label}`)
+    return part.id
+  }
+
+  function started(): SimBridge {
+    const bridge = new SimBridge()
+    bridge.sim.setRadix(project.settings.radix)
+    bridge.sync(doc, project.circuits)
+    return bridge
+  }
+
+  it('counts from 00 to 22 and raises Full at the end', () => {
+    const bridge = started()
+    // The clock first rises after 4 ticks and then every 8.
+    bridge.sim.run(6)
+    const seen: string[] = []
+    for (let i = 0; i < 10; i++) {
+      const shown = shownText(project, bridge)
+      seen.push(shown.Count)
+      expect(shown.Full).toBe(shown.Count === '22' ? '2' : '0')
+      bridge.sim.run(8)
+    }
+    expect(seen).toEqual(['01', '02', '10', '11', '12', '20', '21', '22', '00', '01'])
+  })
+
+  it('keeps a copy of the count when Keep is pressed', () => {
+    const bridge = started()
+    bridge.sim.run(6 + 8 * 3)
+    expect(shownText(project, bridge)).toMatchObject({ Count: '11', Kept: '00' })
+    bridge.setButton(button('Keep'), true)
+    bridge.sim.run(3)
+    bridge.setButton(button('Keep'), false)
+    bridge.sim.run(8 * 2)
+    const shown = shownText(project, bridge)
+    expect(shown.Kept).toBe('11')
+    expect(shown.Count).not.toBe('11')
+  })
+
+  it('goes back to 00 while Reset is held', () => {
+    const bridge = started()
+    bridge.sim.run(30)
+    bridge.setButton(button('Reset'), true)
+    bridge.sim.run(20)
+    expect(shownText(project, bridge).Count).toBe('00')
   })
 })

@@ -30,6 +30,7 @@ import {
 import type { CircuitDoc, Fragment, WireEnd } from './document.ts'
 import { extractCircuit } from './extract.ts'
 import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
+import { placementParams } from './placement.ts'
 import type { InputValue, Step } from './steps.ts'
 import { samePoint } from './geometry.ts'
 import { docBounds } from './hitTest.ts'
@@ -369,7 +370,12 @@ export const useEditor = create<EditorState>()((set, get) => {
         commit(added.doc, [added.id])
         return
       }
-      const added = type === TEXT_TYPE ? addText(doc, spot) : addComponent(doc, type, spot)
+      const added =
+        type === TEXT_TYPE
+          ? addText(doc, spot)
+          : addComponent(doc, type, spot, {
+              params: placementParams(type, get().settings.radix),
+            })
       commit(added.doc, [added.id])
     },
 

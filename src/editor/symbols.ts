@@ -653,6 +653,180 @@ function memorySymbol(inputs: readonly SidePin[], half: number, async: boolean):
   }
 }
 
+/** One pin of a block: its port, and what is written beside it. */
+interface BlockPin {
+  readonly name: string
+  readonly text: string
+  /** A clock input: marked with a small triangle instead of a name. */
+  readonly clock?: boolean
+  /** A pin that carries several digits, drawn as heavy as a bus. */
+  readonly bus?: boolean
+}
+
+/** Rows for n pins, one grid unit apart, with row 0 in the middle or just above it. */
+function blockRows(count: number): number[] {
+  const first = 0 - Math.floor((count - 1) / 2)
+  return Array.from({ length: count }, (_, index) => first + index)
+}
+
+/**
+ * A larger part drawn as a box: its name on top, inputs down the left side,
+ * outputs down the right, and the pins that steer it underneath.
+ */
+function blockSymbol(
+  title: string,
+  inputs: readonly BlockPin[],
+  outputs: readonly BlockPin[],
+  under: readonly BlockPin[] = [],
+): ComponentSymbol {
+  const inRows = blockRows(inputs.length)
+  const outRows = blockRows(outputs.length)
+  const rows = [...inRows, ...outRows, 0]
+  // The name gets a strip of its own above the pin rows.
+  const top = Math.min(...rows) - 2
+  const bottom = Math.max(...rows) + 1
+  const columns = under.length === 1 ? [0] : under.map((_pin, index) => 2 * index - (under.length - 1))
+
+  const placed: { readonly pin: PinGeometry; readonly from: BlockPin }[] = [
+    ...inputs.map((from, index) => ({
+      from,
+      pin: { name: from.name, direction: 'in', pos: { x: -4, y: inRows[index] }, dir: LEFT } as PinGeometry,
+    })),
+    ...outputs.map((from, index) => ({
+      from,
+      pin: { name: from.name, direction: 'out', pos: { x: 4, y: outRows[index] }, dir: RIGHT } as PinGeometry,
+    })),
+    ...under.map((from, index) => ({
+      from,
+      pin: { name: from.name, direction: 'in', pos: { x: columns[index], y: bottom + 1 }, dir: DOWN } as PinGeometry,
+    })),
+  ]
+  const notes: SymbolLabel[] = [{ text: title, pos: { x: 0, y: top + 0.85 }, size: 0.74 }]
+  for (const { pin, from } of placed) {
+    if (from.clock || from.text === '') continue
+    notes.push({
+      text: from.text,
+      pos:
+        pin.dir === DOWN
+          ? { x: pin.pos.x, y: bottom - 0.55 }
+          : { x: pin.pos.x - 1.75 * pin.dir.x, y: pin.pos.y },
+      size: 0.58,
+    })
+  }
+
+  return {
+    pins: placed.map((item) => item.pin),
+    notes,
+    bounds: { x0: -4, y0: top, x1: 4, y1: under.length > 0 ? bottom + 1 : bottom },
+    draw(ctx) {
+      const plain = ctx.lineWidth
+      for (const { pin, from } of placed) {
+        ctx.lineWidth = from.bus ? plain * 2.2 : plain
+        ctx.beginPath()
+        ctx.moveTo(pin.pos.x, pin.pos.y)
+        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y - pin.dir.y)
+        ctx.stroke()
+      }
+      ctx.lineWidth = plain
+      ctx.beginPath()
+      ctx.roundRect(-3, top, 6, bottom - top, 0.3)
+      ctx.fill()
+      ctx.stroke()
+      for (const { pin, from } of placed) {
+        if (!from.clock) continue
+        ctx.beginPath()
+        ctx.moveTo(-3, pin.pos.y - 0.45)
+        ctx.lineTo(-2.3, pin.pos.y)
+        ctx.lineTo(-3, pin.pos.y + 0.45)
+        ctx.stroke()
+      }
+    },
+  }
+}
+
+/** Pins in0, in1, ... or out0, out1, ..., each with its number beside it. */
+function numberedPins(name: string, count: number, bus: boolean): BlockPin[] {
+  return Array.from({ length: count }, (_, index) => ({ name: `${name}${index}`, text: String(index), bus }))
+}
+
+/** The symbol of a larger part, or undefined for a type that is none. */
+function largeSymbol(type: string, params: Readonly<Record<string, number>>): ComponentSymbol | undefined {
+  const bus = (params.width ?? 1) > 1
+  const select: BlockPin = { name: 'sel', text: 'Sel', bus: (params.select ?? 1) > 1 }
+  switch (type) {
+    case 'mux':
+      return blockSymbol(
+        'Mux',
+        numberedPins('in', params.inputs, bus),
+        [{ name: 'out', text: '', bus }],
+        [select],
+      )
+    case 'demux':
+      return blockSymbol(
+        'Demux',
+        [{ name: 'in', text: '', bus }],
+        numberedPins('out', params.outputs, bus),
+        [select],
+      )
+    case 'decoder':
+      return blockSymbol('Decoder', [select], numberedPins('out', params.outputs, false))
+    case 'adder':
+      return blockSymbol(
+        'Adder',
+        [
+          { name: 'a', text: 'A', bus },
+          { name: 'b', text: 'B', bus },
+          { name: 'cin', text: 'Cin' },
+        ],
+        [
+          { name: 'sum', text: 'Sum', bus },
+          { name: 'cout', text: 'Cout' },
+        ],
+      )
+    case 'compare':
+      return blockSymbol(
+        'Compare',
+        [
+          { name: 'a', text: 'A', bus },
+          { name: 'b', text: 'B', bus },
+        ],
+        [
+          { name: 'lt', text: 'A<B' },
+          { name: 'eq', text: 'A=B' },
+          { name: 'gt', text: 'A>B' },
+        ],
+      )
+    case 'register':
+      return blockSymbol(
+        'Register',
+        [
+          { name: 'd', text: 'D', bus },
+          { name: 'clk', text: '', clock: true },
+          { name: 'en', text: 'En' },
+        ],
+        [{ name: 'q', text: 'Q', bus }],
+        [{ name: 'reset', text: 'R' }],
+      )
+    case 'counter':
+      return blockSymbol(
+        'Counter',
+        [
+          { name: 'clk', text: '', clock: true },
+          { name: 'en', text: 'En' },
+          { name: 'load', text: 'Load' },
+          { name: 'd', text: 'D', bus },
+        ],
+        [
+          { name: 'q', text: 'Q', bus },
+          { name: 'co', text: 'Co' },
+        ],
+        [{ name: 'reset', text: 'R' }],
+      )
+    default:
+      return undefined
+  }
+}
+
 const CLOCK_PIN = { name: 'clk', text: '', clock: true } as const
 
 /**
@@ -786,7 +960,7 @@ function buildSymbol(type: string, params: Readonly<Record<string, number>>): Co
     case 'merge':
       return busBarSymbol(params.width, params.each, false)
     default:
-      return boxSymbol(type, params)
+      return largeSymbol(type, params) ?? boxSymbol(type, params)
   }
 }
 

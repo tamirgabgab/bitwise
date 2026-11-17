@@ -1,4 +1,5 @@
 import { ComponentRegistry } from '../component.ts'
+import { adder, comparator } from './arith.ts'
 import { merger, splitter } from './bus.ts'
 import { fromBits, toBits } from './convert.ts'
 import {
@@ -17,6 +18,8 @@ import {
 } from './gates.ts'
 import { buttonSource, constSource, inputSource } from './input.ts'
 import { displaySink, outputSink } from './output.ts'
+import { counter, register } from './register.ts'
+import { decoder, demultiplexer, multiplexer } from './select.ts'
 import {
   clockSource,
   cycleSource,
@@ -56,6 +59,13 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(fromBits)
     .register(splitter)
     .register(merger)
+    .register(multiplexer)
+    .register(demultiplexer)
+    .register(decoder)
+    .register(adder)
+    .register(comparator)
+    .register(register)
+    .register(counter)
 }
 
 /** The registry a simulator uses unless it is given another one. */

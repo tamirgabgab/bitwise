@@ -758,3 +758,17 @@ describe('presentation steps', () => {
     expect(editor().stepIndex).toBe(0)
   })
 })
+
+describe('placing a part that chooses', () => {
+  it('gives it one way for every value of the radix', () => {
+    editor().addComponent('mux', { x: 0, y: 0 })
+    expect(Object.values(editor().doc.components)[0].params.inputs).toBe(2)
+    editor().newProject()
+    editor().setRadix(3)
+    editor().addComponent('mux', { x: 0, y: 0 })
+    editor().addComponent('decoder', { x: 20, y: 0 })
+    const [mux, decoder] = Object.values(editor().doc.components)
+    expect(mux.params.inputs).toBe(3)
+    expect(decoder.params.outputs).toBe(3)
+  })
+})

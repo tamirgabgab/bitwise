@@ -58,6 +58,18 @@ const FIELDS: readonly Field[] = [
     range: (_radix, limits) => [limits.min, limits.max],
     show: String,
   },
+  {
+    param: 'outputs',
+    label: 'Outputs',
+    range: (_radix, limits) => [limits.min, limits.max],
+    show: String,
+  },
+  {
+    param: 'select',
+    label: 'Select digits',
+    range: (_radix, limits) => [limits.min, limits.max],
+    show: String,
+  },
   { param: 'value', label: 'Value', range: digitRange, show: asValue },
   { param: 'match', label: 'Matches', range: digitRange, show: asValue },
   {
@@ -547,7 +559,7 @@ export function Inspector() {
       )}
       {component.type === 'input' && component.params.width > 1 && (
         <BusValueField
-          key={`${active}:${component.id}`}
+          key={`${active}:${component.id}:value`}
           id={component.id}
           width={component.params.width}
         />

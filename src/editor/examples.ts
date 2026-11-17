@@ -346,6 +346,63 @@ function ternaryCounter(): ProjectData {
   return project([counter], counter, { radix: 3, preset: 'kleene', showDigits: true })
 }
 
+/** Two numbers on buses into an adder and a comparator. */
+function busAdder(): ProjectData {
+  const sheet = sketch()
+  const a = sheet.part('input', 0, 0, { label: 'A', params: { width: 4 } })
+  const b = sheet.part('input', 0, 6, { label: 'B', params: { width: 4 } })
+  const adder = sheet.part('adder', 16, 2)
+  const compare = sheet.part('compare', 16, 13)
+  const sum = sheet.part('output', 28, 2, { label: 'Sum', params: { width: 4 } })
+  const carry = sheet.part('output', 27, 6, { label: 'Carry' })
+  const less = sheet.part('output', 27, 12, { label: 'A<B' })
+  const equal = sheet.part('output', 27, 15, { label: 'A=B' })
+  const more = sheet.part('output', 27, 18, { label: 'A>B' })
+  const fromA = sheet.bend(8, 0)
+  const fromB = sheet.bend(6, 6)
+  sheet.run(`${a}.out`, fromA, sheet.bend(8, 1), `${adder}.a`)
+  sheet.run(`${b}.out`, fromB, sheet.bend(6, 2), `${adder}.b`)
+  sheet.run(fromA, sheet.bend(8, 13), `${compare}.a`)
+  sheet.run(fromB, sheet.bend(6, 14), `${compare}.b`)
+  sheet.wire(`${adder}.sum`, `${sum}.in`)
+  sheet.run(`${adder}.cout`, sheet.bend(23, 3), sheet.bend(23, 6), `${carry}.in`)
+  sheet.wire(`${compare}.lt`, `${less}.in`)
+  sheet.run(`${compare}.eq`, sheet.bend(22, 14), sheet.bend(22, 15), `${equal}.in`)
+  sheet.run(`${compare}.gt`, sheet.bend(21, 15), sheet.bend(21, 18), `${more}.in`)
+  sheet.note('A heavy line is a bus: four wires in one', 13, -5)
+  const steps: Step[] = [
+    { note: 'A and B are four bits wide. 3 + 2 = 5', inputs: { [a]: '0011', [b]: '0010' } },
+    { note: '9 + 9 = 18 does not fit four bits: the carry comes on', inputs: { [a]: '1001', [b]: '1001' } },
+    { note: 'Equal numbers: A=B lights up', inputs: { [a]: '0110', [b]: '0110' } },
+  ]
+  const circuit = sheet.done('k1', 'Bus adder', steps)
+  return project([circuit], circuit, {})
+}
+
+/** A counter and a register on a bus, at radix 3. */
+function busCounter(): ProjectData {
+  const sheet = sketch()
+  const clock = sheet.part('clock', 0, 0, { params: { half: 4 } })
+  const reset = sheet.part('button', 0, 12, { label: 'Reset' })
+  const keep = sheet.part('button', 0, 18, { label: 'Keep' })
+  const counter = sheet.part('counter', 14, 1, { params: { width: 2 } })
+  const register = sheet.part('register', 30, 13, { params: { width: 2 } })
+  const count = sheet.part('output', 30, 1, { label: 'Count', params: { width: 2 } })
+  const full = sheet.part('output', 29, 5, { label: 'Full' })
+  const kept = sheet.part('output', 42, 13, { label: 'Kept', params: { width: 2 } })
+  sheet.wire(`${clock}.out`, `${counter}.clk`)
+  sheet.run(`${reset}.out`, sheet.bend(14, 12), `${counter}.reset`)
+  const tap = sheet.bend(22, 1)
+  sheet.run(`${counter}.q`, tap, `${count}.in`)
+  sheet.run(`${counter}.co`, sheet.bend(24, 2), sheet.bend(24, 5), `${full}.in`)
+  sheet.run(tap, sheet.bend(22, 12), `${register}.d`)
+  sheet.run(`${keep}.out`, sheet.bend(20, 18), sheet.bend(20, 13), `${register}.clk`)
+  sheet.wire(`${register}.q`, `${kept}.in`)
+  sheet.note('Press Keep to copy the count into the register', 26, 20)
+  const circuit = sheet.done('k1', 'Bus counter')
+  return project([circuit], circuit, { radix: 3, preset: 'kleene', showDigits: true })
+}
+
 export const EXAMPLES: readonly Example[] = [
   {
     id: 'binary-adder',
@@ -370,5 +427,17 @@ export const EXAMPLES: readonly Example[] = [
     name: 'Ternary counter',
     summary: 'Radix 3. Two T flip-flops count from 0 to 8, one ternary digit each',
     build: ternaryCounter,
+  },
+  {
+    id: 'bus-adder',
+    name: 'Adder on a bus',
+    summary: 'Radix 2. Two four-bit numbers, an adder and a comparator',
+    build: busAdder,
+  },
+  {
+    id: 'bus-counter',
+    name: 'Ternary bus counter',
+    summary: 'Radix 3. A counter counts from 00 to 22, and a register keeps a copy',
+    build: busCounter,
   },
 ]

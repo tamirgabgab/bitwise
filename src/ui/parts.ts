@@ -29,6 +29,13 @@ const NAMES: Readonly<Record<string, string>> = {
   frombits: 'From bits',
   split: 'Splitter',
   merge: 'Merger',
+  mux: 'Multiplexer',
+  demux: 'Demultiplexer',
+  decoder: 'Decoder',
+  adder: 'Adder',
+  compare: 'Comparator',
+  register: 'Register',
+  counter: 'Counter',
   text: 'Text',
 }
 
@@ -102,6 +109,34 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   merge: [
     'Puts wires together into one bus, the lowest digit on top',
     'Puts wires together into one bus, the lowest digit on top',
+  ],
+  mux: [
+    'Passes on input 0 or input 1, whichever Sel names',
+    'Passes on the input that Sel names. One select digit chooses among n inputs',
+  ],
+  demux: [
+    'Sends its input to output 0 or output 1, whichever Sel names. The other gives 0',
+    'Sends its input to the output that Sel names. The others give 0',
+  ],
+  decoder: [
+    'Gives 1 on the output that Sel names and 0 on the others',
+    'Gives the top value on the output that Sel names and 0 on the others',
+  ],
+  adder: [
+    'Adds two binary numbers on buses, with a carry in and a carry out',
+    'Adds two numbers in base n on buses. A carry is 0 or the top value',
+  ],
+  compare: [
+    'Compares two numbers on buses: less, equal or greater',
+    'Compares two numbers in base n on buses. The answer that holds gives the top value',
+  ],
+  register: [
+    'Takes the bus at D each time the clock rises while En is 1, and keeps it',
+    'Takes the bus at D each time the clock rises past the middle while En is at the top value',
+  ],
+  counter: [
+    'Goes one up each time the clock rises. Load takes D instead, R clears it',
+    'Goes one up in base n each time the clock rises past the middle. Load takes D instead, R clears it',
   ],
   text: [
     'Writing on the canvas. It is not part of the circuit',

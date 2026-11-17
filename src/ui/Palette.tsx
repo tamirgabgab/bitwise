@@ -19,6 +19,15 @@ const IO_PARTS: readonly string[] = ['input', 'button', 'output', 'display']
 const SEQUENTIAL_PARTS: readonly string[] = ['clock', 'cycle', 'sr', 'dff', 'tff', 'jkff']
 const BIT_PARTS: readonly string[] = ['tobits', 'frombits']
 const BUS_PARTS: readonly string[] = ['split', 'merge']
+const LARGE_PARTS: readonly string[] = [
+  'mux',
+  'demux',
+  'decoder',
+  'adder',
+  'compare',
+  'register',
+  'counter',
+]
 const NOTE_PARTS: readonly string[] = ['text']
 
 /** The gate whose table is on show, and where its button is. */
@@ -154,6 +163,7 @@ export function Palette() {
     { title: 'Sequential', types: SEQUENTIAL_PARTS },
     { title: 'Digits and bits', types: BIT_PARTS },
     { title: 'Buses', types: BUS_PARTS },
+    { title: 'Larger parts', types: LARGE_PARTS },
     { title: 'Notes', types: NOTE_PARTS },
   ]
   const [tip, setTip] = useState<TableTip | null>(null)
