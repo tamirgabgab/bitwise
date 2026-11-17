@@ -188,6 +188,9 @@ Run lint, test and build before calling a change done. CI runs the same three.
   panel and in the legend alike.
 - Font sizes come from the five `--text-*` variables in `src/index.css`.
   Do not write a pixel size in `App.css`.
+- `.ux-profile.md` at the root is the visual and copy standard ("Instrument",
+  on a Linear base) that the UX skills and `ux-audit` read. Read it before
+  changing UI, CSS or microcopy.
 
 ## Conventions
 
