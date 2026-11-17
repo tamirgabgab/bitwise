@@ -50,6 +50,12 @@ function wireReading(probe: Probe | undefined): WireReading {
   }
 }
 
+/** A wire the user added to the timing diagram. */
+interface Watch {
+  readonly terminal: Terminal
+  readonly name: string
+}
+
 interface Engine {
   readonly bridge: SimBridge
   readonly runner: SimRunner
@@ -57,7 +63,22 @@ interface Engine {
   readonly recorder: Recorder
   /** The breakpoints of this circuit, by `terminalKey`. */
   readonly breaks: Map<string, Breakpoint>
+  /** The wires that have a row of their own in the timing diagram, by `terminalKey`. */
+  readonly watches: Map<string, Watch>
   cost: CircuitCost
+}
+
+/** Every row of a circuit's timing diagram: the ones picked for it, then the added wires. */
+function scopeRows(doc: CircuitDoc, watches: ReadonlyMap<string, Watch>): ScopeSignal[] {
+  const added = [...watches].map(
+    ([key, watch]): ScopeSignal => ({
+      key: `w:${key}`,
+      name: watch.name,
+      kind: 'wire',
+      pin: watch.terminal,
+    }),
+  )
+  return [...scopeSignals(doc), ...added]
 }
 
 /**
@@ -84,10 +105,15 @@ function checkBreaks(engine: Pick<Engine, 'bridge' | 'breaks'>): BreakHit | null
 }
 
 /** Notes what every row of the timing diagram carries at this moment. */
-function record(bridge: SimBridge, recorder: Recorder, doc: CircuitDoc | undefined): void {
+function record(
+  bridge: SimBridge,
+  recorder: Recorder,
+  doc: CircuitDoc | undefined,
+  watches: ReadonlyMap<string, Watch>,
+): void {
   if (!doc) return
   const values = new Map<string, ScopeValue>()
-  for (const signal of scopeSignals(doc)) {
+  for (const signal of scopeRows(doc, watches)) {
     const probe = bridge.probeTerminal(terminalKey(signal.pin))
     // A bus goes into the record as its digits written out.
     if (probe) values.set(signal.key, probe.value.length > 1 ? formatSignal(probe.value) : probe.value[0])
@@ -110,14 +136,15 @@ function engineOf(id: string, radix: number): Engine {
     bridge.sim.setRadix(radix)
     const recorder = new Recorder()
     const breaks = new Map<string, Breakpoint>()
+    const watches = new Map<string, Watch>()
     // Only the open circuit runs, so its drawing is the one in the store.
     const runner = new SimRunner(bridge.sim, () => {
-      record(bridge, recorder, useEditor.getState().circuits[id]?.doc)
+      record(bridge, recorder, useEditor.getState().circuits[id]?.doc, watches)
       const hit = checkBreaks({ bridge, breaks })
       if (hit) useSim.setState({ running: false, breakHit: hit })
       return hit !== null
     })
-    engine = { bridge, runner, recorder, breaks, cost: { gates: 0, depth: 0 } }
+    engine = { bridge, runner, recorder, breaks, watches, cost: { gates: 0, depth: 0 } }
     engines.set(id, engine)
   }
   return engine
@@ -135,9 +162,9 @@ export function currentBridge(): SimBridge {
 
 /** Tells the app shell and the canvas that the simulator moved. */
 function publish(): void {
-  const { bridge, runner, recorder, cost } = current()
+  const { bridge, runner, recorder, watches, cost } = current()
   const sim = bridge.sim
-  record(bridge, recorder, useEditor.getState().doc)
+  record(bridge, recorder, useEditor.getState().doc, watches)
   const shown = useSim.getState()
   useSim.setState({
     time: sim.time,
@@ -151,11 +178,12 @@ function publish(): void {
   })
 }
 
-/** Tells the chrome which wires of the open circuit have a breakpoint. */
+/** Tells the chrome which wires of the open circuit have a breakpoint or a row of their own. */
 function publishBreaks(): void {
+  const engine = current()
   const breakpoints: Record<string, BreakWhen> = {}
-  for (const [key, point] of current().breaks) breakpoints[key] = point.when
-  useSim.setState({ breakpoints })
+  for (const [key, point] of engine.breaks) breakpoints[key] = point.when
+  useSim.setState({ breakpoints, watched: [...engine.watches.keys()] })
 }
 
 /** The rows of the open circuit's timing diagram and the record behind them. */
@@ -165,9 +193,9 @@ export function currentScope(): {
   readonly time: number
   readonly radix: number
 } {
-  const { bridge, recorder } = current()
+  const { bridge, recorder, watches } = current()
   return {
-    signals: scopeSignals(useEditor.getState().doc),
+    signals: scopeRows(useEditor.getState().doc, watches),
     recorder,
     time: bridge.sim.time,
     radix: bridge.sim.radix,
@@ -177,16 +205,18 @@ export function currentScope(): {
 /** Brings the open circuit's simulator in step with its drawing. */
 function syncActive(state: EditorState): void {
   const engine = engineOf(state.active, state.settings.radix)
-  const { bridge, runner, breaks } = engine
+  const { bridge, runner, breaks, watches } = engine
   bridge.sync(state.doc, state.circuits)
   engine.cost = bridge.cost()
   runner.nudge()
-  // A breakpoint goes when the last terminal that said where it was goes.
+  // A breakpoint or a followed wire goes when the terminal that said where it was goes.
   let dropped = false
-  for (const [key, point] of breaks) {
-    if (terminalEnd(state.doc, point.terminal)) continue
-    breaks.delete(key)
-    dropped = true
+  for (const marks of [breaks, watches]) {
+    for (const [key, mark] of marks) {
+      if (terminalEnd(state.doc, mark.terminal)) continue
+      marks.delete(key)
+      dropped = true
+    }
   }
   if (dropped || state.active !== shownCircuit) {
     shownCircuit = state.active
@@ -371,15 +401,49 @@ export function describeNode(terminal: Terminal): NodeInfo {
   }
 }
 
-/** The key of the breakpoint on the wire at `terminal`, if it has one. */
-function breakKeyOn(engine: Engine, doc: CircuitDoc, terminal: Terminal): string | undefined {
+/** The key among `keys` that sits on the same wire as `terminal`, if any. */
+function keyOnWire(keys: Iterable<string>, doc: CircuitDoc, terminal: Terminal): string | undefined {
   const nets = terminalNets(doc)
   const key = terminalKey(terminal)
   const net = nets.get(key) ?? key
-  for (const other of engine.breaks.keys()) {
+  for (const other of keys) {
     if ((nets.get(other) ?? other) === net) return other
   }
   return undefined
+}
+
+/** The key of the breakpoint on the wire at `terminal`, if it has one. */
+function breakKeyOn(engine: Engine, doc: CircuitDoc, terminal: Terminal): string | undefined {
+  return keyOnWire(engine.breaks.keys(), doc, terminal)
+}
+
+/** Whether the wire at `terminal` has a row of its own in the timing diagram. */
+export function isWatched(terminal: Terminal): boolean {
+  return keyOnWire(current().watches.keys(), useEditor.getState().doc, terminal) !== undefined
+}
+
+/**
+ * Gives the wire at `terminal` a row of its own in the timing diagram, or
+ * takes it away. Returns true when the wire is now followed.
+ */
+export function toggleWatch(terminal: Terminal): boolean {
+  const engine = current()
+  const doc = useEditor.getState().doc
+  const existing = keyOnWire(engine.watches.keys(), doc, terminal)
+  if (existing !== undefined) engine.watches.delete(existing)
+  else engine.watches.set(terminalKey(terminal), { terminal, name: describeNode(terminal).name })
+  record(engine.bridge, engine.recorder, doc, engine.watches)
+  publishBreaks()
+  useSim.setState({ revision: useSim.getState().revision + 1 })
+  return existing === undefined
+}
+
+/** Takes away the timing diagram row with `key`, when it is a wire the user added. */
+export function unwatchRow(key: string): void {
+  const engine = current()
+  if (!key.startsWith('w:') || !engine.watches.delete(key.slice(2))) return
+  publishBreaks()
+  useSim.setState({ revision: useSim.getState().revision + 1 })
 }
 
 /** What the breakpoint on the wire at `terminal` waits for, if it has one. */

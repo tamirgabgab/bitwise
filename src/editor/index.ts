@@ -35,7 +35,10 @@ export {
   breakpointOn,
   currentScope,
   describeNode,
+  isWatched,
   projectSnapshot,
+  toggleWatch,
+  unwatchRow,
   restartSimulation,
   setBreakpoint,
   setSwitch,
@@ -47,13 +50,32 @@ export {
 export type { NodeInfo, ProbedPin } from './session.ts'
 export type { BreakHit, BreakWhen } from './simStore.ts'
 export type { ScopeSignal, Span } from './scope.ts'
-export { renderScope, scopeHeight, scopeTicks } from './scopeRender.ts'
+export {
+  DEFAULT_SCOPE_VIEW,
+  SCOPE_NAMES,
+  SCOPE_ZOOMS,
+  renderScope,
+  scopeHeight,
+  scopeRowAt,
+  scopeStart,
+  scopeTickAt,
+  scopeTicks,
+  scopeZoom,
+} from './scopeRender.ts'
+export type { ScopeView } from './scopeRender.ts'
 export { MAX_CIRCUIT_NAME, canPlace, interfaceOf, usersOf } from './subcircuit.ts'
 export { SIM_SPEEDS } from './simRunner.ts'
 export type { SimSpeed } from './simRunner.ts'
 export { useSim } from './simStore.ts'
 export { useEditor } from './store.ts'
 export type { ProjectSettings, ThemeChoice } from './store.ts'
-export { digitColor, gradientColor, inkOn, signalText, valueText } from './valueStyle.ts'
+export {
+  digitColor,
+  gradientColor,
+  inkOn,
+  makeValueStyle,
+  signalText,
+  valueText,
+} from './valueStyle.ts'
 export { readCanvasTheme } from './theme.ts'
 export { MAX_ZOOM, MIN_ZOOM } from './view.ts'

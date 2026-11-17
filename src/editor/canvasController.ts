@@ -5,10 +5,10 @@ import {
   sameTerminal,
   terminalEnd,
 } from './document.ts'
-import type { CircuitDoc, Terminal, WireEnd } from './document.ts'
+import type { CircuitDoc, WireEnd } from './document.ts'
 import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
-import { docBounds, hitTest, itemsInRect } from './hitTest.ts'
+import { docBounds, hitTest, itemsInRect, terminalOfHit } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
 import { isPokeable, readLiveValues } from './liveValues.ts'
 import type { LiveValues } from './liveValues.ts'
@@ -29,6 +29,7 @@ import {
   releaseKey,
   releaseKeys,
   showStep,
+  toggleWatch,
 } from './session.ts'
 import { useSim } from './simStore.ts'
 import { useEditor } from './store.ts'
@@ -340,10 +341,7 @@ export class CanvasController {
 
   /** Shows the probe on the wire under the pointer, or puts it away. */
   private probe(hover: Hit | null, event?: MouseEvent): void {
-    let terminal: Terminal | undefined
-    if (hover?.kind === 'pin') terminal = hover.terminal
-    else if (hover?.kind === 'junction') terminal = { kind: 'junction', junction: hover.id }
-    else if (hover?.kind === 'wire') terminal = useEditor.getState().doc.wires[hover.id]?.from
+    const terminal = terminalOfHit(useEditor.getState().doc, hover)
     if (!terminal || !event) {
       if (useProbe.getState().at !== null) useProbe.setState({ at: null })
       return
@@ -655,10 +653,18 @@ export class CanvasController {
   private readonly onContextMenu = (event: MouseEvent): void => {
     const doc = useEditor.getState().doc
     const world = this.toWorld(event)
-    const poked = this.pokeTarget(doc, hitTest(doc, world), world)
-    if (poked === null) return
+    const hit = hitTest(doc, world)
+    const poked = this.pokeTarget(doc, hit, world)
+    if (poked !== null) {
+      event.preventDefault()
+      if (doc.components[poked].type === 'input') pokeInput(poked, -1)
+      return
+    }
+    // A right click on a wire gives it a row of its own in the timing diagram, or takes it away.
+    const terminal = hit?.kind === 'component' ? undefined : terminalOfHit(doc, hit)
+    if (!terminal) return
     event.preventDefault()
-    if (doc.components[poked].type === 'input') pokeInput(poked, -1)
+    if (toggleWatch(terminal)) useSim.getState().setScopeOpen(true)
   }
 
   /** A double click on a part that stands for a named circuit opens it. */

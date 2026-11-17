@@ -103,3 +103,14 @@ export function itemsInRect(doc: CircuitDoc, rect: Rect): string[] {
   }
   return ids
 }
+
+/**
+ * A terminal on the wire the pointer is over: the pin or junction itself, or
+ * one end of the wire. Undefined over a part's body or empty canvas.
+ */
+export function terminalOfHit(doc: CircuitDoc, hit: Hit | null): Terminal | undefined {
+  if (hit?.kind === 'pin') return hit.terminal
+  if (hit?.kind === 'junction') return { kind: 'junction', junction: hit.id }
+  if (hit?.kind === 'wire') return doc.wires[hit.id]?.from
+  return undefined
+}

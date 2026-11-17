@@ -12,7 +12,8 @@ export interface ScopeSignal {
   /** The id of the part the row belongs to. */
   readonly key: string
   readonly name: string
-  readonly kind: 'clock' | 'input' | 'output'
+  /** A `wire` row is one the user added; the others are picked by `scopeSignals`. */
+  readonly kind: 'clock' | 'input' | 'output' | 'wire'
   /** The pin to read for this row. */
   readonly pin: Terminal
 }

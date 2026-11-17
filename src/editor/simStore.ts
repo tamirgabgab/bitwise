@@ -46,6 +46,11 @@ export interface SimState {
   readonly breakpoints: Readonly<Record<string, BreakWhen>>
   /** Set while the run stands still at a breakpoint. */
   readonly breakHit: BreakHit | null
+  /**
+   * The wires of the open circuit that have a row of their own in the
+   * timing diagram, by `terminalKey`.
+   */
+  readonly watched: readonly string[]
 
   setRunning(running: boolean): void
   setSpeed(speed: SimSpeed): void
@@ -68,6 +73,7 @@ export const useSim = create<SimState>()((set) => ({
   canStepBack: false,
   breakpoints: {},
   breakHit: null,
+  watched: [],
 
   setRunning(running) {
     set(running ? { running, breakHit: null } : { running })

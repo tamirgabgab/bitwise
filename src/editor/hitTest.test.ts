@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { addComponent, addWire, connectEnds, emptyDoc, moveItems } from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
-import { componentBounds, docBounds, hitTest, itemsInRect } from './hitTest.ts'
+import { componentBounds, docBounds, hitTest, itemsInRect, terminalOfHit } from './hitTest.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 
@@ -108,5 +108,23 @@ describe('docBounds', () => {
     const junction = Object.keys(doc.junctions)[0]
     const moved = moveItems(doc, [junction], 0, 30)
     expect(docBounds(moved)!.y1).toBe(30)
+  })
+})
+
+describe('terminalOfHit', () => {
+  it('names a terminal on the wire under the pointer', () => {
+    const doc = inverter()
+    expect(terminalOfHit(doc, hitTest(doc, { x: 2.2, y: 0.3 }))).toEqual(pin('c1', 'out'))
+    expect(terminalOfHit(doc, hitTest(doc, { x: 6.3, y: 0.2 }))).toEqual(doc.wires.w3.from)
+    expect(terminalOfHit(doc, { kind: 'junction', id: 'j9', pos: { x: 0, y: 0 } })).toEqual({
+      kind: 'junction',
+      junction: 'j9',
+    })
+  })
+
+  it('has nothing over a part or empty canvas', () => {
+    const doc = inverter()
+    expect(terminalOfHit(doc, hitTest(doc, { x: 0.3, y: -0.4 }))).toBeUndefined()
+    expect(terminalOfHit(doc, null)).toBeUndefined()
   })
 })
