@@ -21,6 +21,7 @@ import type { RouteEnd } from './routing.ts'
 import { canvasRuntime } from './runtime.ts'
 import {
   breakpointMarks,
+  criticalMarks,
   currentBridge,
   evaluatedParts,
   holdButton,
@@ -167,7 +168,8 @@ export class CanvasController {
         if (
           state.revision !== previous.revision ||
           state.running !== previous.running ||
-          state.speed !== previous.speed
+          state.speed !== previous.speed ||
+          state.criticalShown !== previous.criticalShown
         ) {
           this.requestDraw()
         }
@@ -304,6 +306,7 @@ export class CanvasController {
       style: this.valueStyle(state.settings),
       pulse: this.pulseOf(doc, live),
       active: this.followsChanges() ? evaluatedParts() : NO_PARTS,
+      critical: useSim.getState().criticalShown ? criticalMarks() : undefined,
       marks: breakpointMarks(doc),
     })
   }

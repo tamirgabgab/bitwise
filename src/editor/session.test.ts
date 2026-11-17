@@ -1,6 +1,13 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import type { Terminal, WireEnd } from './document.ts'
-import { currentScope, isWatched, stepSimulation, toggleWatch, unwatchRow } from './session.ts'
+import {
+  criticalMarks,
+  currentScope,
+  isWatched,
+  stepSimulation,
+  toggleWatch,
+  unwatchRow,
+} from './session.ts'
 import { useSim } from './simStore.ts'
 import { resetEditor, useEditor } from './store.ts'
 
@@ -60,5 +67,24 @@ describe('wires followed in the timing diagram', () => {
     editor().setSelection(['c2', 'c4'])
     editor().deleteSelection()
     expect(useSim.getState().watched).toHaveLength(0)
+  })
+})
+
+describe('the longest path on the canvas', () => {
+  it('marks the gates on it and the wires into and out of them', () => {
+    inverter()
+    const marks = criticalMarks()
+    expect([...marks.parts]).toEqual(['c2'])
+    expect(marks.wires.size).toBe(2)
+  })
+
+  it('is worked out again after an edit', () => {
+    inverter()
+    const before = criticalMarks()
+    editor().setSelection(['c4'])
+    editor().deleteSelection()
+    const after = criticalMarks()
+    expect(after).not.toBe(before)
+    expect(after.wires.size).toBe(1)
   })
 })

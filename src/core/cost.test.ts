@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { circuitCost } from './cost.ts'
+import { circuitCost, criticalPath } from './cost.ts'
 import { Simulator } from './simulator.ts'
 
 describe('circuitCost', () => {
@@ -70,5 +70,46 @@ describe('circuitCost', () => {
     sim.connect({ component: clock, port: 'out' }, { component: first, port: 'clk' })
     sim.connect({ component: first, port: 'nq' }, { component: second, port: 'clk' })
     expect(circuitCost(sim)).toEqual({ gates: 2, depth: 2 })
+  })
+})
+
+describe('criticalPath', () => {
+  it('follows the longest way, gate by gate, with the nets along it', () => {
+    // a -> not -> not -> and, and a -> and directly.
+    const sim = new Simulator()
+    const a = sim.addComponent('input')
+    const first = sim.addComponent('not')
+    const second = sim.addComponent('not')
+    const and = sim.addComponent('and')
+    sim.connect({ component: a, port: 'out' }, { component: first, port: 'in' })
+    sim.connect({ component: first, port: 'out' }, { component: second, port: 'in' })
+    sim.connect({ component: second, port: 'out' }, { component: and, port: 'in0' })
+    sim.connect({ component: a, port: 'out' }, { component: and, port: 'in1' })
+    const path = criticalPath(sim)
+    expect(path.gates).toEqual([first, second, and])
+    // From the switch that feeds the first gate; the last gate drives nothing.
+    expect(path.nets).toEqual([
+      sim.netOf({ component: a, port: 'out' }),
+      sim.netOf({ component: first, port: 'out' }),
+      sim.netOf({ component: second, port: 'out' }),
+    ])
+  })
+
+  it('takes the slow branch when delays differ', () => {
+    const sim = new Simulator()
+    const slow = sim.addComponent('not', { delay: 5 })
+    const fast = sim.addComponent('not')
+    const and = sim.addComponent('and')
+    sim.connect({ component: slow, port: 'out' }, { component: and, port: 'in0' })
+    sim.connect({ component: fast, port: 'out' }, { component: and, port: 'in1' })
+    expect(criticalPath(sim).gates).toEqual([slow, and])
+  })
+
+  it('is empty with no gates or with a loop', () => {
+    expect(criticalPath(new Simulator())).toEqual({ gates: [], nets: [] })
+    const sim = new Simulator()
+    const nand = sim.addComponent('nand')
+    sim.connect({ component: nand, port: 'out' }, { component: nand, port: 'in1' })
+    expect(criticalPath(sim)).toEqual({ gates: [], nets: [] })
   })
 })

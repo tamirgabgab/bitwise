@@ -26,6 +26,7 @@ export function StatusBar() {
   const oscillating = useSim((state) => state.oscillating)
   const gates = useSim((state) => state.gates)
   const depth = useSim((state) => state.depth)
+  const criticalShown = useSim((state) => state.criticalShown)
   const breakHit = useSim((state) => state.breakHit)
   const settings = useEditor((state) => state.settings)
   const wireSelected = useEditor((state) => {
@@ -88,18 +89,29 @@ export function StatusBar() {
         <span>
           {plural(parts, 'part')}, {plural(wires, 'wire')}
         </span>
-        {gates > 0 && (
-          <span
-            className="cost"
-            title={
-              depth === undefined
-                ? 'Parts that do work, counting the ones inside named circuits. The circuit has a loop, so it has no longest path'
-                : 'Parts that do work, counting the ones inside named circuits, and the longest path through them in ticks'
-            }
-          >
-            {plural(gates, 'gate')}, {depth === undefined ? 'has a loop' : `depth ${depth}`}
-          </span>
-        )}
+        {gates > 0 &&
+          (depth === undefined ? (
+            <span
+              className="cost"
+              title="Parts that do work, counting the ones inside named circuits. The circuit has a loop, so it has no longest path"
+            >
+              {plural(gates, 'gate')}, has a loop
+            </span>
+          ) : (
+            <button
+              type="button"
+              className="cost cost-button"
+              aria-pressed={criticalShown}
+              title={
+                criticalShown
+                  ? 'Stop marking the longest path on the canvas'
+                  : 'Parts that do work, counting the ones inside named circuits, and the longest path through them in ticks. Click to mark that path on the canvas'
+              }
+              onClick={() => useSim.getState().setCriticalShown(!criticalShown)}
+            >
+              {plural(gates, 'gate')}, depth {depth}
+            </button>
+          ))}
         {stored ? (
           <span className="stored" title="The project is kept in this browser as you work">
             Saved in this browser

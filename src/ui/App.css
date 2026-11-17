@@ -1412,6 +1412,30 @@ label.swatch:focus-within {
   font-weight: 500;
 }
 
+/* The depth is a button: it marks the longest path on the canvas. */
+.statusbar .cost-button {
+  height: 22px;
+  margin: 0 -6px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+.statusbar .cost-button:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.statusbar .cost-button[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
 /* ---- A laptop screen: the search button keeps its keys, not its word ---- */
 
 @media (max-width: 1360px) {

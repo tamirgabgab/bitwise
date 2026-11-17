@@ -66,6 +66,14 @@ interface Engine {
   /** The wires that have a row of their own in the timing diagram, by `terminalKey`. */
   readonly watches: Map<string, Watch>
   cost: CircuitCost
+  /** The longest path as the canvas marks it, worked out when first shown after an edit. */
+  critical: CriticalMarks | undefined
+}
+
+/** What the canvas marks of the longest path: parts and wires, by id. */
+export interface CriticalMarks {
+  readonly parts: ReadonlySet<string>
+  readonly wires: ReadonlySet<string>
 }
 
 /** Every row of a circuit's timing diagram: the ones picked for it, then the added wires. */
@@ -144,7 +152,7 @@ function engineOf(id: string, radix: number): Engine {
       if (hit) useSim.setState({ running: false, breakHit: hit })
       return hit !== null
     })
-    engine = { bridge, runner, recorder, breaks, watches, cost: { gates: 0, depth: 0 } }
+    engine = { bridge, runner, recorder, breaks, watches, cost: { gates: 0, depth: 0 }, critical: undefined }
     engines.set(id, engine)
   }
   return engine
@@ -208,6 +216,7 @@ function syncActive(state: EditorState): void {
   const { bridge, runner, breaks, watches } = engine
   bridge.sync(state.doc, state.circuits)
   engine.cost = bridge.cost()
+  engine.critical = undefined
   runner.nudge()
   // A breakpoint or a followed wire goes when the terminal that said where it was goes.
   let dropped = false
@@ -341,6 +350,21 @@ export function releaseKeys(): void {
 /** The parts of the open circuit that were evaluated at the current tick. */
 export function evaluatedParts(): Set<string> {
   return current().bridge.evaluatedParts()
+}
+
+/** The parts and wires on the longest path through the open circuit. */
+export function criticalMarks(): CriticalMarks {
+  const engine = current()
+  if (!engine.critical) {
+    const { parts, nets } = engine.bridge.criticalPath()
+    const wires = new Set<string>()
+    for (const wire of Object.values(useEditor.getState().doc.wires)) {
+      const net = engine.bridge.netAt(terminalKey(wire.from))
+      if (net !== undefined && nets.has(net)) wires.add(wire.id)
+    }
+    engine.critical = { parts, wires }
+  }
+  return engine.critical
 }
 
 /** One pin on a wire, as the probe shows it. */

@@ -1,4 +1,12 @@
-import { Simulator, Z, circuitCost, formatSignal, parseSignal, stepSignal } from '../core/index.ts'
+import {
+  Simulator,
+  Z,
+  circuitCost,
+  criticalPath,
+  formatSignal,
+  parseSignal,
+  stepSignal,
+} from '../core/index.ts'
 import type {
   CircuitCost,
   ComponentId,
@@ -192,6 +200,28 @@ export class SimBridge {
   /** The number of gates and the longest path of the flattened circuit. */
   cost(): CircuitCost {
     return circuitCost(this.sim)
+  }
+
+  /**
+   * The parts of the drawing on the longest path, and the simulator nets
+   * between them. A part that stands for a named circuit is on it when any
+   * gate inside it is.
+   */
+  criticalPath(): { parts: Set<string>; nets: Set<NetId> } {
+    const path = criticalPath(this.sim)
+    const parts = new Set<string>()
+    for (const simId of path.gates) {
+      const key = this.pathOf(simId)
+      if (key !== undefined) parts.add(key.split('/')[0])
+    }
+    return { parts, nets: new Set(path.nets) }
+  }
+
+  /** The simulator net at a terminal of the drawing, by `terminalKey`. */
+  netAt(key: string): NetId | undefined {
+    const pin = this.netlist?.probes.get(key)
+    const simId = pin && this.simComponent(pin.part)
+    return pin && simId !== undefined ? this.sim.netOf({ component: simId, port: pin.port }) : undefined
   }
 
   /**

@@ -42,6 +42,8 @@ export interface Scene {
   readonly marks: readonly Point[]
   /** The wave on a wire whose value just changed: how far it is, and which way it runs. */
   readonly pulse?: (wireId: string) => WirePulse | undefined
+  /** The longest path through the circuit, to be marked, when the user asked for it. */
+  readonly critical?: { readonly parts: ReadonlySet<string>; readonly wires: ReadonlySet<string> }
   /** Leave the grid out, as for a picture of the circuit. */
   readonly paper?: boolean
 }
@@ -375,10 +377,10 @@ export function renderScene(
     wiredPins.add(terminalKey(wire.to))
     const path = wirePath(doc, wire)
     if (!path) continue
-    if (selection.has(wire.id)) {
+    if (selection.has(wire.id) || scene.critical?.wires.has(wire.id)) {
       tracePath(ctx, path)
       ctx.strokeStyle = theme.accentSoft
-      ctx.lineWidth = 0.6
+      ctx.lineWidth = selection.has(wire.id) ? 0.6 : 0.8
       ctx.stroke()
     }
     const value = live.at(wire.from)
@@ -435,6 +437,21 @@ export function renderScene(
       ctx.roundRect(x0 - 0.35, y0 - 0.35, x1 - x0 + 0.7, y1 - y0 + 0.7, 0.4)
       ctx.fillStyle = theme.accentSoft
       ctx.fill()
+      ctx.restore()
+    }
+    if (scene.critical?.parts.has(component.id)) {
+      // On the longest path: a dashed ring, so it reads apart from the
+      // solid ring of a part a change is passing through.
+      const { x0, y0, x1, y1 } = symbol.bounds
+      ctx.save()
+      ctx.translate(component.pos.x, component.pos.y)
+      ctx.rotate((component.rotation * Math.PI) / 2)
+      ctx.beginPath()
+      ctx.roundRect(x0 - 0.5, y0 - 0.5, x1 - x0 + 1, y1 - y0 + 1, 0.5)
+      ctx.setLineDash([0.35, 0.25])
+      ctx.strokeStyle = theme.accent
+      ctx.lineWidth = 0.12
+      ctx.stroke()
       ctx.restore()
     }
     if (scene.active.has(component.id)) {

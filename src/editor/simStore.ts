@@ -40,6 +40,8 @@ export interface SimState {
   readonly gates: number
   /** Its longest path in ticks, or undefined when it has a loop. */
   readonly depth: number | undefined
+  /** Whether the canvas marks the longest path. */
+  readonly criticalShown: boolean
   /** True when there is an earlier tick to step back to. */
   readonly canStepBack: boolean
   /** The breakpoints of the open circuit, by `terminalKey`. */
@@ -55,6 +57,7 @@ export interface SimState {
   setRunning(running: boolean): void
   setSpeed(speed: SimSpeed): void
   setScopeOpen(open: boolean): void
+  setCriticalShown(shown: boolean): void
 }
 
 export const useSim = create<SimState>()((set) => ({
@@ -70,6 +73,7 @@ export const useSim = create<SimState>()((set) => ({
   scopeOpen: false,
   gates: 0,
   depth: 0,
+  criticalShown: false,
   canStepBack: false,
   breakpoints: {},
   breakHit: null,
@@ -80,6 +84,9 @@ export const useSim = create<SimState>()((set) => ({
   },
   setSpeed(speed) {
     set({ speed })
+  },
+  setCriticalShown(criticalShown) {
+    set({ criticalShown })
   },
   setScopeOpen(scopeOpen) {
     set({ scopeOpen })
