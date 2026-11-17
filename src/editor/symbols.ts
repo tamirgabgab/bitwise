@@ -31,6 +31,19 @@ export interface ComponentSymbol {
   readonly face?: SymbolFace
   /** More writing on the body, such as the pin names of a named circuit. */
   readonly notes?: readonly SymbolLabel[]
+  /** Where a number display writes the number that reaches it. */
+  readonly readout?: SymbolReadout
+}
+
+export interface SymbolReadout {
+  /** The pins that carry the digits, least significant first. */
+  readonly pins: readonly string[]
+  /** The middle of the digits, written in the circuit's radix. */
+  readonly digits: Point
+  /** The middle of the same number written in decimal, smaller. */
+  readonly decimal: Point
+  /** Height of the digits, in grid units. */
+  readonly size: number
 }
 
 /** The type of a part that stands for a named circuit. */
@@ -70,6 +83,10 @@ export interface SymbolFace {
 
 const LEFT: Point = { x: -1, y: 0 }
 const RIGHT: Point = { x: 1, y: 0 }
+const UP: Point = { x: 0, y: -1 }
+const DOWN: Point = { x: 0, y: 1 }
+/** Q with a bar over it: the mirrored output of a latch or flip-flop. */
+const Q_BAR = 'Q\u0305'
 const BUBBLE_RADIUS = 0.3
 
 /**
@@ -371,8 +388,185 @@ function boxSymbol(type: string, params: Readonly<Record<string, number>>): Comp
   }
 }
 
+/** A clock: the housing of a source with a square wave on it. */
+function clockSymbol(): ComponentSymbol {
+  return {
+    pins: [{ name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }],
+    bounds: { x0: -1, y0: -1, x1: 2, y1: 1 },
+    draw(ctx) {
+      ctx.beginPath()
+      ctx.moveTo(1, 0)
+      ctx.lineTo(2, 0)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.roundRect(-1, -1, 2, 2, 0.25)
+      ctx.fill()
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.moveTo(-0.6, 0.35)
+      ctx.lineTo(-0.3, 0.35)
+      ctx.lineTo(-0.3, -0.35)
+      ctx.lineTo(0.15, -0.35)
+      ctx.lineTo(0.15, 0.35)
+      ctx.lineTo(0.6, 0.35)
+      ctx.stroke()
+    },
+  }
+}
+
+/** One labelled pin on the left or right side of a memory part. */
+interface SidePin {
+  readonly name: string
+  readonly text: string
+  readonly y: number
+  /** A clock input: marked with a small triangle instead of a name. */
+  readonly clock?: boolean
+}
+
+/**
+ * A latch or flip-flop: a box with its inputs on the left and Q and its
+ * mirror on the right. A flip-flop also has Set on top and Reset below.
+ */
+function memorySymbol(inputs: readonly SidePin[], half: number, async: boolean): ComponentSymbol {
+  const pins: PinGeometry[] = [
+    ...inputs.map((pin): PinGeometry => ({
+      name: pin.name,
+      direction: 'in',
+      pos: { x: -3, y: pin.y },
+      dir: LEFT,
+    })),
+    { name: 'q', direction: 'out', pos: { x: 3, y: 1 - half }, dir: RIGHT },
+    { name: 'nq', direction: 'out', pos: { x: 3, y: half - 1 }, dir: RIGHT },
+  ]
+  const notes: SymbolLabel[] = [
+    ...inputs
+      .filter((pin) => !pin.clock)
+      .map((pin): SymbolLabel => ({ text: pin.text, pos: { x: -1.35, y: pin.y }, size: 0.72 })),
+    { text: 'Q', pos: { x: 1.35, y: 1 - half }, size: 0.72 },
+    { text: Q_BAR, pos: { x: 1.35, y: half - 1 }, size: 0.72 },
+  ]
+  if (async) {
+    pins.push(
+      { name: 'set', direction: 'in', pos: { x: 0, y: 0 - half - 1 }, dir: UP },
+      { name: 'reset', direction: 'in', pos: { x: 0, y: half + 1 }, dir: DOWN },
+    )
+    notes.push(
+      { text: 'S', pos: { x: 0, y: 0.62 - half }, size: 0.6 },
+      { text: 'R', pos: { x: 0, y: half - 0.62 }, size: 0.6 },
+    )
+  }
+  const reach = async ? half + 1 : half
+
+  return {
+    pins,
+    notes,
+    bounds: { x0: -3, y0: 0 - reach, x1: 3, y1: reach },
+    draw(ctx) {
+      ctx.beginPath()
+      for (const pin of pins) {
+        ctx.moveTo(pin.pos.x, pin.pos.y)
+        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y - pin.dir.y)
+      }
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.roundRect(-2, 0 - half, 4, 2 * half, 0.3)
+      ctx.fill()
+      ctx.stroke()
+      for (const pin of inputs) {
+        if (!pin.clock) continue
+        ctx.beginPath()
+        ctx.moveTo(-2, pin.y - 0.45)
+        ctx.lineTo(-1.3, pin.y)
+        ctx.lineTo(-2, pin.y + 0.45)
+        ctx.stroke()
+      }
+    },
+  }
+}
+
+const CLOCK_PIN = { name: 'clk', text: '', clock: true } as const
+
+/**
+ * A number display: a screen with one input per digit down its left side,
+ * the least significant on top.
+ */
+function displaySymbol(digits: number): ComponentSymbol {
+  const first = 0 - Math.floor((digits - 1) / 2)
+  const rows = Array.from({ length: digits }, (_, index) => first + index)
+  const top = Math.min(first - 1, -2)
+  const bottom = Math.max(rows[rows.length - 1] + 1, 2)
+  const middle = (top + bottom) / 2
+  const pins: PinGeometry[] = rows.map((y, index) => ({
+    name: `in${index}`,
+    direction: 'in',
+    pos: { x: -4, y },
+    dir: LEFT,
+  }))
+
+  return {
+    pins,
+    bounds: { x0: -4, y0: top, x1: 4, y1: bottom },
+    notes: rows.map((y, index): SymbolLabel => ({
+      text: String(index),
+      pos: { x: -2.55, y },
+      size: 0.5,
+    })),
+    readout: {
+      pins: pins.map((pin) => pin.name),
+      digits: { x: 1, y: middle - 0.4 },
+      decimal: { x: 1, y: middle + 0.85 },
+      size: 1.15,
+    },
+    draw(ctx) {
+      ctx.beginPath()
+      for (const pin of pins) {
+        ctx.moveTo(pin.pos.x, pin.pos.y)
+        ctx.lineTo(-3, pin.pos.y)
+      }
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.roundRect(-3, top, 7, bottom - top, 0.3)
+      ctx.fill()
+      ctx.stroke()
+      ctx.beginPath()
+      ctx.moveTo(-2.1, top)
+      ctx.lineTo(-2.1, bottom)
+      ctx.stroke()
+    },
+  }
+}
+
 function buildSymbol(type: string, params: Readonly<Record<string, number>>): ComponentSymbol {
   switch (type) {
+    case 'clock':
+      return clockSymbol()
+    case 'sr':
+      return memorySymbol(
+        [
+          { name: 's', text: 'S', y: -1 },
+          { name: 'r', text: 'R', y: 1 },
+        ],
+        2,
+        false,
+      )
+    case 'dff':
+      return memorySymbol([{ name: 'd', text: 'D', y: -1 }, { ...CLOCK_PIN, y: 1 }], 2, true)
+    case 'tff':
+      return memorySymbol([{ name: 't', text: 'T', y: -1 }, { ...CLOCK_PIN, y: 1 }], 2, true)
+    case 'jkff':
+      return memorySymbol(
+        [
+          { name: 'j', text: 'J', y: -2 },
+          { ...CLOCK_PIN, y: 0 },
+          { name: 'k', text: 'K', y: 2 },
+        ],
+        3,
+        true,
+      )
+    case 'display':
+      return displaySymbol(params.digits)
     case 'and':
       return gateSymbol('and', params.inputs, false)
     case 'nand':

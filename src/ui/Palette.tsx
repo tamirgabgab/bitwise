@@ -14,7 +14,8 @@ import { ChipIcon } from './icons.tsx'
 import { partHint, partName } from './parts.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
-const IO_PARTS: readonly string[] = ['input', 'button', 'output']
+const IO_PARTS: readonly string[] = ['input', 'button', 'output', 'display']
+const SEQUENTIAL_PARTS: readonly string[] = ['clock', 'sr', 'dff', 'tff', 'jkff']
 
 const ICON_WIDTH = 64
 const ICON_HEIGHT = 40
@@ -139,6 +140,7 @@ export function Palette() {
       types: sandbox ? sandboxGates(radix) : (preset?.gates ?? []),
     },
     { title: 'Inputs and outputs', types: IO_PARTS },
+    { title: 'Sequential', types: SEQUENTIAL_PARTS },
   ]
 
   return (

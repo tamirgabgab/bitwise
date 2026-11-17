@@ -1,11 +1,11 @@
-import { builtinComponents, digitChar, resolveParams } from '../core/index.ts'
+import { builtinComponents, digitChar, numberValue, resolveParams } from '../core/index.ts'
 import type { Digit } from '../core/index.ts'
 import { SUB_TYPE, junctionDegrees, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues } from './liveValues.ts'
 import { symbolFor, symbolOf } from './symbols.ts'
-import type { ComponentSymbol, SymbolFace } from './symbols.ts'
+import type { ComponentSymbol, SymbolFace, SymbolReadout } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { inkOn } from './valueStyle.ts'
 import type { ValueStyle, WireLook } from './valueStyle.ts'
@@ -166,6 +166,25 @@ function drawFace(
   drawText(ctx, text, pos, size, fill ? inkOn(fill) : theme.ink)
 }
 
+/** Writes the number a display shows: its digits, and under them the decimal value. */
+function drawReadout(
+  ctx: CanvasRenderingContext2D,
+  readout: SymbolReadout,
+  digits: readonly Digit[] | undefined,
+  radix: number,
+  theme: CanvasTheme,
+): void {
+  const shown = digits ?? readout.pins.map(() => 0)
+  const text = [...shown].reverse().map(digitChar).join('')
+  const size = readout.size * Math.min(1, 5.2 / text.length)
+  ctx.globalAlpha *= digits ? 1 : 0.4
+  drawText(ctx, text, readout.digits, size, theme.ink)
+  const value = digits ? numberValue(digits, radix) : 0
+  const decimal = value === undefined ? 'no number' : `= ${value}`
+  drawText(ctx, decimal, readout.decimal, 0.62, theme.ink)
+  ctx.globalAlpha /= digits ? 1 : 0.4
+}
+
 interface PartLook {
   readonly stroke: string
   readonly fill: string
@@ -185,6 +204,7 @@ function drawPart(
   style: ValueStyle | null,
   faceDigit: Digit | undefined,
   name?: string,
+  number?: { readonly digits: readonly Digit[]; readonly radix: number },
 ): void {
   ctx.save()
   ctx.translate(placement.pos.x, placement.pos.y)
@@ -202,6 +222,9 @@ function drawPart(
   }
   for (const note of symbol.notes ?? []) {
     drawText(ctx, note.text, note.pos, note.size, look.stroke)
+  }
+  if (symbol.readout) {
+    drawReadout(ctx, symbol.readout, number?.digits, number?.radix ?? 2, theme)
   }
   if (name) {
     // The name of the part, just above it.
@@ -304,6 +327,12 @@ export function renderScene(
       style,
       live.face(component.id) ?? restingFace(component.type, component.params),
       component.label,
+      symbol.readout && {
+        digits: symbol.readout.pins.map(
+          (port) => live.at({ kind: 'pin', component: component.id, port }).digit,
+        ),
+        radix: live.radix,
+      },
     )
 
     ctx.save()

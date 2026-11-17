@@ -17,6 +17,8 @@ export interface WireValue {
  * one frame.
  */
 export interface LiveValues {
+  /** The radix the circuit runs in. */
+  readonly radix: number
   /** The value on the wires at a terminal, wired or not. */
   at(terminal: Terminal): WireValue
   /** The value of a net, by the names `terminalNets` gives. */
@@ -51,6 +53,7 @@ export function readLiveValues(doc: CircuitDoc, bridge: SimBridge): LiveValues {
     (name === undefined ? undefined : nets.get(name)) ?? FLOATING
 
   return {
+    radix: sim.radix,
     net,
     at(terminal) {
       const key = terminalKey(terminal)

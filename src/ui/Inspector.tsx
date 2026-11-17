@@ -34,6 +34,18 @@ const FIELDS: readonly Field[] = [
     range: (radix) => [1, Math.max(1, radix - 1)],
     show: String,
   },
+  {
+    param: 'digits',
+    label: 'Digits',
+    range: (_radix, limits) => [limits.min, limits.max],
+    show: String,
+  },
+  {
+    param: 'half',
+    label: 'Ticks per half',
+    range: (_radix, limits) => [limits.min, limits.max],
+    show: String,
+  },
 ]
 
 /** The parts whose name becomes a pin when the circuit is used as a part. */

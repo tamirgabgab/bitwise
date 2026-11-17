@@ -16,6 +16,12 @@ const NAMES: Readonly<Record<string, string>> = {
   input: 'Input',
   button: 'Button',
   output: 'Output',
+  display: 'Number',
+  clock: 'Clock',
+  sr: 'SR latch',
+  dff: 'D flip-flop',
+  tff: 'T flip-flop',
+  jkff: 'JK flip-flop',
 }
 
 /** What each part does, in one line. Binary first, then the general rule. */
@@ -45,6 +51,30 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   ],
   button: ['Gives 1 while you hold it down', 'Gives the top value while you hold it down'],
   output: ['Shows the value that reaches it', 'Shows the value that reaches it'],
+  display: [
+    'Shows its inputs as one binary number, and what it is worth in decimal',
+    'Shows its inputs as one number in base n, and what it is worth in decimal',
+  ],
+  clock: [
+    'Switches between 0 and 1 on its own, at a steady pace',
+    'Switches between 0 and the top value on its own, at a steady pace',
+  ],
+  sr: [
+    'Remembers one bit: S sets it to 1, R clears it to 0',
+    'Remembers a value: S at the top value sets it to the top value, R at the top value clears it to 0',
+  ],
+  dff: [
+    'Takes the value of D each time the clock rises, and keeps it until the next',
+    'Takes the value of D each time the clock rises past the middle, and keeps it until the next',
+  ],
+  tff: [
+    'Flips each time the clock rises while T is 1',
+    'Adds the value of T, wrapping around, each time the clock rises past the middle',
+  ],
+  jkff: [
+    'When the clock rises: J sets it to 1, K clears it to 0, and both together flip it',
+    'When the clock rises past the middle: J at the top value sets it to the top value, K clears it to 0, and both together add 1',
+  ],
 }
 
 export function partName(type: string): string {
