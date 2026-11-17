@@ -233,6 +233,25 @@ export function wireBranches(doc: CircuitDoc): readonly Branch[] {
   return layoutOf(doc).branches
 }
 
+/**
+ * The straight stretch of a path that passes through `pos`, its two ends in
+ * the order of the path. Undefined when `pos` is not on the path.
+ */
+export function runAt(path: readonly Point[], pos: Point): readonly [Point, Point] | undefined {
+  for (let i = 1; i < path.length; i++) {
+    const a = path[i - 1]
+    if (!onSegment(pos, a, path[i])) continue
+    const level = a.y === path[i].y
+    const inLine = (p: Point): boolean => (level ? p.y === a.y : p.x === a.x)
+    let start = i - 1
+    let end = i
+    while (start > 0 && inLine(path[start - 1])) start--
+    while (end < path.length - 1 && inLine(path[end + 1])) end++
+    return [path[start], path[end]]
+  }
+  return undefined
+}
+
 /** The path a wire takes across the grid, or undefined if an end is missing. */
 export function wirePath(doc: CircuitDoc, wire: DocWire): Path | undefined {
   return wirePaths(doc).get(wire.id)

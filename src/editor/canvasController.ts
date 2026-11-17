@@ -1,4 +1,5 @@
 import {
+  bendWire,
   duplicateItems,
   isSwitchKey,
   moveItems,
@@ -6,7 +7,7 @@ import {
   terminalEnd,
 } from './document.ts'
 import type { CircuitDoc, WireEnd } from './document.ts'
-import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
+import { rectFromPoints, rotatePoint, samePoint, snapPoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
 import { docBounds, hitTest, itemsInRect, terminalOfHit } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
@@ -43,6 +44,7 @@ import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
 import { keepInSight, screenToWorld, wheelZoomFactor } from './view.ts'
+import { runAt, wirePath } from './wireLayout.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
 const DRAG_THRESHOLD = 4
@@ -75,6 +77,20 @@ type Mode =
       readonly start: Point
       /** The drag carries a copy and leaves the selection where it was. */
       readonly copy: boolean
+      dx: number
+      dy: number
+    }
+  /**
+   * A straight stretch of a selected wire being dragged sideways. Junctions
+   * go in at its two ends, `at`, and move with it.
+   */
+  | {
+      readonly kind: 'bend'
+      readonly wire: string
+      readonly at: readonly Point[]
+      /** The stretch runs left to right, so it moves only up and down. */
+      readonly level: boolean
+      readonly start: Point
       dx: number
       dy: number
     }
@@ -438,8 +454,11 @@ export class CanvasController {
     else if (this.spaceDown) cursor = 'grab'
     else if (this.mode.kind === 'wire') cursor = 'crosshair'
     else if (this.mode.kind === 'move') cursor = this.mode.copy ? 'copy' : 'move'
+    else if (this.mode.kind === 'bend') cursor = 'move'
     else if (this.mode.kind === 'hold' || this.hoverPoke) cursor = 'pointer'
-    else if (this.hover?.kind === 'pin' || this.hover?.kind === 'wire') cursor = 'crosshair'
+    else if (this.hover?.kind === 'wire' && useEditor.getState().selection.has(this.hover.id)) {
+      cursor = 'move'
+    } else if (this.hover?.kind === 'pin' || this.hover?.kind === 'wire') cursor = 'crosshair'
     else if (this.hover) cursor = 'move'
     this.canvas.style.cursor = cursor
   }
@@ -550,6 +569,17 @@ export class CanvasController {
         this.requestDraw()
         return
       }
+      case 'bend': {
+        const dx = mode.level ? 0 : Math.round(world.x - mode.start.x)
+        const dy = mode.level ? Math.round(world.y - mode.start.y) : 0
+        if (dx === mode.dx && dy === mode.dy) return
+        mode.dx = dx
+        mode.dy = dy
+        this.previewDoc =
+          dx === 0 && dy === 0 ? null : (bendWire(state.doc, mode.wire, mode.at, dx, dy)?.doc ?? null)
+        this.requestDraw()
+        return
+      }
       case 'marquee':
         mode.current = world
         this.requestDraw()
@@ -575,6 +605,31 @@ export class CanvasController {
     }
   }
 
+  /** Starts dragging the straight stretch of a wire that runs through `pos`. */
+  private bendOf(doc: CircuitDoc, wireId: string, pos: Point, start: Point): Mode {
+    const wire = doc.wires[wireId]
+    const path = wire && wirePath(doc, wire)
+    const run = path && runAt(path, pos)
+    if (!run) return { kind: 'idle' }
+    let [first, last] = run
+    const level = first.y === last.y
+    // A wire leaves a pin straight for one step, so a corner right at the
+    // pin would hook back: the stretch starts one step in from a pin.
+    const step = (from: Point, to: Point): Point =>
+      level
+        ? { x: from.x + Math.sign(to.x - from.x), y: from.y }
+        : { x: from.x, y: from.y + Math.sign(to.y - from.y) }
+    const length = Math.abs(last.x - first.x) + Math.abs(last.y - first.y)
+    if (length > 2 && wire.from.kind === 'pin' && samePoint(first, path[0])) {
+      first = step(first, last)
+    }
+    if (length > 2 && wire.to.kind === 'pin' && samePoint(last, path[path.length - 1])) {
+      last = step(last, first)
+    }
+    const at = samePoint(first, last) ? [first] : [first, last]
+    return { kind: 'bend', wire: wireId, at, level, start, dx: 0, dy: 0 }
+  }
+
   /** Decides what a press that started moving turns into. */
   private beginDrag(press: Extract<Mode, { kind: 'press' }>): void {
     const state = useEditor.getState()
@@ -587,6 +642,9 @@ export class CanvasController {
         current: press.world,
         additive: press.shift,
       }
+    } else if (hit.kind === 'wire' && state.selection.has(hit.id) && !press.shift) {
+      // A selected wire moves, like a selected part; any other wire starts a branch.
+      this.mode = this.bendOf(state.doc, hit.id, hit.pos, press.world)
     } else if (hit.kind === 'wire') {
       this.mode = {
         kind: 'wire',
@@ -634,6 +692,9 @@ export class CanvasController {
       case 'move':
         if (mode.copy) state.duplicateSelection(mode.dx, mode.dy)
         else if (mode.dx !== 0 || mode.dy !== 0) state.moveSelection(mode.dx, mode.dy)
+        break
+      case 'bend':
+        state.bendWire(mode.wire, mode.at, mode.dx, mode.dy)
         break
       case 'marquee': {
         const inside = itemsInRect(state.doc, rectFromPoints(mode.start, mode.current))

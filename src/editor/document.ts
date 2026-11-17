@@ -344,18 +344,19 @@ export function addWire(
 /**
  * Puts a junction on a wire at `pos`, splitting the wire in two. If the wire
  * already ends on a junction at that spot, that junction is used instead.
+ * `after` is the wire that runs on from the junction to the far end.
  */
 function splitWire(
   doc: CircuitDoc,
   wireId: string,
   pos: Point,
-): { doc: CircuitDoc; terminal: Terminal } | undefined {
+): { doc: CircuitDoc; terminal: Terminal; after: string } | undefined {
   const wire = doc.wires[wireId]
   if (!wire) return undefined
   for (const end of [wire.from, wire.to]) {
     if (end.kind !== 'junction') continue
     const junction = doc.junctions[end.junction]
-    if (junction && samePoint(junction.pos, pos)) return { doc, terminal: end }
+    if (junction && samePoint(junction.pos, pos)) return { doc, terminal: end, after: wireId }
   }
   const added = addJunction(doc, pos)
   const terminal: Terminal = { kind: 'junction', junction: added.id }
@@ -363,8 +364,8 @@ function splitWire(
   delete wires[wireId]
   let next: CircuitDoc = { ...added.doc, wires }
   next = insertWire(next, wire.from, terminal).doc
-  next = insertWire(next, terminal, wire.to).doc
-  return { doc: next, terminal }
+  const after = insertWire(next, terminal, wire.to)
+  return { doc: after.doc, terminal, after: after.id }
 }
 
 /**
@@ -386,6 +387,32 @@ export function connectEnds(doc: CircuitDoc, a: WireEnd, b: WireEnd): CircuitDoc
     resolved.push(split.terminal)
   }
   return addWire(next, resolved[0], resolved[1])?.doc
+}
+
+/**
+ * Drags a stretch of a wire: a junction goes in at each point of `at`, in
+ * order from the wire's first end to its second, and all of them move by
+ * `dx`, `dy`. The wires between and on either side follow.
+ */
+export function bendWire(
+  doc: CircuitDoc,
+  wireId: string,
+  at: readonly Point[],
+  dx: number,
+  dy: number,
+): { doc: CircuitDoc; junctions: string[] } | undefined {
+  let next = doc
+  let rest = wireId
+  const junctions = new Set<string>()
+  for (const pos of at) {
+    const split = splitWire(next, rest, pos)
+    if (!split || split.terminal.kind !== 'junction') return undefined
+    next = split.doc
+    rest = split.after
+    junctions.add(split.terminal.junction)
+  }
+  if (junctions.size === 0) return undefined
+  return { doc: moveItems(next, junctions, dx, dy), junctions: [...junctions] }
 }
 
 /** Moves the listed parts and junctions. Wires follow on their own. */

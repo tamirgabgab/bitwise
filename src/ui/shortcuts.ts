@@ -42,7 +42,11 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
     items: [
       { keys: ['Scroll'], does: 'Zoom in and out' },
       { keys: ['Space+Drag'], does: 'Pan the canvas' },
-      { keys: ['Drag'], does: 'From a pin: draw a wire. From empty canvas: select an area' },
+      {
+        keys: ['Drag'],
+        does: 'From a pin or a wire: draw a wire. From a selected wire: move that stretch of it. From empty canvas: select an area',
+      },
+      { keys: ['Right-click'], does: 'On a wire: show it in the timing diagram, or take it away' },
       { keys: ['Double-click'], does: 'Open the circuit a part stands for' },
     ],
   },

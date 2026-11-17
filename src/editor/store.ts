@@ -14,6 +14,7 @@ import {
   addComponent,
   addSubcircuit,
   addText,
+  bendWire,
   connectEnds,
   copyItems,
   deleteItems,
@@ -147,6 +148,8 @@ export interface EditorState {
   /** Draws a wire between two ends. Returns false if it could not be made. */
   connect(a: WireEnd, b: WireEnd): boolean
   moveSelection(dx: number, dy: number): void
+  /** Drags a stretch of a wire by the junctions put in at `at`; selects them. */
+  bendWire(wireId: string, at: readonly Point[], dx: number, dy: number): void
   /** Makes a second copy of the selection, that far away, and selects it. */
   duplicateSelection(dx: number, dy: number): void
   /** Lines the selected parts up on one edge or one middle line. */
@@ -391,6 +394,12 @@ export const useEditor = create<EditorState>()((set, get) => {
     moveSelection(dx, dy) {
       const { doc, selection } = get()
       commit(moveItems(doc, selection, dx, dy))
+    },
+
+    bendWire(wireId, at, dx, dy) {
+      if (dx === 0 && dy === 0) return
+      const bent = bendWire(get().doc, wireId, at, dx, dy)
+      if (bent) commit(bent.doc, bent.junctions)
     },
 
     duplicateSelection(dx, dy) {

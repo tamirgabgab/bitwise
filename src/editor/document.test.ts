@@ -13,6 +13,7 @@ import {
   addSubcircuit,
   addText,
   addWire,
+  bendWire,
   duplicateItems,
   setComponentText,
   connectEnds,
@@ -130,6 +131,33 @@ describe('wires', () => {
     })!
     expect(Object.keys(next.junctions)).toEqual([junction.id])
     expect(junctionDegrees(next).get(junction.id)).toBe(4)
+  })
+
+  it('bends a wire: a junction at the grab point, moved, with both halves following', () => {
+    const doc = andCircuit()
+    const bent = bendWire(doc, 'w4', [{ x: 6, y: 0 }], 0, -3)!
+    expect(bent.doc.wires.w4).toBeUndefined()
+    expect(bent.doc.junctions[bent.junctions[0]].pos).toEqual({ x: 6, y: -3 })
+    expect(junctionDegrees(bent.doc).get(bent.junctions[0])).toBe(2)
+    const ends = Object.values(bent.doc.wires).filter(
+      (wire) => wire.from.kind === 'junction' || wire.to.kind === 'junction',
+    )
+    expect(ends).toHaveLength(2)
+    expect(bendWire(doc, 'w9', [{ x: 6, y: 0 }], 0, -3)).toBeUndefined()
+  })
+
+  it('drags a stretch of a wire by a junction at each end, in a chain', () => {
+    const doc = andCircuit()
+    const bent = bendWire(doc, 'w4', [{ x: 3, y: 0 }, { x: 8, y: 0 }], 0, -2)!
+    expect(bent.junctions).toHaveLength(2)
+    expect(bent.junctions.map((id) => bent.doc.junctions[id].pos)).toEqual([
+      { x: 3, y: -2 },
+      { x: 8, y: -2 },
+    ])
+    // c1 to the first junction, the first to the second, the second to c3.
+    const chain = Object.values(bent.doc.wires).filter((wire) => wire.id !== 'w5')
+    expect(chain).toHaveLength(3)
+    for (const id of bent.junctions) expect(junctionDegrees(bent.doc).get(id)).toBe(2)
   })
 
   it('refuses a wire from a wire to itself', () => {

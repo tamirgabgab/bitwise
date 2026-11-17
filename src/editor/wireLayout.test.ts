@@ -3,7 +3,7 @@ import { addComponent, addWire, connectEnds, emptyDoc, moveItems, terminalEnd } 
 import type { CircuitDoc, Terminal } from './document.ts'
 import type { Point } from './geometry.ts'
 import { routeWire } from './routing.ts'
-import { branchPoints, pathsClash, wirePath, wirePaths } from './wireLayout.ts'
+import { branchPoints, pathsClash, runAt, wirePath, wirePaths } from './wireLayout.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 const points = (...flat: number[]): Point[] => {
@@ -128,5 +128,23 @@ describe('branchPoints', () => {
       { kind: 'wire', wire, pos: { x: 6, y: 0 } },
     )!
     expect(branchPoints(doc)).toEqual([])
+  })
+})
+
+describe('runAt', () => {
+  const path: Point[] = [
+    { x: 0, y: 0 },
+    { x: 2, y: 0 },
+    { x: 5, y: 0 },
+    { x: 5, y: 4 },
+    { x: 9, y: 4 },
+  ]
+  it('gives the whole straight stretch through a point, in path order', () => {
+    expect(runAt(path, { x: 1, y: 0 })).toEqual([{ x: 0, y: 0 }, { x: 5, y: 0 }])
+    expect(runAt(path, { x: 5, y: 2 })).toEqual([{ x: 5, y: 0 }, { x: 5, y: 4 }])
+    expect(runAt(path, { x: 7, y: 4 })).toEqual([{ x: 5, y: 4 }, { x: 9, y: 4 }])
+  })
+  it('gives nothing off the path', () => {
+    expect(runAt(path, { x: 3, y: 2 })).toBeUndefined()
   })
 })
