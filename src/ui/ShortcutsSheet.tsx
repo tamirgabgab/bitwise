@@ -1,38 +1,20 @@
-import { useEffect, useRef } from 'react'
 import { useChrome } from './chrome.ts'
 import { CloseIcon } from './icons.tsx'
 import { Keys } from './Keys.tsx'
 import { SHORTCUTS } from './shortcuts.ts'
+import { useModal } from './useModal.ts'
 
 /** The list of keyboard and mouse shortcuts, in a window over the app. */
 export function ShortcutsSheet() {
   const open = useChrome((state) => state.overlay === 'shortcuts')
-  const ref = useRef<HTMLDialogElement>(null)
   const close = useChrome.getState().closeOverlay
-
-  useEffect(() => {
-    const dialog = ref.current
-    if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    if (!open && dialog.open) dialog.close()
-  }, [open])
+  const modal = useModal(open, close)
 
   return (
-    <dialog
-      ref={ref}
-      className="dialog shortcuts"
-      aria-labelledby="shortcuts-title"
-      onCancel={(event) => {
-        event.preventDefault()
-        close()
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close()
-      }}
-    >
+    <dialog {...modal} className="dialog shortcuts" aria-labelledby="shortcuts-title">
       {open && (
         <div className="shortcuts-box">
-          <header className="shortcuts-head">
+          <header className="overlay-head">
             <h2 id="shortcuts-title">Keyboard shortcuts</h2>
             <button
               type="button"

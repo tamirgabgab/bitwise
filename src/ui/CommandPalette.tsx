@@ -6,6 +6,7 @@ import type { Command } from './commands.ts'
 import { SearchIcon } from './icons.tsx'
 import { Keys } from './Keys.tsx'
 import { placeAt } from './placing.ts'
+import { useModal } from './useModal.ts'
 
 /** The most rows the list shows for one search. */
 const MAX_ROWS = 60
@@ -18,27 +19,13 @@ export function CommandPalette() {
   const open = useChrome((state) => state.overlay === 'commands')
   const seed = useChrome((state) => state.commandQuery)
   const quickAdd = useChrome((state) => state.quickAdd)
-  const dialogRef = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    const dialog = dialogRef.current
-    if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    if (!open && dialog.open) dialog.close()
-  }, [open])
+  const modal = useModal(open, useChrome.getState().closeOverlay)
 
   return (
     <dialog
-      ref={dialogRef}
+      {...modal}
       className="dialog commands"
       aria-label={quickAdd ? 'Add a part' : 'Search actions'}
-      onCancel={(event) => {
-        event.preventDefault()
-        useChrome.getState().closeOverlay()
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) useChrome.getState().closeOverlay()
-      }}
     >
       {open && <CommandSearch seed={seed} quickAdd={quickAdd} />}
     </dialog>

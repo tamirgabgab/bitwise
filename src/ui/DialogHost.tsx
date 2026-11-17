@@ -1,5 +1,5 @@
-import { useEffect, useRef } from 'react'
 import { answerDialog, useDialog } from './dialogs.ts'
+import { useModal } from './useModal.ts'
 
 /**
  * Shows whatever `ask` was last called with. A native dialog keeps the focus
@@ -7,33 +7,15 @@ import { answerDialog, useDialog } from './dialogs.ts'
  */
 export function DialogHost() {
   const open = useDialog((state) => state.open)
-  const ref = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    const dialog = ref.current
-    if (!dialog) return
-    if (open && !dialog.open) {
-      dialog.showModal()
-      dialog.querySelector<HTMLElement>('[data-first]')?.focus()
-    }
-    if (!open && dialog.open) dialog.close()
-  }, [open])
+  // Escape and the dimmed area answer through the store, which then closes it.
+  const modal = useModal(open !== null, () => answerDialog(false))
 
   return (
     <dialog
-      ref={ref}
+      {...modal}
       className="dialog"
       aria-labelledby="dialog-title"
       aria-describedby="dialog-body"
-      onCancel={(event) => {
-        // Escape: answer through the store, which then closes the dialog.
-        event.preventDefault()
-        answerDialog(false)
-      }}
-      onClick={(event) => {
-        // The dialog itself is only hit on the dimmed area around the box.
-        if (event.target === event.currentTarget) answerDialog(false)
-      }}
     >
       {open && (
         <div className="dialog-box">

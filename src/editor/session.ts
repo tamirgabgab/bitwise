@@ -68,6 +68,8 @@ interface Engine {
   cost: CircuitCost
   /** The longest path as the canvas marks it, worked out when first shown after an edit. */
   critical: CriticalMarks | undefined
+  /** The rows of the timing diagram, for the drawing they were made from. */
+  rows: { readonly doc: CircuitDoc; readonly list: readonly ScopeSignal[] } | undefined
 }
 
 /** What the canvas marks of the longest path: parts and wires, by id. */
@@ -76,9 +78,14 @@ export interface CriticalMarks {
   readonly wires: ReadonlySet<string>
 }
 
-/** Every row of a circuit's timing diagram: the ones picked for it, then the added wires. */
-function scopeRows(doc: CircuitDoc, watches: ReadonlyMap<string, Watch>): ScopeSignal[] {
-  const added = [...watches].map(
+/**
+ * Every row of a circuit's timing diagram: the ones picked for it, then the
+ * added wires. Kept until the drawing changes or `watchesChanged` is called,
+ * since every tick asks for them.
+ */
+function scopeRows(engine: Pick<Engine, 'watches' | 'rows'>, doc: CircuitDoc): readonly ScopeSignal[] {
+  if (engine.rows?.doc === doc) return engine.rows.list
+  const added = [...engine.watches].map(
     ([key, watch]): ScopeSignal => ({
       key: `w:${key}`,
       name: watch.name,
@@ -86,7 +93,14 @@ function scopeRows(doc: CircuitDoc, watches: ReadonlyMap<string, Watch>): ScopeS
       pin: watch.terminal,
     }),
   )
-  return [...scopeSignals(doc), ...added]
+  const list = added.length === 0 ? scopeSignals(doc) : [...scopeSignals(doc), ...added]
+  engine.rows = { doc, list }
+  return list
+}
+
+/** Drops the timing rows kept for a circuit whose added wires changed. */
+function watchesChanged(engine: Engine): void {
+  engine.rows = undefined
 }
 
 /**
@@ -113,15 +127,11 @@ function checkBreaks(engine: Pick<Engine, 'bridge' | 'breaks'>): BreakHit | null
 }
 
 /** Notes what every row of the timing diagram carries at this moment. */
-function record(
-  bridge: SimBridge,
-  recorder: Recorder,
-  doc: CircuitDoc | undefined,
-  watches: ReadonlyMap<string, Watch>,
-): void {
+function record(engine: Engine, doc: CircuitDoc | undefined): void {
   if (!doc) return
+  const { bridge, recorder } = engine
   const values = new Map<string, ScopeValue>()
-  for (const signal of scopeRows(doc, watches)) {
+  for (const signal of scopeRows(engine, doc)) {
     const probe = bridge.probeTerminal(terminalKey(signal.pin))
     // A bus goes into the record as its digits written out.
     if (probe) values.set(signal.key, probe.value.length > 1 ? formatSignal(probe.value) : probe.value[0])
@@ -147,12 +157,22 @@ function engineOf(id: string, radix: number): Engine {
     const watches = new Map<string, Watch>()
     // Only the open circuit runs, so its drawing is the one in the store.
     const runner = new SimRunner(bridge.sim, () => {
-      record(bridge, recorder, useEditor.getState().circuits[id]?.doc, watches)
+      record(made, useEditor.getState().circuits[id]?.doc)
       const hit = checkBreaks({ bridge, breaks })
       if (hit) useSim.setState({ running: false, breakHit: hit })
       return hit !== null
     })
-    engine = { bridge, runner, recorder, breaks, watches, cost: { gates: 0, depth: 0 }, critical: undefined }
+    const made: Engine = {
+      bridge,
+      runner,
+      recorder,
+      breaks,
+      watches,
+      cost: { gates: 0, depth: 0 },
+      critical: undefined,
+      rows: undefined,
+    }
+    engine = made
     engines.set(id, engine)
   }
   return engine
@@ -170,10 +190,14 @@ export function currentBridge(): SimBridge {
 
 /** Tells the app shell and the canvas that the simulator moved. */
 function publish(): void {
-  const { bridge, runner, recorder, watches, cost } = current()
+  const engine = current()
+  const { bridge, runner, cost } = engine
   const sim = bridge.sim
-  record(bridge, recorder, useEditor.getState().doc, watches)
+  record(engine, useEditor.getState().doc)
   const shown = useSim.getState()
+  const costChanged = shown.gates !== cost.gates || shown.depth !== cost.depth
+  // With no longest path left, the button that marks it is gone too: so is the mark.
+  const pathGone = cost.gates === 0 || cost.depth === undefined
   useSim.setState({
     time: sim.time,
     stable: sim.pendingEvents === 0,
@@ -181,7 +205,8 @@ function publish(): void {
     clocks: bridge.clockPins().length,
     oscillating: runner.oscillating,
     canStepBack: runner.canStepBack,
-    ...(shown.gates === cost.gates && shown.depth === cost.depth ? {} : cost),
+    ...(costChanged ? cost : {}),
+    ...(costChanged && pathGone ? { criticalShown: false } : {}),
     revision: shown.revision + 1,
   })
 }
@@ -201,9 +226,10 @@ export function currentScope(): {
   readonly time: number
   readonly radix: number
 } {
-  const { bridge, recorder, watches } = current()
+  const engine = current()
+  const { bridge, recorder } = engine
   return {
-    signals: scopeRows(useEditor.getState().doc, watches),
+    signals: scopeRows(engine, useEditor.getState().doc),
     recorder,
     time: bridge.sim.time,
     radix: bridge.sim.radix,
@@ -227,6 +253,7 @@ function syncActive(state: EditorState): void {
       dropped = true
     }
   }
+  if (dropped) watchesChanged(engine)
   if (dropped || state.active !== shownCircuit) {
     shownCircuit = state.active
     publishBreaks()
@@ -461,7 +488,8 @@ export function toggleWatch(terminal: Terminal): boolean {
   const existing = keyOnWire(engine.watches.keys(), doc, terminal)
   if (existing !== undefined) engine.watches.delete(existing)
   else engine.watches.set(terminalKey(terminal), { terminal, name: describeNode(terminal).name })
-  record(engine.bridge, engine.recorder, doc, engine.watches)
+  watchesChanged(engine)
+  record(engine, doc)
   publishBreaks()
   useSim.setState({ revision: useSim.getState().revision + 1 })
   return existing === undefined
@@ -471,6 +499,7 @@ export function toggleWatch(terminal: Terminal): boolean {
 export function unwatchRow(key: string): void {
   const engine = current()
   if (!key.startsWith('w:') || !engine.watches.delete(key.slice(2))) return
+  watchesChanged(engine)
   publishBreaks()
   useSim.setState({ revision: useSim.getState().revision + 1 })
 }

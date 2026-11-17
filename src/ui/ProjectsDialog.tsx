@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
 import { MAX_PROJECT_NAME } from '../io/index.ts'
 import type { StoredProject } from '../io/index.ts'
 import { useChrome } from './chrome.ts'
@@ -13,6 +13,7 @@ import {
   useStorage,
 } from './persistence.ts'
 import { latestFirst, savedWhen } from './projectList.ts'
+import { useModal } from './useModal.ts'
 
 /** The name of a project, edited in place. Enter or leaving the field keeps it. */
 function NameEditor({ project, onDone }: { project: StoredProject; onDone: () => void }) {
@@ -33,8 +34,8 @@ function NameEditor({ project, onDone }: { project: StoredProject; onDone: () =>
       onChange={(event) => setName(event.target.value)}
       onBlur={() => finish(true)}
       onKeyDown={(event) => {
-        if (event.key === 'Enter') finish(true)
-        else if (event.key === 'Escape') {
+        if (event.code === 'Enter' || event.code === 'NumpadEnter') finish(true)
+        else if (event.code === 'Escape') {
           // Leaves the name as it was, and keeps the window open.
           event.preventDefault()
           event.stopPropagation()
@@ -59,7 +60,7 @@ function ProjectsBox({ close }: { close: () => void }) {
 
   return (
     <div className="projects-box">
-      <header className="shortcuts-head">
+      <header className="overlay-head">
         <h2 id="projects-title">Projects in this browser</h2>
         <button
           type="button"
@@ -153,29 +154,11 @@ function ProjectsBox({ close }: { close: () => void }) {
 /** The projects the browser keeps, in a window over the app. */
 export function ProjectsDialog() {
   const open = useChrome((state) => state.overlay === 'projects')
-  const ref = useRef<HTMLDialogElement>(null)
   const close = useChrome.getState().closeOverlay
-
-  useEffect(() => {
-    const dialog = ref.current
-    if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    if (!open && dialog.open) dialog.close()
-  }, [open])
+  const modal = useModal(open, close)
 
   return (
-    <dialog
-      ref={ref}
-      className="dialog projects"
-      aria-labelledby="projects-title"
-      onCancel={(event) => {
-        event.preventDefault()
-        close()
-      }}
-      onClick={(event) => {
-        if (event.target === event.currentTarget) close()
-      }}
-    >
+    <dialog {...modal} className="dialog projects" aria-labelledby="projects-title">
       {open && <ProjectsBox close={close} />}
     </dialog>
   )

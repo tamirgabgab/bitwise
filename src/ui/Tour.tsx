@@ -1,7 +1,8 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { useChrome } from './chrome.ts'
 import { TOUR_STEPS, placeCard } from './tour.ts'
 import type { Box } from './tour.ts'
+import { useModal } from './useModal.ts'
 
 /** Pixels the ring stands off the piece it is drawn around. */
 const RING = 4
@@ -13,26 +14,10 @@ const RING = 4
  */
 export function Tour() {
   const open = useChrome((state) => state.overlay === 'tour')
-  const ref = useRef<HTMLDialogElement>(null)
-
-  useEffect(() => {
-    const dialog = ref.current
-    if (!dialog) return
-    if (open && !dialog.open) dialog.showModal()
-    if (!open && dialog.open) dialog.close()
-  }, [open])
+  const modal = useModal(open, useChrome.getState().endTour, false)
 
   return (
-    <dialog
-      ref={ref}
-      className="tour"
-      aria-labelledby="tour-title"
-      aria-describedby="tour-text"
-      onCancel={(event) => {
-        event.preventDefault()
-        useChrome.getState().endTour()
-      }}
-    >
+    <dialog {...modal} className="tour" aria-labelledby="tour-title" aria-describedby="tour-text">
       {open && <TourSteps />}
     </dialog>
   )

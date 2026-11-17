@@ -1,13 +1,18 @@
 /*
  * The projects the browser keeps between visits: a list of them, and the
- * text of each one under a key of its own. One of them is open. Storage can
- * be missing, full or switched off, so nothing here ever throws.
+ * text of each one under a key of its own. Storage can be missing, full or
+ * switched off, so nothing here ever throws.
+ *
+ * Every tab has its own open project. The list remembers only the one opened
+ * last, which is where a new tab starts.
  */
 
 const INDEX_KEY = 'cedar-logic.projects'
 /** Where the one project of earlier versions was kept. */
 const OLD_KEY = 'cedar-logic.project'
 const UNREADABLE_KEY = 'cedar-logic.project.unreadable'
+/** Where a list that could not be read is kept. */
+const UNREADABLE_INDEX_KEY = 'cedar-logic.projects.unreadable'
 
 /** A name in the list of projects is at most this long. */
 export const MAX_PROJECT_NAME = 60
@@ -21,7 +26,7 @@ export interface StoredProject {
 }
 
 export interface Library {
-  /** The project that is open, or null when none is yet. */
+  /** The project open in this tab, or null when none is yet. */
   readonly open: string | null
   readonly projects: readonly StoredProject[]
 }
@@ -72,6 +77,27 @@ function newId(library: Library): string {
 }
 
 /**
+ * A list made again from the texts in storage, when the list itself could
+ * not be read. The damaged list is kept aside.
+ */
+function rebuildIndex(store: Storage, damaged: string): Library {
+  store.setItem(UNREADABLE_INDEX_KEY, damaged)
+  const prefix = `${OLD_KEY}.`
+  const projects: StoredProject[] = []
+  for (let i = 0; i < store.length; i++) {
+    const key = store.key(i)
+    if (key === null || key === UNREADABLE_KEY || !key.startsWith(prefix)) continue
+    const id = key.slice(prefix.length)
+    if (!/^[a-z0-9]+$/.test(id)) continue
+    const name = freshName('Recovered project', projects.map((project) => project.name))
+    projects.push({ id, name, saved: Date.now() })
+  }
+  const library = { open: null, projects }
+  writeIndex(store, library)
+  return library
+}
+
+/**
  * The list as storage has it. The first time, the single project an earlier
  * version kept becomes the first entry.
  */
@@ -81,7 +107,7 @@ function readIndex(store: Storage): Library {
     try {
       return parseIndex(text)
     } catch {
-      return EMPTY
+      return rebuildIndex(store, text)
     }
   }
   const old = store.getItem(OLD_KEY)
@@ -94,12 +120,28 @@ function readIndex(store: Storage): Library {
   return library
 }
 
+/**
+ * The project open in this tab, and the storage it belongs to. Until the
+ * tab opens one of its own, it is the one the list says was opened last.
+ */
+let here: { readonly store: Storage; readonly id: string | null } | undefined
+
+/** The list as this tab sees it: with this tab's open project. */
+function readHere(store: Storage): Library {
+  const library = readIndex(store)
+  if (here?.store !== store) here = { store, id: library.open }
+  const id = here.id
+  return { ...library, open: library.projects.some((project) => project.id === id) ? id : null }
+}
+
 /** Runs `change` on the list and writes what it returns. False if it could not. */
 function update(change: (library: Library, store: Storage) => Library): boolean {
   const store = storage()
   if (!store) return false
   try {
-    writeIndex(store, change(readIndex(store), store))
+    const next = change(readHere(store), store)
+    here = { store, id: next.open }
+    writeIndex(store, next)
     return true
   } catch {
     return false
@@ -115,12 +157,12 @@ export function freshName(base: string, taken: readonly string[]): string {
   }
 }
 
-/** The projects the browser keeps, and which one is open. */
+/** The projects the browser keeps, and which one is open in this tab. */
 export function listLocal(): Library {
   const store = storage()
   if (!store) return EMPTY
   try {
-    return readIndex(store)
+    return readHere(store)
   } catch {
     return EMPTY
   }
@@ -182,7 +224,7 @@ export function createLocal(name: string): string | null {
   return done ? id : null
 }
 
-/** Makes another project of the list the open one. */
+/** Makes another project of the list the one open in this tab. */
 export function chooseLocal(id: string): boolean {
   return update((library) =>
     library.projects.some((project) => project.id === id) ? { ...library, open: id } : library,

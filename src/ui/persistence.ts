@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { canvasRuntime, projectSnapshot, useEditor, useSim } from '../editor/index.ts'
+import { canvasRuntime, isBlankProject, projectSnapshot, useEditor, useSim } from '../editor/index.ts'
 import type { Example, ProjectData } from '../editor/index.ts'
 import {
   ProjectFileError,
@@ -160,13 +160,13 @@ function mayReplace(withWhat: string): Promise<boolean> {
 
 /**
  * Opens a project as a new entry in the browser's list, so the one that was
- * open stays in the list untouched. An empty open project is reused rather
- * than left behind. Only when the browser keeps nothing does it ask first.
+ * open stays in the list untouched. An open project that is still blank is
+ * reused rather than left behind. Only when the browser keeps nothing does it ask first.
  */
 async function openAsNew(base: string, what: string, apply: () => void): Promise<boolean> {
   flush()
   const { open, projects } = listLocal()
-  const reuse = open !== null && isEmpty()
+  const reuse = open !== null && isBlankProject(useEditor.getState())
   const name = freshName(
     base,
     projects.filter((project) => !(reuse && project.id === open)).map((project) => project.name),

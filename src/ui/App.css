@@ -1862,7 +1862,7 @@ label.swatch:focus-within {
   width: 720px;
 }
 
-.shortcuts-head {
+.overlay-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1870,7 +1870,7 @@ label.swatch:focus-within {
   border-bottom: 1px solid var(--border);
 }
 
-.shortcuts-head h2 {
+.overlay-head h2 {
   margin: 0;
 }
 

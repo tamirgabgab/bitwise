@@ -325,6 +325,25 @@ export function emptyProject(): LoadedProject {
 }
 
 /**
+ * Whether a project is still as `emptyProject` makes it, so that nothing in
+ * it would be missed if it were replaced.
+ */
+export function isBlankProject(project: Project): boolean {
+  const blank = emptyProject()
+  if (project.order.length !== 1) return false
+  const circuit = project.circuits[project.order[0]]
+  const { components, junctions, wires } = circuit.doc
+  return (
+    circuit.name === blank.circuits[blank.order[0]].name &&
+    Object.keys(components).length === 0 &&
+    Object.keys(junctions).length === 0 &&
+    Object.keys(wires).length === 0 &&
+    (circuit.steps ?? []).length === 0 &&
+    JSON.stringify(project.settings) === JSON.stringify(blank.settings)
+  )
+}
+
+/**
  * Reads a project from plain data. The data may come from a file someone
  * edited by hand, so whatever makes no sense is dropped rather than trusted:
  * unknown parts, wires to pins that do not exist, a circuit inside itself.

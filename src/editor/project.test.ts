@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import { addComponent, addSubcircuit, addText, addWire, emptyDoc } from './document.ts'
 import type { Terminal } from './document.ts'
-import { DEFAULT_SETTINGS, cleanSettings, emptyProject, fromProjectData, toProjectData } from './project.ts'
+import {
+  DEFAULT_SETTINGS,
+  cleanSettings,
+  emptyProject,
+  fromProjectData,
+  isBlankProject,
+  toProjectData,
+} from './project.ts'
 import type { ProjectData } from './project.ts'
 import { subRefOf } from './subcircuit.ts'
 import type { Circuit } from './subcircuit.ts'
@@ -135,5 +142,27 @@ describe('a text label in a project', () => {
       circuits: [{ ...data.circuits[0], components: [{ ...data.circuits[0].components[0], text: ' ' }] }],
     }
     expect(Object.keys(fromProjectData(blank).circuits.k1.doc.components)).toHaveLength(0)
+  })
+})
+
+describe('isBlankProject', () => {
+  it('is true only for a project as a new one starts', () => {
+    const blank = emptyProject()
+    expect(isBlankProject(blank)).toBe(true)
+    const main = blank.circuits.k1
+    const withMain = (circuit: Circuit) => ({ ...blank, circuits: { k1: circuit } })
+    expect(isBlankProject({ ...blank, settings: { ...DEFAULT_SETTINGS } })).toBe(true)
+    expect(isBlankProject({ ...blank, settings: { ...DEFAULT_SETTINGS, radix: 3 } })).toBe(false)
+    expect(isBlankProject(withMain({ ...main, name: 'Adder' }))).toBe(false)
+    expect(isBlankProject(withMain({ ...main, steps: [{ note: 'a', inputs: {} }] }))).toBe(false)
+    const doc = addComponent(emptyDoc(), 'output', { x: 0, y: 0 }).doc
+    expect(isBlankProject(withMain({ ...main, doc }))).toBe(false)
+    expect(
+      isBlankProject({
+        ...blank,
+        circuits: { ...blank.circuits, k2: { ...main, id: 'k2' } },
+        order: ['k1', 'k2'],
+      }),
+    ).toBe(false)
   })
 })

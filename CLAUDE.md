@@ -170,7 +170,8 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `listCommands()` (`commands.ts`) is the one list of actions behind the
   command search. A command with a shortcut must also be in `shortcuts.ts`;
   a test checks it.
-- Overlays are native `<dialog>` elements opened with `showModal()`. The
+- Overlays are native `<dialog>` elements opened with `showModal()`
+  through `useModal` (`src/ui/useModal.ts`). The
   canvas ignores keys whose target is inside a dialog.
 - The inspector is docked on the right and is there only while something
   is selected. On a phone it is a bottom sheet.
@@ -204,6 +205,8 @@ Run lint, test and build before calling a change done. CI runs the same three.
   `cedar-logic.projects` and each project's text under its own key. New
   projects, opened files and examples join the list instead of replacing the
   open one; `persistence.ts` asks before replacing only when storage is off.
+  Each tab has its own open project; the index remembers only the one
+  opened last, where a new tab starts.
 - TypeScript runs with `erasableSyntaxOnly`: no enums, namespaces or
   parameter properties. Use union types and `as const` objects.
 - Relative imports include the `.ts` / `.tsx` extension.

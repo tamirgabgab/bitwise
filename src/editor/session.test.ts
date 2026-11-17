@@ -87,4 +87,14 @@ describe('the longest path on the canvas', () => {
     expect(after).not.toBe(before)
     expect(after.wires.size).toBe(1)
   })
+
+  it('stops being marked when the circuit gets a loop', () => {
+    inverter()
+    useSim.getState().setCriticalShown(true)
+    editor().addComponent('not', { x: 10, y: 10 })
+    const loop = Object.keys(editor().doc.components).find((id) => !['c1', 'c2', 'c4'].includes(id))
+    editor().connect(at(loop as string, 'out'), at(loop as string, 'in'))
+    expect(useSim.getState().depth).toBeUndefined()
+    expect(useSim.getState().criticalShown).toBe(false)
+  })
 })

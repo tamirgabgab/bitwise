@@ -186,6 +186,15 @@ export function makeValueStyle(settings: ValueSettings, theme: ValueTheme): Valu
   // be digits, so floating and unknown wires fall back to the plain wire color.
   const floating = classic ? theme.signalHiz : theme.wire
   const unknown = classic ? theme.signalUnknown : theme.wire
+  // Lifting a color clear of the background is slow, and every wire of every
+  // frame asks for one, so each digit's look is worked out once.
+  const looks: WireLook[] = []
+  const lookOf = (digit: Digit): WireLook =>
+    (looks[digit] ??= {
+      color: visibleColor(digitColor(digit, settings, theme), theme),
+      dash: [],
+      weight: 1,
+    })
 
   return {
     showDigits: settings.showDigits,
@@ -211,7 +220,7 @@ export function makeValueStyle(settings: ValueSettings, theme: ValueTheme): Valu
       if (digit === X || digit >= settings.radix) {
         return { color: unknown, dash: [0.02, 0.3], weight: 1.15 }
       }
-      return { color: visibleColor(digitColor(digit, settings, theme), theme), dash: [], weight: 1 }
+      return lookOf(digit)
     },
   }
 }

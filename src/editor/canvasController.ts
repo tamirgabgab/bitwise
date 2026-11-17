@@ -120,7 +120,11 @@ export class CanvasController {
   private readonly cleanups: (() => void)[] = []
   private mode: Mode = { kind: 'idle' }
   private hover: Hit | null = null
-  /** Where the pointer last was over the canvas, in window pixels. */
+  /**
+   * Where the pointer last was in the window, in window pixels. It is
+   * followed over the whole window, so that the cards and maps drawn over
+   * the canvas do not hide it.
+   */
   private pointerAt: { x: number; y: number } | null = null
   /** The pointer rests on the face of a switch or button. */
   private hoverPoke = false
@@ -154,6 +158,12 @@ export class CanvasController {
     this.listen(canvas, 'wheel', this.onWheel, { passive: false })
     this.listen(canvas, 'contextmenu', this.onContextMenu)
     this.listen(canvas, 'dblclick', this.onDoubleClick)
+    this.listen(window, 'pointermove', (event: PointerEvent) => {
+      this.pointerAt = { x: event.clientX, y: event.clientY }
+    })
+    this.listen(document.documentElement, 'pointerleave', () => {
+      this.pointerAt = null
+    })
     this.listen(window, 'keydown', this.onKeyDown)
     this.listen(window, 'keyup', this.onKeyUp)
     this.listen(window, 'blur', releaseKeys)
@@ -531,7 +541,6 @@ export class CanvasController {
   }
 
   private readonly onPointerMove = (event: PointerEvent): void => {
-    this.pointerAt = { x: event.clientX, y: event.clientY }
     const state = useEditor.getState()
     const world = this.toWorld(event)
     const mode = this.mode
@@ -748,7 +757,6 @@ export class CanvasController {
   }
 
   private readonly onPointerLeave = (): void => {
-    this.pointerAt = null
     if (this.mode.kind !== 'idle' || this.hover === null) return
     this.hover = null
     this.hoverPoke = false

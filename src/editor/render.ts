@@ -176,8 +176,12 @@ export function textPixels(designed: number, floor: number): number {
   return designed * MAX_TEXT_BOOST >= floor ? floor : 0
 }
 
-/** `MIN_TEXT_PX` in device pixels for the scene being drawn. */
-let textFloor = MIN_TEXT_PX
+/**
+ * `MIN_TEXT_PX` in device pixels, for each context `renderScene` drew on.
+ * Any other context, such as an icon's or an SVG export's, uses
+ * `MIN_TEXT_PX` as it is.
+ */
+const textFloors = new WeakMap<CanvasRenderingContext2D, number>()
 
 /**
  * Writes text centred on a point given in the current coordinates, upright
@@ -197,7 +201,7 @@ function drawText(
   const scale = Math.hypot(matrix.a, matrix.b)
   const x = matrix.a * at.x + matrix.c * at.y + matrix.e
   const y = matrix.b * at.x + matrix.d * at.y + matrix.f
-  const pixels = textPixels(size * scale, textFloor)
+  const pixels = textPixels(size * scale, textFloors.get(ctx) ?? MIN_TEXT_PX)
   if (pixels === 0) return
   ctx.save()
   ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -350,7 +354,7 @@ export function renderScene(
   scene: Scene,
 ): void {
   const { doc, selection, view, live, style } = scene
-  textFloor = MIN_TEXT_PX * pixelRatio
+  textFloors.set(ctx, MIN_TEXT_PX * pixelRatio)
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
   ctx.fillStyle = theme.background
   ctx.fillRect(0, 0, width, height)

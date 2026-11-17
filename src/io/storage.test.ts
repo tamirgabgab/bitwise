@@ -105,9 +105,35 @@ describe('projects kept in the browser', () => {
     expect(store.getItem('cedar-logic.project.unreadable')).toBe('garbled')
   })
 
-  it('reads a damaged list as empty and never throws without storage', () => {
+  it('keeps its own open project while another tab opens a different one', () => {
+    saveLocal('mine')
+    const mine = listLocal().open as string
+    const theirs = duplicateLocal(mine, 'Theirs') as string
+    // Another tab opens "Theirs": the list now says it was opened last.
+    const index = JSON.parse(store.getItem('cedar-logic.projects') as string)
+    store.setItem('cedar-logic.projects', JSON.stringify({ ...index, open: theirs }))
+    expect(listLocal().open).toBe(mine)
+    saveLocal('mine, changed')
+    expect(readLocal(mine)).toBe('mine, changed')
+    expect(readLocal(theirs)).toBe('mine')
+  })
+
+  it('builds a damaged list again from the projects it can find', () => {
+    saveLocal('kept')
+    const id = listLocal().open as string
+    store.setItem('cedar-logic.project.unreadable', 'garbled')
     store.setItem('cedar-logic.projects', '{not json')
-    expect(listLocal()).toEqual({ open: null, projects: [] })
+    const { projects } = listLocal()
+    expect(projects).toEqual([expect.objectContaining({ id, name: 'Recovered project' })])
+    expect(readLocal(id)).toBe('kept')
+    expect(store.getItem('cedar-logic.projects.unreadable')).toBe('{not json')
+    // This tab still has it open, so its next save goes there.
+    saveLocal('kept, changed')
+    expect(listLocal().projects).toHaveLength(1)
+    expect(readLocal(id)).toBe('kept, changed')
+  })
+
+  it('never throws without storage', () => {
     Reflect.deleteProperty(globalThis, 'localStorage')
     expect(saveLocal('x')).toBe(false)
     expect(createLocal('x')).toBeNull()
