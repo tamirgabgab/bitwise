@@ -7,7 +7,7 @@ import {
   terminalEnd,
 } from './document.ts'
 import type { CircuitDoc, WireEnd } from './document.ts'
-import { rectFromPoints, rotatePoint, samePoint, snapPoint } from './geometry.ts'
+import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
 import { docBounds, hitTest, itemsInRect, terminalOfHit } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
@@ -44,7 +44,7 @@ import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
 import { keepInSight, screenToWorld, wheelZoomFactor } from './view.ts'
-import { runAt, wirePath } from './wireLayout.ts'
+import { bendPoints, wirePath } from './wireLayout.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
 const DRAG_THRESHOLD = 4
@@ -618,25 +618,9 @@ export class CanvasController {
   private bendOf(doc: CircuitDoc, wireId: string, pos: Point, start: Point): Mode {
     const wire = doc.wires[wireId]
     const path = wire && wirePath(doc, wire)
-    const run = path && runAt(path, pos)
-    if (!run) return { kind: 'idle' }
-    let [first, last] = run
-    const level = first.y === last.y
-    // A wire leaves a pin straight for one step, so a corner right at the
-    // pin would hook back: the stretch starts one step in from a pin.
-    const step = (from: Point, to: Point): Point =>
-      level
-        ? { x: from.x + Math.sign(to.x - from.x), y: from.y }
-        : { x: from.x, y: from.y + Math.sign(to.y - from.y) }
-    const length = Math.abs(last.x - first.x) + Math.abs(last.y - first.y)
-    if (length > 2 && wire.from.kind === 'pin' && samePoint(first, path[0])) {
-      first = step(first, last)
-    }
-    if (length > 2 && wire.to.kind === 'pin' && samePoint(last, path[path.length - 1])) {
-      last = step(last, first)
-    }
-    const at = samePoint(first, last) ? [first] : [first, last]
-    return { kind: 'bend', wire: wireId, at, level, start, dx: 0, dy: 0 }
+    const bend = path && bendPoints(wire, path, pos)
+    if (!bend) return { kind: 'idle' }
+    return { kind: 'bend', wire: wireId, ...bend, start, dx: 0, dy: 0 }
   }
 
   /** Decides what a press that started moving turns into. */

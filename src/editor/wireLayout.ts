@@ -252,6 +252,36 @@ export function runAt(path: readonly Point[], pos: Point): readonly [Point, Poin
   return undefined
 }
 
+/**
+ * The points a drag at `pos` moves to bend a wire that runs along `path`:
+ * both ends of the straight stretch there, or one point when they meet.
+ * `level` is true when the stretch runs across. A wire leaves a pin
+ * straight for one step, so a corner right at the pin would hook back:
+ * the stretch starts one step in from a pin.
+ */
+export function bendPoints(
+  wire: DocWire,
+  path: readonly Point[],
+  pos: Point,
+): { readonly at: Point[]; readonly level: boolean } | undefined {
+  const run = runAt(path, pos)
+  if (!run) return undefined
+  let [first, last] = run
+  const level = first.y === last.y
+  const step = (from: Point, to: Point): Point =>
+    level
+      ? { x: from.x + Math.sign(to.x - from.x), y: from.y }
+      : { x: from.x, y: from.y + Math.sign(to.y - from.y) }
+  const length = Math.abs(last.x - first.x) + Math.abs(last.y - first.y)
+  if (length > 2 && wire.from.kind === 'pin' && samePoint(first, path[0])) {
+    first = step(first, last)
+  }
+  if (length > 2 && wire.to.kind === 'pin' && samePoint(last, path[path.length - 1])) {
+    last = step(last, first)
+  }
+  return { at: samePoint(first, last) ? [first] : [first, last], level }
+}
+
 /** The path a wire takes across the grid, or undefined if an end is missing. */
 export function wirePath(doc: CircuitDoc, wire: DocWire): Path | undefined {
   return wirePaths(doc).get(wire.id)

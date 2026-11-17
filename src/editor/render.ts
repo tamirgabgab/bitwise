@@ -432,44 +432,40 @@ export function renderScene(
     const symbol = symbolOf(component)
     const selected = selection.has(component.id)
     const outline = selected ? theme.accent : theme.ink
-    if (selected) {
+    // A rounded box `pad` units clear of the part, turned with it.
+    const ring = (pad: number, radius: number, paint: () => void): void => {
       const { x0, y0, x1, y1 } = symbol.bounds
       ctx.save()
       ctx.translate(component.pos.x, component.pos.y)
       ctx.rotate((component.rotation * Math.PI) / 2)
       ctx.beginPath()
-      ctx.roundRect(x0 - 0.35, y0 - 0.35, x1 - x0 + 0.7, y1 - y0 + 0.7, 0.4)
-      ctx.fillStyle = theme.accentSoft
-      ctx.fill()
+      ctx.roundRect(x0 - pad, y0 - pad, x1 - x0 + 2 * pad, y1 - y0 + 2 * pad, radius)
+      paint()
       ctx.restore()
+    }
+    if (selected) {
+      ring(0.35, 0.4, () => {
+        ctx.fillStyle = theme.accentSoft
+        ctx.fill()
+      })
     }
     if (scene.critical?.parts.has(component.id)) {
       // On the longest path: a dashed ring, so it reads apart from the
       // solid ring of a part a change is passing through.
-      const { x0, y0, x1, y1 } = symbol.bounds
-      ctx.save()
-      ctx.translate(component.pos.x, component.pos.y)
-      ctx.rotate((component.rotation * Math.PI) / 2)
-      ctx.beginPath()
-      ctx.roundRect(x0 - 0.5, y0 - 0.5, x1 - x0 + 1, y1 - y0 + 1, 0.5)
-      ctx.setLineDash([0.35, 0.25])
-      ctx.strokeStyle = theme.accent
-      ctx.lineWidth = 0.12
-      ctx.stroke()
-      ctx.restore()
+      ring(0.5, 0.5, () => {
+        ctx.setLineDash([0.35, 0.25])
+        ctx.strokeStyle = theme.accent
+        ctx.lineWidth = 0.12
+        ctx.stroke()
+      })
     }
     if (scene.active.has(component.id)) {
       // A change is passing through this part right now.
-      const { x0, y0, x1, y1 } = symbol.bounds
-      ctx.save()
-      ctx.translate(component.pos.x, component.pos.y)
-      ctx.rotate((component.rotation * Math.PI) / 2)
-      ctx.beginPath()
-      ctx.roundRect(x0 - 0.35, y0 - 0.35, x1 - x0 + 0.7, y1 - y0 + 0.7, 0.4)
-      ctx.strokeStyle = theme.accent
-      ctx.lineWidth = 0.16
-      ctx.stroke()
-      ctx.restore()
+      ring(0.35, 0.4, () => {
+        ctx.strokeStyle = theme.accent
+        ctx.lineWidth = 0.16
+        ctx.stroke()
+      })
     }
     drawPart(
       ctx,

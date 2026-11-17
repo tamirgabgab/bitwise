@@ -401,3 +401,15 @@ describe('cycle', () => {
     expect(sim.readPin({ component: cycle, port: 'out' })[0]).toBe(0)
   })
 })
+
+describe('the value a part keeps', () => {
+  it('is Q for latches, flip-flops, registers and counters, and nothing for other parts', () => {
+    const sim = new Simulator()
+    for (const type of ['sr', 'dff', 'tff', 'jkff']) {
+      expect(sim.getStored(sim.addComponent(type))).toEqual([0])
+    }
+    expect(sim.getStored(sim.addComponent('register', { params: { width: 3 } }))).toEqual([0, 0, 0])
+    expect(sim.getStored(sim.addComponent('counter', { params: { width: 2 } }))).toEqual([0, 0])
+    expect(sim.getStored(sim.addComponent('and'))).toBeUndefined()
+  })
+})

@@ -42,7 +42,7 @@ afterEach(() => {
 describe('freshName', () => {
   it('numbers a name that is taken', () => {
     expect(freshName('Adder', [])).toBe('Adder')
-    expect(freshName('Adder', ['Adder', 'Adder 2'])).toBe('Adder 3')
+    expect(freshName('Adder', [{ name: 'Adder' }, { name: 'Adder 2' }])).toBe('Adder 3')
     expect(freshName('   ', [])).toBe('Untitled project')
   })
 })

@@ -3,15 +3,13 @@ import {
   SUB_TYPE,
   canvasRuntime,
   describeNode,
-  readPart,
   signalText,
   useEditor,
   useProbe,
   useSim,
 } from '../editor/index.ts'
-import type { ProjectSettings } from '../editor/index.ts'
-import { partName } from './parts.ts'
-import { pinName, portLabel } from './probeText.ts'
+import type { ProbedPin, ProjectSettings } from '../editor/index.ts'
+import { partTitle, pinName, portLabel } from './probeText.ts'
 
 /** The bubble is this wide at most, so it knows when to open to the left. */
 const WIDTH = 248
@@ -23,28 +21,33 @@ const WIDTH = 248
 function PinLine({
   component,
   port,
+  here,
   settings,
 }: {
   component: string
   port: string
+  here: ProbedPin | undefined
   settings: ProjectSettings
 }) {
   const part = useEditor.getState().doc.components[component]
   if (!part) return null
-  let owner = part.label ? `${partName(part.type)} ${part.label}` : partName(part.type)
+  let owner = partTitle(part.type, part.label)
   let name = portLabel(port)
+  let way = here ? (here.drives ? 'output' : 'input') : 'pin'
   if (part.type === SUB_TYPE && part.sub) {
+    // The pin inside drives what comes in, so the way is the circuit's own.
+    const input = part.sub.inputs.find((pin) => pin.port === port)
+    const output = part.sub.outputs.find((pin) => pin.port === port)
     owner = part.sub.name
-    name = [...part.sub.inputs, ...part.sub.outputs].find((pin) => pin.port === port)?.label ?? port
+    name = (input ?? output)?.label ?? port
+    way = input ? 'input' : output ? 'output' : 'pin'
   }
-  const own = readPart(component)?.pins.find((pin) => pin.port === port)
-  const way = own ? (own.direction === 'in' ? 'input' : 'output') : 'pin'
   return (
     <p className="probe-pin-line">
       <span>
         {owner}, {way} {name}
       </span>
-      {own && <span className="probe-pin-value">{signalText(own.signal, settings)}</span>}
+      {here && <span className="probe-pin-value">{signalText(here.signal, settings)}</span>}
     </p>
   )
 }
@@ -70,13 +73,13 @@ export function ProbeBubble() {
   else style.top = at.y + 18
   const pin = at.terminal.kind === 'pin' ? at.terminal : null
   // The pin under the pointer has a line of its own, so it is not listed again.
-  const drivers = info.drivers.filter(
-    (driver) => !(pin && driver.part === pin.component && driver.port === pin.port),
-  )
+  const drivers = pin ? info.drivers.filter((driver) => driver !== info.here) : info.drivers
 
   return (
     <div className="probe" role="status" style={style}>
-      {pin && <PinLine component={pin.component} port={pin.port} settings={settings} />}
+      {pin && (
+        <PinLine component={pin.component} port={pin.port} here={info.here} settings={settings} />
+      )}
       <p className="probe-head">
         <span className="probe-value">{signalText(info.signal, settings)}</span>
         <span className="probe-name">{info.name}</span>

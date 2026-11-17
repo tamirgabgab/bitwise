@@ -10,7 +10,7 @@ import {
   scopeTickAt,
   scopeTicks,
   scopeZoom,
-  valueAt,
+  scopePan,
 } from './scopeRender.ts'
 
 const width = SCOPE_NAMES + 6 + 400
@@ -56,14 +56,28 @@ describe('scope layout', () => {
   })
 })
 
-describe('valueAt', () => {
+describe('Recorder.valueAt', () => {
   it('reads what a row held at a tick', () => {
     const recorder = new Recorder()
-    recorder.sample(0, new Map([['a', 0]]))
+    recorder.sample(2, new Map([['a', 0]]))
     recorder.sample(5, new Map([['a', 1]]))
-    recorder.sample(9, new Map([['a', 1]]))
-    expect(valueAt(recorder, 'a', 3)).toBe(0)
-    expect(valueAt(recorder, 'a', 5)).toBe(1)
-    expect(valueAt(recorder, 'b', 3)).toBeUndefined()
+    recorder.sample(7, new Map([['a', 2]]))
+    recorder.sample(9, new Map([['a', 2]]))
+    expect(recorder.valueAt('a', 1)).toBeUndefined()
+    expect(recorder.valueAt('a', 3)).toBe(0)
+    expect(recorder.valueAt('a', 5)).toBe(1)
+    expect(recorder.valueAt('a', 6)).toBe(1)
+    expect(recorder.valueAt('a', 20)).toBe(2)
+    expect(recorder.valueAt('b', 3)).toBeUndefined()
+  })
+})
+
+describe('scopePan', () => {
+  it('moves through time an eighth of the view at a time, and follows the run at the end', () => {
+    expect(scopePan(null, 1000, 80, -1)).toBe(990)
+    expect(scopePan(990, 1000, 80, 1)).toBeNull()
+    // Not before the first screenful of the record.
+    expect(scopePan(85, 1000, 80, -1)).toBe(80)
+    expect(scopePan(null, 50, 80, -1)).toBeNull()
   })
 })

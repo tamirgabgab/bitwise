@@ -155,7 +155,7 @@ export function mixColor(a: string, b: string, t: number): string {
  * into the background, such as black on the dark theme, is moved toward the
  * plain wire color until it reads, so the wire stays one solid line.
  */
-export function visibleColor(color: string, theme: ValueTheme): string {
+function visibleColor(color: string, theme: ValueTheme): string {
   if (contrastRatio(color, theme.background) >= MIN_CONTRAST) return color
   for (let t = 0.2; t < 1; t += 0.1) {
     const lifted = mixColor(color, theme.wire, t)

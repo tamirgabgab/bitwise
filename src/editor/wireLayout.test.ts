@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import { addComponent, addWire, connectEnds, emptyDoc, moveItems, terminalEnd } from './document.ts'
-import type { CircuitDoc, Terminal } from './document.ts'
+import type { CircuitDoc, DocWire, Terminal } from './document.ts'
 import type { Point } from './geometry.ts'
 import { routeWire } from './routing.ts'
-import { branchPoints, pathsClash, runAt, wirePath, wirePaths } from './wireLayout.ts'
+import { bendPoints, branchPoints, pathsClash, runAt, wirePath, wirePaths } from './wireLayout.ts'
 
 const pin = (component: string, port: string): Terminal => ({ kind: 'pin', component, port })
 const points = (...flat: number[]): Point[] => {
@@ -146,5 +146,32 @@ describe('runAt', () => {
   })
   it('gives nothing off the path', () => {
     expect(runAt(path, { x: 3, y: 2 })).toBeUndefined()
+  })
+})
+
+describe('bendPoints', () => {
+  const path: Point[] = [
+    { x: 0, y: 0 },
+    { x: 6, y: 0 },
+    { x: 6, y: 4 },
+    { x: 7, y: 4 },
+  ]
+  const between = (from: Terminal | { kind: 'junction'; id: string }, to: typeof from) =>
+    ({ id: 'w1', from, to }) as DocWire
+  it('takes the stretch one step in from a pin', () => {
+    const wire = between(pin('a', 'out'), pin('b', 'in'))
+    expect(bendPoints(wire, path, { x: 3, y: 0 })).toEqual({
+      at: [{ x: 1, y: 0 }, { x: 6, y: 0 }],
+      level: true,
+    })
+  })
+  it('keeps the ends at junctions, and moves one point when a short stretch meets itself', () => {
+    const wire = between({ kind: 'junction', id: 'j1' }, { kind: 'junction', id: 'j2' })
+    expect(bendPoints(wire, path, { x: 3, y: 0 })?.at).toEqual([{ x: 0, y: 0 }, { x: 6, y: 0 }])
+    expect(bendPoints(wire, path, { x: 6, y: 2 })).toEqual({
+      at: [{ x: 6, y: 0 }, { x: 6, y: 4 }],
+      level: false,
+    })
+    expect(bendPoints(wire, path, { x: 3, y: 9 })).toBeUndefined()
   })
 })

@@ -404,6 +404,12 @@ export class Simulator {
     return this.instance(id).state
   }
 
+  /** The value a memory part keeps, or undefined for a part that keeps none. */
+  getStored(id: ComponentId): Signal | undefined {
+    const instance = this.instance(id)
+    return instance.def.stored?.(instance.state)
+  }
+
   getComponent(id: ComponentId): ComponentInfo {
     const instance = this.instance(id)
     return {

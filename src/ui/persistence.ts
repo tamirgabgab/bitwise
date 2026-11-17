@@ -19,9 +19,11 @@ import {
   saveLocal,
   serializeProject,
   setAsideLocal,
+  watchLocal,
 } from '../io/index.ts'
 import type { Library } from '../io/index.ts'
 import { ask } from './dialogs.ts'
+import { latestFirst } from './projectList.ts'
 import { toast } from './toasts.ts'
 
 /*
@@ -57,15 +59,9 @@ export function openProjectText(text: string): void {
   useEditor.getState().loadProject(parseProject(text))
 }
 
-function publish(): void {
-  useStorage.setState({ library: listLocal() })
-}
-
 function saveNow(): void {
-  if (timer !== undefined) clearTimeout(timer)
-  timer = undefined
+  forgetPendingSave()
   useStorage.setState({ ok: saveLocal(projectText()) })
-  publish()
 }
 
 function saveSoon(): void {
@@ -92,6 +88,8 @@ function reasonOf(error: unknown): string {
  * on keeps the browser's copy current. Call once, before the first render.
  */
 export function startPersistence(): void {
+  // Every change to the list reaches the projects window from here on.
+  watchLocal((library) => useStorage.setState({ library }))
   const stored = loadLocal()
   if (stored !== null) {
     try {
@@ -106,7 +104,7 @@ export function startPersistence(): void {
       })
     }
   }
-  publish()
+  useStorage.setState({ library: listLocal() })
 
   useEditor.subscribe((state, previous) => {
     if (
@@ -140,15 +138,9 @@ export function startPersistence(): void {
   })
 }
 
-function isEmpty(): boolean {
-  return Object.values(useEditor.getState().circuits).every(
-    (circuit) => Object.keys(circuit.doc.components).length === 0,
-  )
-}
-
 /** Asks before something replaces a project that has work in it. */
 function mayReplace(withWhat: string): Promise<boolean> {
-  if (isEmpty()) return Promise.resolve(true)
+  if (isBlankProject(useEditor.getState())) return Promise.resolve(true)
   return ask({
     title: 'Replace this project?',
     body: `${withWhat} takes the place of the project you have open. To keep it, save it to a file first.`,
@@ -169,7 +161,7 @@ async function openAsNew(base: string, what: string, apply: () => void): Promise
   const reuse = open !== null && isBlankProject(useEditor.getState())
   const name = freshName(
     base,
-    projects.filter((project) => !(reuse && project.id === open)).map((project) => project.name),
+    projects.filter((project) => !(reuse && project.id === open)),
   )
   if (reuse) renameLocal(open, name)
   else if (createLocal(name) === null && !(await mayReplace(what))) return false
@@ -234,16 +226,17 @@ export async function openExample(example: Example): Promise<void> {
   }
 }
 
-function nameOf(id: string): string {
-  return listLocal().projects.find((project) => project.id === id)?.name ?? 'the project'
+function nameOf(id: string, library = listLocal()): string {
+  return library.projects.find((project) => project.id === id)?.name ?? 'the project'
 }
 
 /** Opens another project of the browser's list. False if it could not be read. */
 export async function switchProject(id: string): Promise<boolean> {
-  const { open } = listLocal()
+  const library = listLocal()
+  const { open } = library
   if (id === open) return true
   flush()
-  const name = nameOf(id)
+  const name = nameOf(id, library)
   const text = readLocal(id)
   // Chosen first, so the save that loading sets off goes to the right place.
   chooseLocal(id)
@@ -252,7 +245,6 @@ export async function switchProject(id: string): Promise<boolean> {
     openProjectText(text)
   } catch (error) {
     if (open !== null) chooseLocal(open)
-    publish()
     await ask({
       title: `“${name}” could not be opened`,
       body: `${reasonOf(error)}\nThe project you had open is unchanged.`,
@@ -260,23 +252,21 @@ export async function switchProject(id: string): Promise<boolean> {
     })
     return false
   }
-  publish()
   toast(`Opened “${name}”`)
   return true
 }
 
 export function renameProject(id: string, name: string): void {
   renameLocal(id, name)
-  publish()
 }
 
 /** Copies a project of the list under a new name. The open one stays open. */
 export function duplicateProject(id: string): void {
-  if (id === listLocal().open) flush()
-  const { projects } = listLocal()
-  const copy = freshName(`${nameOf(id)} copy`, projects.map((project) => project.name))
+  // The open project's copy should have the latest changes.
+  flush()
+  const library = listLocal()
+  const copy = freshName(`${nameOf(id, library)} copy`, library.projects)
   if (duplicateLocal(id, copy) !== null) toast(`Made a copy, “${copy}”`)
-  publish()
 }
 
 /**
@@ -297,13 +287,13 @@ export async function deleteProject(id: string): Promise<void> {
   if (wasOpen) forgetPendingSave()
   deleteLocal(id)
   if (wasOpen) {
-    const next = [...listLocal().projects].sort((a, b) => b.saved - a.saved)[0]
+    const { projects } = listLocal()
+    const next = latestFirst(projects)[0]
     if (!next || !(await switchProject(next.id))) {
-      createLocal(freshName('Untitled project', listLocal().projects.map((project) => project.name)))
+      createLocal(freshName('Untitled project', projects))
       useEditor.getState().newProject()
       saveNow()
     }
   }
-  publish()
   toast(`Deleted “${name}”`)
 }

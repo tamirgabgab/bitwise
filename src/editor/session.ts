@@ -193,7 +193,8 @@ function publish(): void {
   const engine = current()
   const { bridge, runner, cost } = engine
   const sim = bridge.sim
-  record(engine, useEditor.getState().doc)
+  const { doc } = useEditor.getState()
+  record(engine, doc)
   const shown = useSim.getState()
   const costChanged = shown.gates !== cost.gates || shown.depth !== cost.depth
   // With no longest path left, the button that marks it is gone too: so is the mark.
@@ -205,18 +206,26 @@ function publish(): void {
     clocks: bridge.clockPins().length,
     oscillating: runner.oscillating,
     canStepBack: runner.canStepBack,
+    scopeRows: scopeRows(engine, doc).length,
     ...(costChanged ? cost : {}),
     ...(costChanged && pathGone ? { criticalShown: false } : {}),
     revision: shown.revision + 1,
   })
 }
 
-/** Tells the chrome which wires of the open circuit have a breakpoint or a row of their own. */
-function publishBreaks(): void {
+/**
+ * Tells the chrome and the canvas that the breakpoints or the added rows of
+ * the open circuit changed.
+ */
+function publishMarks(): void {
   const engine = current()
   const breakpoints: Record<string, BreakWhen> = {}
   for (const [key, point] of engine.breaks) breakpoints[key] = point.when
-  useSim.setState({ breakpoints, watched: [...engine.watches.keys()] })
+  useSim.setState({
+    breakpoints,
+    scopeRows: scopeRows(engine, useEditor.getState().doc).length,
+    revision: useSim.getState().revision + 1,
+  })
 }
 
 /** The rows of the open circuit's timing diagram and the record behind them. */
@@ -256,7 +265,7 @@ function syncActive(state: EditorState): void {
   if (dropped) watchesChanged(engine)
   if (dropped || state.active !== shownCircuit) {
     shownCircuit = state.active
-    publishBreaks()
+    publishMarks()
   }
   const waiting = waitingInputs[state.active]
   if (waiting) {
@@ -415,6 +424,11 @@ export interface NodeInfo {
   readonly drivers: readonly ProbedPin[]
   /** How many inputs read the wire. */
   readonly readers: number
+  /**
+   * The pin the probe sits on, when it sits on one. For a pin of a named
+   * circuit it is the pin inside that the circuit's pin leads to.
+   */
+  readonly here?: ProbedPin
 }
 
 /** Reads the wire at a terminal of the open circuit. */
@@ -449,6 +463,7 @@ export function describeNode(terminal: Terminal): NodeInfo {
     name: named?.label ?? (reading.net === undefined ? 'Not connected' : `Net ${reading.net}`),
     drivers: pins.filter((pin) => pin.drives),
     readers: pins.filter((pin) => !pin.drives).length,
+    ...(reading.here ? { here: pins[reading.pins.indexOf(reading.here)] } : {}),
   }
 }
 
@@ -468,11 +483,6 @@ function keyOnWire(keys: Iterable<string>, doc: CircuitDoc, terminal: Terminal):
   return undefined
 }
 
-/** The key of the breakpoint on the wire at `terminal`, if it has one. */
-function breakKeyOn(engine: Engine, doc: CircuitDoc, terminal: Terminal): string | undefined {
-  return keyOnWire(engine.breaks.keys(), doc, terminal)
-}
-
 /** Whether the wire at `terminal` has a row of its own in the timing diagram. */
 export function isWatched(terminal: Terminal): boolean {
   return keyOnWire(current().watches.keys(), useEditor.getState().doc, terminal) !== undefined
@@ -490,8 +500,7 @@ export function toggleWatch(terminal: Terminal): boolean {
   else engine.watches.set(terminalKey(terminal), { terminal, name: describeNode(terminal).name })
   watchesChanged(engine)
   record(engine, doc)
-  publishBreaks()
-  useSim.setState({ revision: useSim.getState().revision + 1 })
+  publishMarks()
   return existing === undefined
 }
 
@@ -500,14 +509,13 @@ export function unwatchRow(key: string): void {
   const engine = current()
   if (!key.startsWith('w:') || !engine.watches.delete(key.slice(2))) return
   watchesChanged(engine)
-  publishBreaks()
-  useSim.setState({ revision: useSim.getState().revision + 1 })
+  publishMarks()
 }
 
 /** What the breakpoint on the wire at `terminal` waits for, if it has one. */
 export function breakpointOn(terminal: Terminal): BreakWhen | undefined {
   const engine = current()
-  const key = breakKeyOn(engine, useEditor.getState().doc, terminal)
+  const key = keyOnWire(engine.breaks.keys(), useEditor.getState().doc, terminal)
   return key === undefined ? undefined : engine.breaks.get(key)?.when
 }
 
@@ -517,7 +525,7 @@ export function breakpointOn(terminal: Terminal): BreakWhen | undefined {
  */
 export function setBreakpoint(terminal: Terminal, when: BreakWhen | null): void {
   const engine = current()
-  const existing = breakKeyOn(engine, useEditor.getState().doc, terminal)
+  const existing = keyOnWire(engine.breaks.keys(), useEditor.getState().doc, terminal)
   if (existing !== undefined) engine.breaks.delete(existing)
   if (when !== null) {
     const key = terminalKey(terminal)
@@ -527,8 +535,7 @@ export function setBreakpoint(terminal: Terminal, when: BreakWhen | null): void 
       last: wireReading(engine.bridge.probeTerminal(key)),
     })
   }
-  publishBreaks()
-  useSim.setState({ revision: useSim.getState().revision + 1 })
+  publishMarks()
 }
 
 /** Where on the canvas each breakpoint of the open circuit is marked. */

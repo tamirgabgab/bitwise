@@ -48,6 +48,7 @@ function storage(): Storage | undefined {
 function parseIndex(text: string): Library {
   const data = JSON.parse(text) as { open?: unknown; projects?: unknown }
   const projects: StoredProject[] = []
+  const seen = new Set<string>()
   if (Array.isArray(data.projects)) {
     for (const item of data.projects as Record<string, unknown>[]) {
       if (
@@ -55,8 +56,9 @@ function parseIndex(text: string): Library {
         /^[a-z0-9]+$/.test(item.id) &&
         typeof item.name === 'string' &&
         typeof item.saved === 'number' &&
-        !projects.some((project) => project.id === item.id)
+        !seen.has(item.id)
       ) {
+        seen.add(item.id)
         projects.push({ id: item.id, name: item.name, saved: item.saved })
       }
     }
@@ -89,7 +91,7 @@ function rebuildIndex(store: Storage, damaged: string): Library {
     if (key === null || key === UNREADABLE_KEY || !key.startsWith(prefix)) continue
     const id = key.slice(prefix.length)
     if (!/^[a-z0-9]+$/.test(id)) continue
-    const name = freshName('Recovered project', projects.map((project) => project.name))
+    const name = freshName('Recovered project', projects)
     projects.push({ id, name, saved: Date.now() })
   }
   const library = { open: null, projects }
@@ -134,26 +136,36 @@ function readHere(store: Storage): Library {
   return { ...library, open: library.projects.some((project) => project.id === id) ? id : null }
 }
 
+let listener: ((library: Library) => void) | undefined
+
+/** Calls `onChange` with the list, as this tab sees it, after every change made here. */
+export function watchLocal(onChange: (library: Library) => void): void {
+  listener = onChange
+}
+
 /** Runs `change` on the list and writes what it returns. False if it could not. */
 function update(change: (library: Library, store: Storage) => Library): boolean {
   const store = storage()
   if (!store) return false
+  let next: Library
   try {
-    const next = change(readHere(store), store)
+    next = change(readHere(store), store)
     here = { store, id: next.open }
     writeIndex(store, next)
-    return true
   } catch {
     return false
   }
+  listener?.(next)
+  return true
 }
 
-/** A name for a project that no other in `taken` has: `base`, or `base 2`, `base 3` ... */
-export function freshName(base: string, taken: readonly string[]): string {
+/** A name that no project of `taken` has: `base`, or `base 2`, `base 3` ... */
+export function freshName(base: string, taken: readonly { readonly name: string }[]): string {
+  const names = new Set(taken.map((project) => project.name))
   const name = base.trim().slice(0, MAX_PROJECT_NAME) || 'Untitled project'
-  if (!taken.includes(name)) return name
+  if (!names.has(name)) return name
   for (let n = 2; ; n++) {
-    if (!taken.includes(`${name} ${n}`)) return `${name} ${n}`
+    if (!names.has(`${name} ${n}`)) return `${name} ${n}`
   }
 }
 
@@ -177,7 +189,7 @@ export function saveLocal(text: string): boolean {
     const current =
       library.open !== null
         ? library
-        : createIn(library, freshName('Untitled project', library.projects.map((p) => p.name)))
+        : createIn(library, freshName('Untitled project', library.projects))
     const open = current.open as string
     store.setItem(textKey(open), text)
     const saved = Date.now()

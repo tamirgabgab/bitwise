@@ -67,11 +67,8 @@ export function keepInSight(
   before: { readonly width: number; readonly height: number },
   after: { readonly width: number; readonly height: number },
 ): View {
-  const scale = UNIT * view.zoom
-  const left = bounds.x0 * scale + view.panX
-  const right = bounds.x1 * scale + view.panX
-  const top = bounds.y0 * scale + view.panY
-  const bottom = bounds.y1 * scale + view.panY
+  const { x: left, y: top } = worldToScreen(view, { x: bounds.x0, y: bounds.y0 })
+  const { x: right, y: bottom } = worldToScreen(view, { x: bounds.x1, y: bounds.y1 })
   const wasInSight = left >= 0 && top >= 0 && right <= before.width && bottom <= before.height
   if (!wasInSight) return view
   // Along one axis: the shift that brings [low, high] inside [0, size].

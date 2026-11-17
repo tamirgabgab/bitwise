@@ -1,11 +1,16 @@
 import type { ProbedPin } from '../editor/index.ts'
 import { partName } from './parts.ts'
 
+/** A part as the user knows it: its kind, and its label if it has one. */
+export function partTitle(type: string, label: string | undefined): string {
+  return label ? `${partName(type)} ${label}` : partName(type)
+}
+
 /** How a pin on a wire is named to the user: by its part, and where it sits. */
 export function pinName(pin: ProbedPin): string {
-  let name = pin.label ? `${partName(pin.type)} ${pin.label}` : partName(pin.type)
+  let name = partTitle(pin.type, pin.label)
   // A part with one output needs no pin name; a flip-flop has two.
-  if (pin.port !== 'out' && pin.port !== 'in') name += `, pin ${pin.port.toUpperCase()}`
+  if (pin.port !== 'out' && pin.port !== 'in') name += `, pin ${portLabel(pin.port)}`
   if (pin.inside) name += `, inside ${pin.inside}`
   return name
 }

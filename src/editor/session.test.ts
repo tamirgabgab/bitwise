@@ -3,6 +3,7 @@ import type { Terminal, WireEnd } from './document.ts'
 import {
   criticalMarks,
   currentScope,
+  describeNode,
   isWatched,
   stepSimulation,
   toggleWatch,
@@ -39,7 +40,7 @@ describe('wires followed in the timing diagram', () => {
     expect(rows[rows.length - 1].kind).toBe('wire')
     // Any terminal on the same wire finds the same row.
     expect(isWatched(pin('c2', 'in'))).toBe(true)
-    expect(useSim.getState().watched).toHaveLength(1)
+    expect(useSim.getState().scopeRows).toBe(before + 1)
     expect(toggleWatch(pin('c2', 'in'))).toBe(false)
     expect(currentScope().signals).toHaveLength(before)
   })
@@ -66,7 +67,7 @@ describe('wires followed in the timing diagram', () => {
     toggleWatch(pin('c2', 'out'))
     editor().setSelection(['c2', 'c4'])
     editor().deleteSelection()
-    expect(useSim.getState().watched).toHaveLength(0)
+    expect(currentScope().signals.every((row) => row.kind !== 'wire')).toBe(true)
   })
 })
 
@@ -96,5 +97,15 @@ describe('the longest path on the canvas', () => {
     editor().connect(at(loop as string, 'out'), at(loop as string, 'in'))
     expect(useSim.getState().depth).toBeUndefined()
     expect(useSim.getState().criticalShown).toBe(false)
+  })
+})
+
+describe('the probe', () => {
+  it('names the pin it sits on among the pins of the wire', () => {
+    inverter()
+    const info = describeNode(pin('c2', 'out'))
+    expect(info.here).toMatchObject({ part: 'c2', port: 'out', drives: true })
+    expect(info.drivers).toContain(info.here)
+    expect(describeNode(pin('c4', 'in')).here).toMatchObject({ part: 'c4', drives: false })
   })
 })

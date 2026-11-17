@@ -3,6 +3,7 @@ import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { MAX_CIRCUIT_NAME, useEditor, usersOf } from '../editor/index.ts'
 import { ask } from './dialogs.ts'
 import { CloseIcon, PlusIcon } from './icons.tsx'
+import { NameInput } from './NameInput.tsx'
 
 /** "A", "A and B", "A, B and C". */
 function listOf(names: readonly string[]): string {
@@ -29,48 +30,6 @@ async function deleteCircuit(id: string): Promise<void> {
     if (!agreed) return
   }
   useEditor.getState().removeCircuit(id)
-}
-
-interface NameFieldProps {
-  name: string
-  /** Called with the new name, or with null when the user gives up. */
-  onDone(name: string | null): void
-}
-
-/** The name of a tab while it is being typed. */
-function NameField({ name, onDone }: NameFieldProps) {
-  const [draft, setDraft] = useState(name)
-  const ref = useRef<HTMLInputElement>(null)
-  const done = useRef(false)
-
-  useEffect(() => {
-    ref.current?.select()
-  }, [])
-
-  const finish = (value: string | null): void => {
-    if (done.current) return
-    done.current = true
-    onDone(value)
-  }
-
-  return (
-    <input
-      ref={ref}
-      className="tab-input"
-      aria-label="Circuit name"
-      value={draft}
-      maxLength={MAX_CIRCUIT_NAME}
-      spellCheck={false}
-      // As wide as the name, so the tab keeps its size while typing starts.
-      style={{ width: `${Math.max(draft.length, 3) + 1}ch` }}
-      onChange={(event) => setDraft(event.target.value)}
-      onBlur={() => finish(draft)}
-      onKeyDown={(event) => {
-        if (event.code === 'Enter' || event.code === 'NumpadEnter') finish(draft)
-        else if (event.code === 'Escape') finish(null)
-      }}
-    />
-  )
 }
 
 /**
@@ -116,8 +75,13 @@ export function CircuitTabs() {
         return (
           <div key={id} className={open ? 'tab tab-open' : 'tab'}>
             {renaming === id ? (
-              <NameField
+              <NameInput
                 name={name}
+                label="Circuit name"
+                maxLength={MAX_CIRCUIT_NAME}
+                className="tab-input"
+                // As wide as the name, so the tab keeps its size while typing starts.
+                style={(draft) => ({ width: `${Math.max(draft.length, 3) + 1}ch` })}
                 onDone={(next) => {
                   setRenaming(null)
                   if (next !== null) renameCircuit(id, next)

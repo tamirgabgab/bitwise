@@ -34,5 +34,6 @@ export {
   renameLocal,
   saveLocal,
   setAsideLocal,
+  watchLocal,
 } from './storage.ts'
 export type { Library, StoredProject } from './storage.ts'

@@ -52,6 +52,8 @@ export interface NodeReading {
   /** True when pins of different widths are wired together here. */
   readonly mixed: boolean
   readonly pins: readonly NodePin[]
+  /** The pin the reading was taken at, one of `pins`. */
+  readonly here: NodePin | undefined
 }
 
 /** One pin of a part and what it carries. */
@@ -66,18 +68,6 @@ export interface PartReading {
   readonly pins: readonly PinReading[]
   /** The value a latch, flip-flop, register or counter keeps; undefined for other parts. */
   readonly stored: Signal | undefined
-}
-
-/** The parts that keep a value between clock edges. */
-const STORING = new Set(['sr', 'dff', 'tff', 'jkff', 'register', 'counter'])
-
-/** The kept value out of a memory part's state: a digit, or `q` as a digit or a signal. */
-function storedSignal(state: unknown): Signal | undefined {
-  if (typeof state === 'number') return [state]
-  if (state === null || typeof state !== 'object' || !('q' in state)) return undefined
-  const q = (state as { q: unknown }).q
-  if (typeof q === 'number') return [q]
-  return Array.isArray(q) ? (q as Signal) : undefined
 }
 
 function pinKey(pin: PinRef): string {
@@ -189,12 +179,24 @@ export class SimBridge {
    * that stands for a named circuit counts when anything inside it was.
    */
   evaluatedParts(): Set<string> {
+    return this.topParts(this.sim.evaluated)
+  }
+
+  /** The parts of the drawing that hold these simulator components. */
+  private topParts(simIds: Iterable<ComponentId>): Set<string> {
     const parts = new Set<string>()
-    for (const simId of this.sim.evaluated) {
+    for (const simId of simIds) {
       const path = this.pathOf(simId)
       if (path !== undefined) parts.add(path.split('/')[0])
     }
     return parts
+  }
+
+  /** The simulator pin at a terminal of the drawing, by `terminalKey`. */
+  private refAt(key: string): PinRef | undefined {
+    const pin = this.netlist?.probes.get(key)
+    const simId = pin && this.simComponent(pin.part)
+    return pin && simId !== undefined ? { component: simId, port: pin.port } : undefined
   }
 
   /** The number of gates and the longest path of the flattened circuit. */
@@ -209,19 +211,13 @@ export class SimBridge {
    */
   criticalPath(): { parts: Set<string>; nets: Set<NetId> } {
     const path = criticalPath(this.sim)
-    const parts = new Set<string>()
-    for (const simId of path.gates) {
-      const key = this.pathOf(simId)
-      if (key !== undefined) parts.add(key.split('/')[0])
-    }
-    return { parts, nets: new Set(path.nets) }
+    return { parts: this.topParts(path.gates), nets: new Set(path.nets) }
   }
 
   /** The simulator net at a terminal of the drawing, by `terminalKey`. */
   netAt(key: string): NetId | undefined {
-    const pin = this.netlist?.probes.get(key)
-    const simId = pin && this.simComponent(pin.part)
-    return pin && simId !== undefined ? this.sim.netOf({ component: simId, port: pin.port }) : undefined
+    const ref = this.refAt(key)
+    return ref && this.sim.netOf(ref)
   }
 
   /**
@@ -239,8 +235,7 @@ export class SimBridge {
         signal: this.sim.readPin({ component, port: port.name }),
       }),
     )
-    const stored = STORING.has(info.type) ? storedSignal(this.sim.getState(component)) : undefined
-    return { pins, stored }
+    return { pins, stored: this.sim.getStored(component) }
   }
 
   /**
@@ -248,28 +243,29 @@ export class SimBridge {
    * its value and every pin on it. Undefined when no part is on that node.
    */
   describeTerminal(key: string): NodeReading | undefined {
-    const pin = this.netlist?.probes.get(key)
-    if (pin === undefined) return undefined
-    const simId = this.simComponent(pin.part)
-    if (simId === undefined) return undefined
+    const ref = this.refAt(key)
+    if (ref === undefined) return undefined
     const sim = this.sim
-    const ref: PinRef = { component: simId, port: pin.port }
     const net = sim.netOf(ref)
     const refs = net === undefined ? [ref] : sim.getNet(net).pins
     const pins: NodePin[] = []
+    let here: NodePin | undefined
     for (const other of refs) {
       const info = sim.getComponent(other.component)
       const spec = info.ports.find((port) => port.name === other.port)
       const part = this.pathOf(other.component)
       if (!spec || part === undefined) continue
-      pins.push({
+      const signal = sim.readPin(other)
+      const pin: NodePin = {
         part,
         type: info.type,
         port: other.port,
         drives: spec.direction === 'out',
-        value: sim.readPin(other)[0] ?? Z,
-        signal: sim.readPin(other),
-      })
+        value: signal[0] ?? Z,
+        signal,
+      }
+      pins.push(pin)
+      if (other.component === ref.component && other.port === ref.port) here = pin
     }
     const probe = sim.probe(ref)
     return {
@@ -279,6 +275,7 @@ export class SimBridge {
       conflict: probe.conflict,
       mixed: this.mixed.has(pinKey(ref)),
       pins,
+      here,
     }
   }
 
@@ -314,10 +311,8 @@ export class SimBridge {
    * width is left to itself.
    */
   mixedAt(key: string): boolean {
-    const pin = this.netlist?.probes.get(key)
-    if (pin === undefined) return false
-    const simId = this.simComponent(pin.part)
-    return simId !== undefined && this.mixed.has(pinKey({ component: simId, port: pin.port }))
+    const ref = this.refAt(key)
+    return ref !== undefined && this.mixed.has(pinKey(ref))
   }
 
   /**
@@ -325,11 +320,8 @@ export class SimBridge {
    * Undefined when no part drives or reads that node at all.
    */
   probeTerminal(key: string): Probe | undefined {
-    const pin = this.netlist?.probes.get(key)
-    if (pin === undefined) return undefined
-    const simId = this.simComponent(pin.part)
-    if (simId === undefined) return undefined
-    return this.sim.probe({ component: simId, port: pin.port })
+    const ref = this.refAt(key)
+    return ref && this.sim.probe(ref)
   }
 
   /**

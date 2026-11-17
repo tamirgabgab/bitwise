@@ -37,7 +37,6 @@ export {
   breakpointOn,
   currentScope,
   describeNode,
-  isWatched,
   projectSnapshot,
   readPart,
   toggleWatch,
@@ -64,6 +63,7 @@ export {
   scopeStart,
   scopeTickAt,
   scopeTicks,
+  scopePan,
   scopeZoom,
 } from './scopeRender.ts'
 export type { ScopeView } from './scopeRender.ts'
@@ -81,5 +81,7 @@ export {
   signalText,
   valueText,
 } from './valueStyle.ts'
+export type { ValueStyle } from './valueStyle.ts'
 export { readCanvasTheme } from './theme.ts'
+export type { CanvasTheme } from './theme.ts'
 export { MAX_ZOOM, MIN_ZOOM } from './view.ts'

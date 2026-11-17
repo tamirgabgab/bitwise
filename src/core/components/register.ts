@@ -74,6 +74,7 @@ export const register: ComponentDef<RegisterState> = {
   initialState({ width }) {
     return { q: filled(width, 0), clock: 'unknown' }
   },
+  stored: (state) => state.q,
   evaluate(inputs, _params, state, { radix }) {
     const clock = clockLevel(inputs.clk[0], radix)
     const edge = state.clock === 'low' && clock === 'high'
@@ -114,6 +115,7 @@ export const counter: ComponentDef<RegisterState> = {
   initialState({ width }) {
     return { q: filled(width, 0), clock: 'unknown' }
   },
+  stored: (state) => state.q,
   evaluate(inputs, { width }, state, { radix }) {
     const clock = clockLevel(inputs.clk[0], radix)
     const edge = state.clock === 'low' && clock === 'high'

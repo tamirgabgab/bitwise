@@ -65,7 +65,9 @@ Run lint, test and build before calling a change done. CI runs the same three.
   is high when 2 * value >= radix, and a rising edge is low to high, never
   out of X or Z; J, K, S, R, Set and Reset are on only at the top value; T
   adds its value modulo n; Q starts at 0. An unknown control input makes the
-  outputs X but must not destroy the stored value.
+  outputs X but must not destroy the stored value. A part that keeps a
+  value says what it is through `stored` in its `ComponentDef`; the
+  inspector shows it.
 - The simulator generates numeric component and net ids. The editor keeps
   its own ids and maps them.
 - The core knows nothing about named circuits. The editor flattens them

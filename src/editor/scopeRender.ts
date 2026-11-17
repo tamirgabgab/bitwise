@@ -1,5 +1,5 @@
 import { X, Z } from '../core/index.ts'
-import type { Recorder, ScopeSignal, ScopeValue } from './scope.ts'
+import type { Recorder, ScopeSignal } from './scope.ts'
 import type { CanvasTheme } from './theme.ts'
 import type { ValueStyle } from './valueStyle.ts'
 
@@ -43,12 +43,12 @@ export function scopeRowHeight(radix: number): number {
 }
 
 /** How tall the diagram is for this many rows, in CSS pixels. */
-export function scopeHeight(rows: number, radix = 2): number {
+export function scopeHeight(rows: number, radix: number): number {
   return AXIS + rows * scopeRowHeight(radix) + 4
 }
 
 /** How many ticks fit beside the names in a diagram this wide. */
-export function scopeTicks(width: number, tickWidth: number = DEFAULT_SCOPE_VIEW.tickWidth): number {
+export function scopeTicks(width: number, tickWidth: number): number {
   return Math.max(10, Math.floor((width - SCOPE_NAMES - 6) / tickWidth))
 }
 
@@ -79,9 +79,15 @@ export function scopeZoom(tickWidth: number, direction: 1 | -1): number {
   return SCOPE_ZOOMS[Math.max(0, Math.min(SCOPE_ZOOMS.length - 1, at + direction))]
 }
 
-/** What a row held at `tick`, or undefined before it was first seen. */
-export function valueAt(recorder: Recorder, key: string, tick: number): ScopeValue | undefined {
-  return recorder.spans(key, tick, tick + 1)[0]?.digit
+/**
+ * Where the right edge of the diagram goes when it is moved `direction`
+ * steps through time: never past the start of the record or past `now`.
+ * Null means it follows the run again.
+ */
+export function scopePan(end: number | null, now: number, shown: number, direction: number): number | null {
+  const step = Math.max(1, Math.round(shown / 8)) * Math.sign(direction)
+  const next = Math.min(now, Math.max(Math.min(shown, now), (end ?? now) + step))
+  return next >= now ? null : next
 }
 
 function clip(text: string, max: number): string {
@@ -99,8 +105,8 @@ export function renderScope(
   pixelRatio: number,
   theme: CanvasTheme,
   scene: ScopeScene,
-  view: ScopeView = DEFAULT_SCOPE_VIEW,
-  style: ValueStyle | null = null,
+  view: ScopeView,
+  style: ValueStyle,
 ): void {
   const { signals, recorder, time, radix } = scene
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)
@@ -113,7 +119,6 @@ export function renderScope(
   const to = Math.min(from + ticks, time)
   const x = (tick: number): number => SCOPE_NAMES + (tick - from) * tickWidth
   const rowHeight = scopeRowHeight(radix)
-  const show = (value: number): string => (style ? style.text(value) : String(value))
 
   // Tick numbers, and a faint line down the rows under each.
   ctx.font = `500 10px ${FONT}`
@@ -211,7 +216,7 @@ export function renderScope(
         continue
       }
       const y = level(span.digit)
-      const color = radix > 2 && style ? style.wire(span.digit, false).color : theme.ink
+      const color = radix > 2 ? style.wire(span.digit, false).color : theme.ink
       if (previous !== undefined) {
         // The step from the last level, in the plain ink so the color stays with its level.
         ctx.strokeStyle = theme.ink
@@ -234,7 +239,7 @@ export function renderScope(
         ctx.textAlign = 'center'
         ctx.fillStyle = theme.wire
         const above = span.digit < radix - 1
-        ctx.fillText(show(span.digit), (x0 + x1) / 2, above ? y - 7 : y + 8)
+        ctx.fillText(style.text(span.digit), (x0 + x1) / 2, above ? y - 7 : y + 8)
       }
     }
   })
@@ -248,7 +253,7 @@ export function renderScope(
   ctx.stroke()
 
   if (view.cursor !== null && view.cursor >= from && view.cursor <= to) {
-    drawCursor(ctx, x(view.cursor), view.cursor, height, theme, scene, rowHeight, show)
+    drawCursor(ctx, x(view.cursor), view.cursor, height, theme, scene, rowHeight, style)
   }
 }
 
@@ -261,7 +266,7 @@ function drawCursor(
   theme: CanvasTheme,
   scene: ScopeScene,
   rowHeight: number,
-  show: (value: number) => string,
+  style: ValueStyle,
 ): void {
   const line = Math.round(at) + 0.5
   ctx.strokeStyle = theme.accent
@@ -283,10 +288,10 @@ function drawCursor(
 
   ctx.textAlign = 'left'
   scene.signals.forEach((signal, index) => {
-    const value = valueAt(scene.recorder, signal.key, tick)
+    const value = scene.recorder.valueAt(signal.key, tick)
     if (value === undefined) return
-    const text =
-      typeof value === 'string' ? value : value === Z ? 'Z' : value === X || value >= scene.radix ? 'X' : show(value)
+    // A bus is kept as its digits written out already.
+    const text = typeof value === 'string' ? value : style.text(value)
     const top = AXIS + index * rowHeight
     const width = ctx.measureText(text).width + 8
     ctx.fillStyle = theme.background

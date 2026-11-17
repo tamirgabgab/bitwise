@@ -137,6 +137,7 @@ export const srLatch: ComponentDef<Digit> = {
   initialState() {
     return 0
   },
+  stored: (q) => [q],
   evaluate(inputs, _params, stored, { radix }) {
     const flags = [strict(inputs.s[0], radix), strict(inputs.r[0], radix)]
     const q = decide(flags, ([s, r]) => (s && r ? X : s ? radix - 1 : r ? 0 : stored))
@@ -177,6 +178,7 @@ function flipFlop(
     initialState() {
       return { q: 0, clock: 'unknown' }
     },
+    stored: (state) => [state.q],
     evaluate(inputs, _params, state, { radix }) {
       const clock = clockLevel(inputs.clk[0], radix)
       const edge = state.clock === 'low' && clock === 'high'

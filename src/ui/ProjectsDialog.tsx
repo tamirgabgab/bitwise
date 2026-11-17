@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { MAX_PROJECT_NAME } from '../io/index.ts'
-import type { StoredProject } from '../io/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon, CopyIcon, DeleteIcon, NewIcon, OpenIcon, RenameIcon } from './icons.tsx'
 import {
@@ -12,39 +11,9 @@ import {
   switchProject,
   useStorage,
 } from './persistence.ts'
+import { NameInput } from './NameInput.tsx'
 import { latestFirst, savedWhen } from './projectList.ts'
 import { useModal } from './useModal.ts'
-
-/** The name of a project, edited in place. Enter or leaving the field keeps it. */
-function NameEditor({ project, onDone }: { project: StoredProject; onDone: () => void }) {
-  const [name, setName] = useState(project.name)
-  const finish = (keep: boolean): void => {
-    if (keep && name.trim() && name.trim() !== project.name) renameProject(project.id, name)
-    onDone()
-  }
-  return (
-    <input
-      className="project-name-input"
-      aria-label="Project name"
-      value={name}
-      maxLength={MAX_PROJECT_NAME}
-      // oxlint-disable-next-line jsx-a11y/no-autofocus -- it opens because the user asked to rename
-      autoFocus
-      onFocus={(event) => event.currentTarget.select()}
-      onChange={(event) => setName(event.target.value)}
-      onBlur={() => finish(true)}
-      onKeyDown={(event) => {
-        if (event.code === 'Enter' || event.code === 'NumpadEnter') finish(true)
-        else if (event.code === 'Escape') {
-          // Leaves the name as it was, and keeps the window open.
-          event.preventDefault()
-          event.stopPropagation()
-          finish(false)
-        }
-      }}
-    />
-  )
-}
 
 /** What the window shows. It lives only while the window is open. */
 function ProjectsBox({ close }: { close: () => void }) {
@@ -93,7 +62,16 @@ function ProjectsBox({ close }: { close: () => void }) {
             return (
               <li key={project.id} className={isOpen ? 'project is-open' : 'project'}>
                 {renaming === project.id ? (
-                  <NameEditor project={project} onDone={() => setRenaming(null)} />
+                  <NameInput
+                    name={project.name}
+                    label="Project name"
+                    maxLength={MAX_PROJECT_NAME}
+                    className="project-name-input"
+                    onDone={(name) => {
+                      setRenaming(null)
+                      if (name?.trim() && name.trim() !== project.name) renameProject(project.id, name)
+                    }}
+                  />
                 ) : (
                   <button
                     type="button"

@@ -63,6 +63,11 @@ export interface ComponentDef<S = unknown> {
    * decides when it runs and when the outputs take effect.
    */
   evaluate(inputs: PortValues, params: Params, state: S, env: EvalEnv): EvalResult<S>
+  /**
+   * The value a memory part keeps between clock edges, out of its state.
+   * Only parts that keep a value have it.
+   */
+  stored?(state: S): Signal
 }
 
 /** Fills in defaults and rejects unknown, fractional or out-of-range values. */

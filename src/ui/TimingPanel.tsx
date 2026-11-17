@@ -9,6 +9,7 @@ import {
   readCanvasTheme,
   renderScope,
   scopeHeight,
+  scopePan,
   scopeRowAt,
   scopeStart,
   scopeTickAt,
@@ -18,7 +19,7 @@ import {
   useEditor,
   useSim,
 } from '../editor/index.ts'
-import type { ScopeView } from '../editor/index.ts'
+import type { CanvasTheme, ScopeView, ValueStyle } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon, PauseIcon, PlayIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { clampPanelHeight } from './panelSize.ts'
@@ -72,9 +73,6 @@ function PanelGrip({ height }: { height: number | null }) {
   )
 }
 
-/** The kinds of part that get a row of their own. */
-const ROW_TYPES = ['clock', 'cycle', 'input', 'output']
-
 /**
  * The timing diagram: what the clocks, switches and outputs of the open
  * circuit, and any wire the user added, carried over the last ticks, one row
@@ -83,16 +81,8 @@ const ROW_TYPES = ['clock', 'cycle', 'input', 'output']
  */
 export function TimingPanel() {
   const open = useSim((state) => state.scopeOpen)
-  const watched = useSim((state) => state.watched.length)
+  const rows = useSim((state) => state.scopeRows)
   const settings = useEditor((state) => state.settings)
-  const parts = useEditor((state) => {
-    let count = 0
-    for (const part of Object.values(state.doc.components)) {
-      if (ROW_TYPES.includes(part.type)) count++
-    }
-    return count
-  })
-  const rows = parts + watched
   const height = useChrome((state) => state.timingHeight)
   const [tickWidth, setTickWidth] = useState(DEFAULT_SCOPE_VIEW.tickWidth)
   /** The tick at the right edge while frozen, or null to follow the run. */
@@ -103,8 +93,8 @@ export function TimingPanel() {
   const redrawRef = useRef<() => void>(() => {})
 
   // A restart takes the clock back past a frozen end: follow the run again.
-  const time = useSim((state) => state.time)
-  if (end !== null && time < end) setEnd(null)
+  const restarted = useSim((state) => end !== null && state.time < end)
+  if (restarted) setEnd(null)
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -112,6 +102,8 @@ export function TimingPanel() {
     if (spanRef.current) spanRef.current.textContent = ''
     if (!open || !canvas || !ctx) return
     let frame = 0
+    // Read once, and again only when the theme changes: every frame draws with it.
+    let look: { theme: CanvasTheme; style: ValueStyle } | null = null
 
     const draw = (): void => {
       frame = 0
@@ -125,9 +117,12 @@ export function TimingPanel() {
         canvas.height = Math.round(height * ratio)
         canvas.style.height = `${height}px`
       }
-      const theme = readCanvasTheme(canvas)
+      if (!look) {
+        const theme = readCanvasTheme(canvas)
+        look = { theme, style: makeValueStyle(settings, theme) }
+      }
       const view: ScopeView = { tickWidth, end, cursor: cursorRef.current }
-      renderScope(ctx, width, height, ratio, theme, scene, view, makeValueStyle(settings, theme))
+      renderScope(ctx, width, height, ratio, look.theme, scene, view, look.style)
       if (spanRef.current) {
         const shown = scopeTicks(width, tickWidth)
         const from = scopeStart(scene.time, width, view)
@@ -140,6 +135,10 @@ export function TimingPanel() {
     const request = (): void => {
       if (frame === 0) frame = requestAnimationFrame(draw)
     }
+    const newTheme = (): void => {
+      look = null
+      request()
+    }
     redrawRef.current = request
 
     draw()
@@ -148,17 +147,18 @@ export function TimingPanel() {
         if (state.revision !== previous.revision) request()
       }),
       useEditor.subscribe((state, previous) => {
-        if (state.doc !== previous.doc || state.theme !== previous.theme) request()
+        if (state.theme !== previous.theme) newTheme()
+        else if (state.doc !== previous.doc) request()
       }),
     ]
     const observer = new ResizeObserver(request)
     if (canvas.parentElement) observer.observe(canvas.parentElement)
     const scheme = window.matchMedia('(prefers-color-scheme: dark)')
-    scheme.addEventListener('change', request)
+    scheme.addEventListener('change', newTheme)
     return () => {
       for (const stop of stops) stop()
       observer.disconnect()
-      scheme.removeEventListener('change', request)
+      scheme.removeEventListener('change', newTheme)
       cancelAnimationFrame(frame)
     }
   }, [open, rows, tickWidth, end, settings])
@@ -178,11 +178,7 @@ export function TimingPanel() {
       event.preventDefault()
       const now = useSim.getState().time
       const shown = scopeTicks(canvas.clientWidth, tickWidth)
-      const step = Math.max(1, Math.round(shown / 8)) * Math.sign(sideways)
-      setEnd((was) => {
-        const next = Math.min(now, Math.max(Math.min(shown, now), (was ?? now) + step))
-        return next >= now ? null : next
-      })
+      setEnd((was) => scopePan(was, now, shown, sideways))
     }
     canvas.addEventListener('wheel', onWheel, { passive: false })
     return () => canvas.removeEventListener('wheel', onWheel)

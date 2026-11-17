@@ -163,6 +163,21 @@ export class Recorder {
     }
   }
 
+  /** What a signal carried at `tick`, or undefined before it was first seen. */
+  valueAt(key: string, tick: number): ScopeValue | undefined {
+    const track = this.tracks.get(key)
+    if (!track || track.times.length === 0 || tick < track.times[0]) return undefined
+    // The last change at or before `tick`.
+    let low = 0
+    let high = track.times.length - 1
+    while (low < high) {
+      const middle = (low + high + 1) >> 1
+      if (track.times[middle] <= tick) low = middle
+      else high = middle - 1
+    }
+    return track.digits[low]
+  }
+
   /**
    * What a signal carried between two ticks, as stretches of one value each.
    * The time before the signal was first seen is left out.
