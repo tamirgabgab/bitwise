@@ -37,6 +37,7 @@ export {
   describeNode,
   isWatched,
   projectSnapshot,
+  readPart,
   toggleWatch,
   unwatchRow,
   restartSimulation,
@@ -48,6 +49,7 @@ export {
   switchValue,
 } from './session.ts'
 export type { NodeInfo, ProbedPin } from './session.ts'
+export type { PartReading, PinReading } from './simBridge.ts'
 export type { BreakHit, BreakWhen } from './simStore.ts'
 export type { ScopeSignal, Span } from './scope.ts'
 export {

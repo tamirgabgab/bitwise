@@ -46,6 +46,32 @@ export interface NodeReading {
   readonly pins: readonly NodePin[]
 }
 
+/** One pin of a part and what it carries. */
+export interface PinReading {
+  readonly port: string
+  readonly direction: 'in' | 'out'
+  readonly signal: Signal
+}
+
+/** What a part shows the inspector: its pins and, for a memory part, what it keeps. */
+export interface PartReading {
+  readonly pins: readonly PinReading[]
+  /** The value a latch, flip-flop, register or counter keeps; undefined for other parts. */
+  readonly stored: Signal | undefined
+}
+
+/** The parts that keep a value between clock edges. */
+const STORING = new Set(['sr', 'dff', 'tff', 'jkff', 'register', 'counter'])
+
+/** The kept value out of a memory part's state: a digit, or `q` as a digit or a signal. */
+function storedSignal(state: unknown): Signal | undefined {
+  if (typeof state === 'number') return [state]
+  if (state === null || typeof state !== 'object' || !('q' in state)) return undefined
+  const q = (state as { q: unknown }).q
+  if (typeof q === 'number') return [q]
+  return Array.isArray(q) ? (q as Signal) : undefined
+}
+
 function pinKey(pin: PinRef): string {
   return `${pin.component}:${pin.port}`
 }
@@ -166,6 +192,25 @@ export class SimBridge {
   /** The number of gates and the longest path of the flattened circuit. */
   cost(): CircuitCost {
     return circuitCost(this.sim)
+  }
+
+  /**
+   * What each pin of a part carries, and what a memory part keeps. Undefined
+   * for a part the simulator does not hold as one piece, such as a named circuit.
+   */
+  partReading(docId: string): PartReading | undefined {
+    const component = this.simComponent(docId)
+    if (component === undefined) return undefined
+    const info = this.sim.getComponent(component)
+    const pins = info.ports.map(
+      (port): PinReading => ({
+        port: port.name,
+        direction: port.direction,
+        signal: this.sim.readPin({ component, port: port.name }),
+      }),
+    )
+    const stored = STORING.has(info.type) ? storedSignal(this.sim.getState(component)) : undefined
+    return { pins, stored }
   }
 
   /**

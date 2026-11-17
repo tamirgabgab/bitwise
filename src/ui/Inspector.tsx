@@ -11,6 +11,7 @@ import {
   extractable,
   isSwitchKey,
   keyName,
+  readPart,
   setBreakpoint,
   setSwitch,
   signalText,
@@ -34,8 +35,8 @@ import {
   ZoomInIcon,
   ZoomOutIcon,
 } from './icons.tsx'
-import { partName } from './parts.ts'
-import { pinName } from './probeText.ts'
+import { partHint, partName } from './parts.ts'
+import { pinName, portLabel } from './probeText.ts'
 
 interface Field {
   /** The parameter this field changes. */
@@ -385,6 +386,42 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   )
 }
 
+/**
+ * What a part carries right now: the value a memory part keeps, then every
+ * pin, inputs first. It follows the simulation as it runs.
+ */
+function PartValues({ id }: { id: string }) {
+  const settings = useEditor((state) => state.settings)
+  useSim((state) => state.revision)
+  const reading = readPart(id)
+  if (!reading || reading.pins.length === 0) return null
+  const pins = [
+    ...reading.pins.filter((pin) => pin.direction === 'in'),
+    ...reading.pins.filter((pin) => pin.direction === 'out'),
+  ]
+  return (
+    <section className="part-values" aria-label="Values now">
+      {reading.stored && (
+        <p className="wire-reading">
+          <span className="wire-value">{signalText(reading.stored, settings)}</span>
+          <span>kept inside</span>
+        </p>
+      )}
+      <ul className="probe-pins">
+        {pins.map((pin) => (
+          <li key={pin.port}>
+            <span>
+              {pin.direction === 'in' ? '\u2192 ' : '\u2190 '}
+              {portLabel(pin.port)}
+            </span>
+            <span className="probe-pin-value">{signalText(pin.signal, settings)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
+
 const ALIGNMENTS: readonly {
   readonly edge: AlignEdge
   readonly label: string
@@ -536,24 +573,20 @@ export function Inspector() {
   const ports = def.ports(component.params)
   const timed =
     ports.some((port) => port.direction === 'in') && ports.some((port) => port.direction === 'out')
-  if (fields.length === 0 && !named && !keyed && !timed) return null
   const { setParams, setDelay } = useEditor.getState()
 
   return (
     <aside className="inspector" aria-label={`${partName(component.type)} settings`}>
       <h2>{partName(component.type)}</h2>
-      {named && (
-        <>
-          <NameField
-            // A new field for another part, and after undo changed the name.
-            key={`${active}:${component.id}:${component.label ?? ''}`}
-            id={component.id}
-            type={component.type}
-            label={component.label ?? ''}
-          />
-          <p className="note">Shown on the pin when this circuit is used as a part.</p>
-        </>
-      )}
+      <p className="note part-hint">{partHint(component.type, settings.radix)}</p>
+      <NameField
+        // A new field for another part, and after undo changed the name.
+        key={`${active}:${component.id}:${component.label ?? ''}`}
+        id={component.id}
+        type={component.type}
+        label={component.label ?? ''}
+      />
+      {named && <p className="note">Shown on the pin when this circuit is used as a part.</p>}
       {keyed && (
         <KeyField key={`${active}:${component.id}`} id={component.id} code={component.key} />
       )}
@@ -625,6 +658,7 @@ export function Inspector() {
           </button>
         </div>
       )}
+      <PartValues id={component.id} />
     </aside>
   )
 }

@@ -623,3 +623,31 @@ describe('SimBridge with buses', () => {
     expect(read(bridge, 'c2', 'in')).toBe('1011')
   })
 })
+
+describe('SimBridge.partReading', () => {
+  it('lists the pins of a part with what they carry', () => {
+    let doc = addComponent(emptyDoc(), 'input', { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'not', { x: 8, y: 0 }).doc
+    doc = addWire(doc, pin('c1', 'out'), pin('c2', 'in'))!.doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.sim.settle()
+    const reading = bridge.partReading('c2')
+    expect(reading?.pins).toEqual([
+      { port: 'in', direction: 'in', signal: [0] },
+      { port: 'out', direction: 'out', signal: [1] },
+    ])
+    expect(reading?.stored).toBeUndefined()
+    expect(bridge.partReading('c9')).toBeUndefined()
+  })
+
+  it('reads what a flip-flop and a register keep', () => {
+    let doc = addComponent(emptyDoc(), 'dff', { x: 0, y: 0 }).doc
+    doc = addComponent(doc, 'register', { x: 10, y: 0 }, { params: { width: 3 } }).doc
+    const bridge = new SimBridge()
+    bridge.sync(doc)
+    bridge.sim.settle()
+    expect(bridge.partReading('c1')?.stored).toEqual([0])
+    expect(bridge.partReading('c2')?.stored).toEqual([0, 0, 0])
+  })
+})

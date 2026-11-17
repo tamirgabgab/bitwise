@@ -9,7 +9,7 @@ import type { ProjectData } from './project.ts'
 import { Recorder, scopeSignals } from './scope.ts'
 import type { ScopeSignal, ScopeValue } from './scope.ts'
 import { SimBridge } from './simBridge.ts'
-import type { NodePin } from './simBridge.ts'
+import type { NodePin, PartReading } from './simBridge.ts'
 import { SimRunner } from './simRunner.ts'
 import { useSim } from './simStore.ts'
 import type { BreakHit, BreakWhen } from './simStore.ts'
@@ -399,6 +399,11 @@ export function describeNode(terminal: Terminal): NodeInfo {
     drivers: pins.filter((pin) => pin.drives),
     readers: pins.filter((pin) => !pin.drives).length,
   }
+}
+
+/** What each pin of a part of the open circuit carries, and what a memory part keeps. */
+export function readPart(docId: string): PartReading | undefined {
+  return current().bridge.partReading(docId)
 }
 
 /** The key among `keys` that sits on the same wire as `terminal`, if any. */

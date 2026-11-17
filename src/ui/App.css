@@ -995,6 +995,24 @@ kbd {
   color: var(--text-muted);
 }
 
+.probe-pin-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 0 0 6px;
+  padding-bottom: 5px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text-muted);
+}
+
+.part-hint {
+  margin-top: -2px;
+}
+
+.part-values {
+  margin-top: 10px;
+}
+
 .probe-conflict {
   margin-top: 4px;
   color: var(--signal-high);
