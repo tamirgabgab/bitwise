@@ -329,6 +329,17 @@ Known limits:
 - Pinch zoom and other touch gestures.
 - Export the circuit as an image.
 
+Added by the owner after Phase 5:
+
+- **A keyboard key for a switch.** A key set in the inspector toggles the
+  switch, or holds the button down, while the canvas has the focus.
+- **A probe on hover.** Pointing at a wire shows its value, its net and
+  what drives it; on a conflict, which outputs disagree.
+- **Showing how a change spreads.** While stepping one tick at a time, the
+  parts evaluated in that tick are highlighted.
+- **Cost.** The number of gates and the longest delay from an input to an
+  output, in the status bar.
+
 Dark and light themes and the keyboard shortcuts were planned here and
 arrived early, in Phase 2.
 
