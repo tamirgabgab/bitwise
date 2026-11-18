@@ -6,6 +6,9 @@ gates and watch it simulate as you wire it. A wire is not limited to two
 values: pick a radix n from 2 to 16 and every wire carries a digit from 0 to
 n-1.
 
+**Open it in the browser:** <https://tamirgabgab.github.io/cedar_logic/>.
+Nothing to install; projects are kept in your browser.
+
 What works today:
 
 - **Circuit editor.** Drag gates onto a canvas, wire them, move, rotate,
@@ -76,12 +79,21 @@ npm install
 npm run dev
 ```
 
+Then open the address the dev server prints, usually
+<http://localhost:5173/>.
+
 | Command | What it does |
 | --- | --- |
 | `npm run dev` | Start the dev server |
 | `npm test` | Run the unit tests |
 | `npm run lint` | Lint with oxlint |
 | `npm run build` | Type-check and build to `dist/` |
+
+## Publishing
+
+Every push to `main` that passes lint, tests and build is published to
+GitHub Pages by `.github/workflows/pages.yml`. Pages has to be switched on
+once in the repository settings: Settings > Pages > Source: GitHub Actions.
 
 ## License
 

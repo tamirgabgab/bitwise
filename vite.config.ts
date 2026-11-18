@@ -22,6 +22,9 @@ function contentSecurityPolicy(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Relative paths, so the built site works under any folder, such as
+  // /cedar_logic/ on GitHub Pages.
+  base: './',
   plugins: [react(), contentSecurityPolicy()],
   test: {
     // The simulation core is pure TypeScript, so tests run in plain Node.

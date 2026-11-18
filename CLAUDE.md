@@ -13,6 +13,10 @@ reasoning behind the architecture live in `docs/PLAN.md`.
 
 Run lint, test and build before calling a change done. CI runs the same three.
 
+Every push to `main` that passes them is published to GitHub Pages
+(`.github/workflows/pages.yml`), at https://tamirgabgab.github.io/cedar_logic/.
+The build uses relative paths (`base: './'`), so it works under that folder.
+
 ## Layers
 
 - `src/core` — simulation engine. Pure TypeScript: no React, no DOM, no
