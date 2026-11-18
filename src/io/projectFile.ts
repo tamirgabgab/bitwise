@@ -74,6 +74,42 @@ export interface FileWire {
 
 const WIRE_FORMATS: readonly string[] = ['decimal', 'balanced', 'hex']
 
+/*
+ * Limits on what a file may hold. A file can come from anyone, so nothing in
+ * it may make the browser loop for ever or run out of memory. The editor's
+ * loader in `src/editor/project.ts` keeps the same limits; a test in
+ * `src/ui` holds the two together.
+ */
+
+/** The longest text read as a project, in characters: about what the browser keeps. */
+export const MAX_FILE_LENGTH = 5_000_000
+/** How far from the origin a part or junction may sit, in grid units. */
+export const MAX_COORD = 10_000
+/** The most circuits one project holds. */
+export const MAX_CIRCUITS = 200
+/** The most parts, junctions and wires one circuit holds together. */
+export const MAX_ITEMS = 20_000
+/** The most parts a circuit may come to once every named circuit in it is opened up. */
+export const MAX_FLAT_PARTS = 50_000
+/** The longest delay of a part, in ticks; the inspector stops at the same. */
+export const MAX_FILE_DELAY = 99
+/** The largest number in an id, so the next id is always a safe integer. */
+export const MAX_ID_NUMBER = 1_000_000_000
+
+/**
+ * Whether `id` can name a circuit, part, junction or wire: a letter and then
+ * letters, digits, `_` or `-`, and never the name of something every object
+ * has (such as `constructor` or `__proto__`), since ids become keys.
+ */
+export function isSafeId(id: unknown): id is string {
+  return typeof id === 'string' && /^[A-Za-z][\w-]{0,31}$/.test(id) && !(id in Object.prototype)
+}
+
+/** A name from the file as a message shows it: never longer than a line. */
+function shown(name: string): string {
+  return name.length > 40 ? `${name.slice(0, 39)}…` : name
+}
+
 export interface FileView {
   readonly panX: number
   readonly panY: number
@@ -190,11 +226,15 @@ function pointOf(value: unknown, what: string): FilePoint {
   ) {
     fail(`${what} has no valid position.`)
   }
+  if (Math.abs(value.x) > MAX_COORD || Math.abs(value.y) > MAX_COORD) {
+    fail(`${what} lies more than ${MAX_COORD} grid units from the middle.`)
+  }
   return { x: value.x, y: value.y }
 }
 
 function idOf(value: unknown, what: string): string {
   if (typeof value !== 'string' || value === '') fail(`${what} has no id.`)
+  if (!isSafeId(value)) fail(`${what} has the id "${shown(value)}", which this app cannot use.`)
   return value
 }
 
@@ -238,7 +278,9 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
   const rotation = value.rotation ?? 0
   if (!isWhole(rotation) || rotation < 0 || rotation > 3) fail(`${what} has an invalid rotation.`)
   const delay = value.delay ?? 1
-  if (!isWhole(delay) || delay < 1) fail(`${what} must have a delay of at least 1.`)
+  if (!isWhole(delay) || delay < 1 || delay > MAX_FILE_DELAY) {
+    fail(`${what} must have a delay from 1 to ${MAX_FILE_DELAY}.`)
+  }
   if (value.label !== undefined && typeof value.label !== 'string') {
     fail(`${what} has a label that is not text.`)
   }
@@ -277,7 +319,7 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
     return { id, type: FRAME_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text, size }
   }
   if (typeof value.type !== 'string' || !builtinComponents.has(value.type)) {
-    fail(`${what} has the unknown type "${String(value.type)}".`)
+    fail(`${what} has the unknown type "${shown(String(value.type))}".`)
   }
   const given = value.params ?? {}
   if (!isObject(given) || !Object.values(given).every((item) => typeof item === 'number')) {
@@ -327,7 +369,11 @@ function viewOf(value: unknown): FileView | undefined {
 function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): FileCircuit {
   const name = typeof value.name === 'string' ? value.name.trim() : ''
   if (name === '') fail(`Circuit ${id} has no name.`)
-  const where = `Circuit "${name}"`
+  const where = `Circuit "${shown(name)}"`
+  const count = [value.components, value.junctions, value.wires]
+    .map((list) => (Array.isArray(list) ? list.length : 0))
+    .reduce((sum, length) => sum + length, 0)
+  if (count > MAX_ITEMS) fail(`${where} has more than ${MAX_ITEMS} parts, junctions and wires.`)
 
   const taken = new Set<string>()
   const claim = (itemId: string): void => {
@@ -370,7 +416,11 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
     const number = Number(itemId.slice(1))
     if (Number.isInteger(number)) highest = Math.max(highest, number)
   }
-  const nextId = isWhole(value.nextId) ? Math.max(value.nextId, highest + 1) : highest + 1
+  if (highest >= MAX_ID_NUMBER) fail(`${where} has an id with a number of ${MAX_ID_NUMBER} or more.`)
+  const nextId =
+    isWhole(value.nextId) && value.nextId < MAX_ID_NUMBER
+      ? Math.max(value.nextId, highest + 1)
+      : highest + 1
 
   const inputs: Record<string, FileInput> = {}
   if (isObject(value.inputs)) {
@@ -408,26 +458,41 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
   }
 }
 
-/** Fails if a circuit has itself inside, directly or through others. */
+/**
+ * Fails if a circuit has itself inside, directly or through others, or comes
+ * to more than `MAX_FLAT_PARTS` parts once its named circuits are opened up:
+ * a few circuits that each hold two of the one before grow twice as large
+ * at every step.
+ */
 function checkNesting(circuits: readonly FileCircuit[]): void {
   const uses = new Map<string, string[]>()
   const names = new Map<string, string>()
+  const partCount = new Map<string, number>()
   for (const circuit of circuits) {
     names.set(circuit.id, circuit.name)
+    partCount.set(circuit.id, circuit.components.length)
     uses.set(
       circuit.id,
       circuit.components.flatMap((part) => (part.circuit === undefined ? [] : [part.circuit])),
     )
   }
-  const done = new Set<string>()
+  const size = new Map<string, number>()
   const open = new Set<string>()
-  const visit = (id: string): void => {
-    if (done.has(id)) return
-    if (open.has(id)) fail(`Circuit "${names.get(id)}" contains itself.`)
+  const visit = (id: string): number => {
+    const known = size.get(id)
+    if (known !== undefined) return known
+    const name = shown(names.get(id) ?? id)
+    if (open.has(id)) fail(`Circuit "${name}" contains itself.`)
     open.add(id)
-    for (const used of uses.get(id) ?? []) visit(used)
+    const used = uses.get(id) ?? []
+    let parts = (partCount.get(id) ?? 0) - used.length
+    for (const inner of used) parts += visit(inner)
     open.delete(id)
-    done.add(id)
+    if (parts > MAX_FLAT_PARTS) {
+      fail(`Circuit "${name}" comes to more than ${MAX_FLAT_PARTS} parts with its circuits opened up.`)
+    }
+    size.set(id, parts)
+    return parts
   }
   for (const circuit of circuits) visit(circuit.id)
 }
@@ -438,6 +503,9 @@ function checkNesting(circuits: readonly FileCircuit[]): void {
  * can open.
  */
 export function parseProject(text: string): ProjectFile {
+  if (text.length > MAX_FILE_LENGTH) {
+    fail(`The file is larger than ${MAX_FILE_LENGTH / 1_000_000} MB, more than a project can be.`)
+  }
   let data: unknown
   try {
     data = JSON.parse(text)
@@ -464,6 +532,7 @@ export function parseProject(text: string): ProjectFile {
 
   const items = listOf(current.circuits, 'The circuits')
   if (items.length === 0) fail('The project file has no circuits.')
+  if (items.length > MAX_CIRCUITS) fail(`The project has more than ${MAX_CIRCUITS} circuits.`)
   const ids = new Set<string>()
   for (const item of items) {
     if (!isObject(item)) fail('A circuit is not an object.')

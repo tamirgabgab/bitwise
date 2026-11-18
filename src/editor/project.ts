@@ -9,6 +9,9 @@ import {
 } from '../core/index.ts'
 import {
   FRAME_TYPE,
+  MAX_COORD,
+  MAX_DELAY,
+  MAX_ITEMS,
   MAX_LABEL,
   NET_TYPE,
   SUB_TYPE,
@@ -24,6 +27,7 @@ import type { CircuitDoc, DocComponent, DocJunction, DocWire, Terminal } from '.
 import type { Point, Rotation } from './geometry.ts'
 import { DEFAULT_FRAME, FRAME_SIZE } from './symbols.ts'
 import {
+  MAX_FLAT_PARTS,
   cleanCircuitName,
   contains,
   reconcileAll,
@@ -177,6 +181,29 @@ export function toProjectData(
   }
 }
 
+/*
+ * Limits on what a file may hold, so that no file can make the browser loop
+ * for ever or run out of memory: these two, `MAX_COORD` and `MAX_ITEMS` in
+ * `document.ts` and `MAX_FLAT_PARTS` in `subcircuit.ts`. They are the same
+ * as the strict reader's in `src/io/projectFile.ts`; a test in `src/ui`
+ * holds the two together. What goes past them is cut, like anything else
+ * that makes no sense.
+ */
+
+/** The most circuits one project holds. */
+export const MAX_CIRCUITS = 200
+/** The largest number in an id, so the next id is always a safe integer. */
+export const MAX_ID_NUMBER = 1_000_000_000
+
+/**
+ * Whether `id` can name a circuit, part, junction or wire: a letter and then
+ * letters, digits, `_` or `-`, and never the name of something every object
+ * has (such as `constructor` or `__proto__`), since ids become keys.
+ */
+export function isSafeId(id: unknown): id is string {
+  return typeof id === 'string' && /^[A-Za-z][\w-]{0,31}$/.test(id) && !(id in Object.prototype)
+}
+
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
@@ -185,15 +212,16 @@ function pointOf(value: unknown): Point | undefined {
   const { x, y } = value
   if (typeof x !== 'number' || typeof y !== 'number') return undefined
   if (!Number.isFinite(x) || !Number.isFinite(y)) return undefined
-  return { x: Math.round(x), y: Math.round(y) }
+  const fit = (coord: number): number => Math.max(-MAX_COORD, Math.min(MAX_COORD, Math.round(coord)))
+  return { x: fit(x), y: fit(y) }
 }
 
 function terminalOf(value: unknown): Terminal | undefined {
   if (!isObject(value)) return undefined
-  if (value.kind === 'pin' && typeof value.component === 'string' && typeof value.port === 'string') {
+  if (value.kind === 'pin' && isSafeId(value.component) && typeof value.port === 'string') {
     return { kind: 'pin', component: value.component, port: value.port }
   }
-  if (value.kind === 'junction' && typeof value.junction === 'string') {
+  if (value.kind === 'junction' && isSafeId(value.junction)) {
     return { kind: 'junction', junction: value.junction }
   }
   return undefined
@@ -201,15 +229,15 @@ function terminalOf(value: unknown): Terminal | undefined {
 
 function componentOf(data: ComponentData): DocComponent | undefined {
   const pos = pointOf(data.pos)
-  if (typeof data.id !== 'string' || data.id === '' || !pos) return undefined
+  if (!isSafeId(data.id) || !pos) return undefined
   const rotation = ([0, 1, 2, 3].includes(data.rotation) ? data.rotation : 0) as Rotation
-  const delay = Number.isInteger(data.delay) && data.delay >= 1 ? data.delay : 1
+  const delay = Number.isInteger(data.delay) && data.delay >= 1 ? Math.min(data.delay, MAX_DELAY) : 1
   const label = typeof data.label === 'string' ? data.label.trim().slice(0, MAX_LABEL) : ''
   const named = label === '' ? {} : { label }
   const keyed = takesKey(data.type) && isSwitchKey(data.key) ? { key: data.key } : {}
 
   if (data.type === SUB_TYPE) {
-    if (typeof data.circuit !== 'string') return undefined
+    if (!isSafeId(data.circuit)) return undefined
     // The name and the pins are filled in once every circuit is known.
     const sub = { circuit: data.circuit, name: '', inputs: [], outputs: [] }
     return { id: data.id, type: SUB_TYPE, params: {}, delay: 1, pos, rotation, sub }
@@ -247,33 +275,45 @@ function docFromData(data: CircuitData): CircuitDoc {
   const junctions: Record<string, DocJunction> = {}
   const wires: Record<string, DocWire> = {}
   let highest = 0
-  const count = (id: string): void => {
+  let room = MAX_ITEMS
+  // Takes an id for one more item; false when the id is taken or cannot be
+  // used, or the circuit is full.
+  const claim = (id: unknown): id is string => {
+    if (!isSafeId(id) || room === 0) return false
+    if (Object.hasOwn(components, id) || Object.hasOwn(junctions, id) || Object.hasOwn(wires, id)) {
+      return false
+    }
     const number = Number(id.slice(1))
-    if (Number.isInteger(number)) highest = Math.max(highest, number)
+    if (Number.isInteger(number)) {
+      if (number >= MAX_ID_NUMBER) return false
+      highest = Math.max(highest, number)
+    }
+    room--
+    return true
   }
 
   for (const item of Array.isArray(data.components) ? data.components : []) {
     const component = isObject(item) ? componentOf(item as unknown as ComponentData) : undefined
-    if (!component) continue
+    if (!component || !claim(component.id)) continue
     components[component.id] = component
-    count(component.id)
   }
   for (const item of Array.isArray(data.junctions) ? data.junctions : []) {
     const pos = isObject(item) ? pointOf(item.pos) : undefined
-    if (!isObject(item) || typeof item.id !== 'string' || !pos || item.id in components) continue
+    if (!isObject(item) || !pos || !claim(item.id)) continue
     junctions[item.id] = { id: item.id, pos }
-    count(item.id)
   }
   for (const item of Array.isArray(data.wires) ? data.wires : []) {
-    if (!isObject(item) || typeof item.id !== 'string') continue
+    if (!isObject(item)) continue
     const from = terminalOf(item.from)
     const to = terminalOf(item.to)
-    if (!from || !to || item.id in components || item.id in junctions) continue
+    if (!from || !to || !claim(item.id)) continue
     const format = WIRE_FORMATS.find((name) => name === item.format)
     wires[item.id] = format ? { id: item.id, from, to, format } : { id: item.id, from, to }
-    count(item.id)
   }
-  const nextId = Number.isInteger(data.nextId) ? Math.max(data.nextId, highest + 1) : highest + 1
+  const nextId =
+    Number.isInteger(data.nextId) && data.nextId < MAX_ID_NUMBER
+      ? Math.max(data.nextId, highest + 1)
+      : highest + 1
   return { components, junctions, wires, nextId }
 }
 
@@ -366,6 +406,36 @@ export function isBlankProject(project: Project): boolean {
 }
 
 /**
+ * Cuts uses of named circuits until no circuit comes to more than
+ * `MAX_FLAT_PARTS` parts once they are opened up: a few circuits that each
+ * hold two of the one before grow twice as large at every step. No circuit
+ * may contain itself by now.
+ */
+function keepSmall(circuits: Circuits, order: readonly string[]): Circuits {
+  let kept = circuits
+  const size = new Map<string, number>()
+  const visit = (id: string): number => {
+    const known = size.get(id)
+    if (known !== undefined) return known
+    let total = 0
+    const cut: string[] = []
+    for (const part of Object.values(kept[id].doc.components)) {
+      const inner = part.sub ? visit(part.sub.circuit) : 1
+      if (total + inner > MAX_FLAT_PARTS) cut.push(part.id)
+      else total += inner
+    }
+    if (cut.length > 0) {
+      const circuit = kept[id]
+      kept = { ...kept, [id]: { ...circuit, doc: deleteItems(circuit.doc, cut) } }
+    }
+    size.set(id, total)
+    return total
+  }
+  for (const id of order) visit(id)
+  return kept
+}
+
+/**
  * Reads a project from plain data. The data may come from a file someone
  * edited by hand, so whatever makes no sense is dropped rather than trusted:
  * unknown parts, wires to pins that do not exist, a circuit inside itself.
@@ -378,9 +448,8 @@ export function fromProjectData(data: ProjectData): LoadedProject {
   let highest = 0
 
   for (const item of Array.isArray(data.circuits) ? data.circuits : []) {
-    if (!isObject(item) || typeof item.id !== 'string' || item.id === '' || item.id in circuits) {
-      continue
-    }
+    if (order.length === MAX_CIRCUITS) break
+    if (!isObject(item) || !isSafeId(item.id) || Object.hasOwn(circuits, item.id)) continue
     const name = cleanCircuitName(typeof item.name === 'string' ? item.name : '')
     circuits[item.id] = {
       id: item.id,
@@ -389,7 +458,7 @@ export function fromProjectData(data: ProjectData): LoadedProject {
     }
     order.push(item.id)
     given.set(item.id, item as unknown as CircuitData)
-    const number = /^k(\d+)$/.exec(item.id)
+    const number = /^k(\d{1,9})$/.exec(item.id)
     if (number) highest = Math.max(highest, Number(number[1]))
   }
   if (order.length === 0) return { ...emptyProject(), settings }
@@ -399,11 +468,12 @@ export function fromProjectData(data: ProjectData): LoadedProject {
     for (const component of Object.values(circuits[id].doc.components)) {
       const target = component.sub?.circuit
       if (target === undefined) continue
-      if (target in circuits && !contains(circuits, target, id)) continue
+      if (Object.hasOwn(circuits, target) && !contains(circuits, target, id)) continue
       const circuit = circuits[id]
       circuits = { ...circuits, [id]: { ...circuit, doc: deleteItems(circuit.doc, [component.id]) } }
     }
   }
+  circuits = keepSmall(circuits, order)
   circuits = { ...reconcileAll(circuits) }
   for (const id of order) {
     const circuit = circuits[id]
@@ -429,7 +499,7 @@ export function fromProjectData(data: ProjectData): LoadedProject {
   return {
     circuits,
     order,
-    active: typeof data.active === 'string' && data.active in circuits ? data.active : order[0],
+    active: typeof data.active === 'string' && Object.hasOwn(circuits, data.active) ? data.active : order[0],
     settings,
     views,
     inputs,

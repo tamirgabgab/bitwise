@@ -166,9 +166,8 @@ export function contains(circuits: Circuits, host: string, target: string): bool
     if (id === target) return true
     if (seen.has(id)) return false
     seen.add(id)
-    const circuit = circuits[id]
-    if (!circuit) return false
-    for (const used of usedBy(circuit.doc)) {
+    if (!Object.hasOwn(circuits, id)) return false
+    for (const used of usedBy(circuits[id].doc)) {
       if (visit(used)) return true
     }
     return false
@@ -181,7 +180,47 @@ export function contains(circuits: Circuits, host: string, target: string): bool
  * contain itself, directly or through other circuits.
  */
 export function canPlace(circuits: Circuits, host: string, target: string): boolean {
-  return target in circuits && host in circuits && !contains(circuits, target, host)
+  return (
+    Object.hasOwn(circuits, target) &&
+    Object.hasOwn(circuits, host) &&
+    !contains(circuits, target, host) &&
+    largestFlat(circuits, { host, target }) <= MAX_FLAT_PARTS
+  )
+}
+
+/**
+ * The most parts a circuit may come to once every named circuit in it is
+ * opened up. A few circuits that each hold two of the one before grow twice
+ * as large at every step, so without a limit a small file could fill the
+ * memory of the browser. `src/io/projectFile.ts` keeps the same limit.
+ */
+export const MAX_FLAT_PARTS = 50_000
+
+/**
+ * The most parts any circuit comes to once its named circuits are opened up,
+ * with one more `extra.target` inside `extra.host` if given. The circuits
+ * must not contain themselves.
+ */
+export function largestFlat(
+  circuits: Circuits,
+  extra?: { readonly host: string; readonly target: string },
+): number {
+  const size = new Map<string, number>()
+  const visit = (id: string): number => {
+    const known = size.get(id)
+    if (known !== undefined) return known
+    let total = 0
+    const parts = Object.hasOwn(circuits, id) ? circuits[id].doc.components : {}
+    for (const part of Object.values(parts)) {
+      total += part.sub ? visit(part.sub.circuit) : 1
+    }
+    if (id === extra?.host) total += visit(extra.target)
+    size.set(id, total)
+    return total
+  }
+  let largest = 0
+  for (const id of Object.keys(circuits)) largest = Math.max(largest, visit(id))
+  return largest
 }
 
 /** The circuits that use `id` directly as a part. */

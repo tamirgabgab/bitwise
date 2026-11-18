@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { addComponent, addSubcircuit, addText, addWire, emptyDoc } from './document.ts'
+import { MAX_COORD, MAX_DELAY, MAX_ITEMS, addComponent, addSubcircuit, addText, addWire, emptyDoc } from './document.ts'
 import type { Terminal } from './document.ts'
 import {
   DEFAULT_SETTINGS,
+  MAX_CIRCUITS,
+  MAX_ID_NUMBER,
   cleanSettings,
   emptyProject,
   fromProjectData,
@@ -10,7 +12,7 @@ import {
   toProjectData,
 } from './project.ts'
 import type { ProjectData } from './project.ts'
-import { subRefOf } from './subcircuit.ts'
+import { MAX_FLAT_PARTS, largestFlat, subRefOf } from './subcircuit.ts'
 import type { Circuit } from './subcircuit.ts'
 import { DEFAULT_PALETTE } from './valueStyle.ts'
 
@@ -164,5 +166,92 @@ describe('isBlankProject', () => {
         order: ['k1', 'k2'],
       }),
     ).toBe(false)
+  })
+})
+
+/** Data whose circuit k1 holds two of k2, k2 two of k3, and so on to k`levels`. */
+function nested(levels: number): ProjectData {
+  const circuits = Array.from({ length: levels }, (_, index) => {
+    const inner = `k${index + 2}`
+    const components =
+      index + 1 === levels
+        ? [{ id: 'c1', type: 'not', pos: { x: 0, y: 0 } }]
+        : [1, 2].map((n) => ({ id: `c${n}`, type: 'circuit', circuit: inner, pos: { x: 0, y: 8 * n } }))
+    return { id: `k${index + 1}`, name: `Level ${index + 1}`, components }
+  })
+  return throughText({ circuits })
+}
+
+describe('fromProjectData with a file from anyone', () => {
+  it('drops ids that are names every object has, and never opens one', () => {
+    const data = throughText(sample()) as unknown as { circuits: Record<string, unknown>[]; active: string }
+    for (const id of ['constructor', '__proto__', 'toString']) {
+      const loaded = fromProjectData({
+        ...data,
+        active: id,
+        circuits: [...data.circuits, { id, name: 'X', components: [] }],
+      } as unknown as ProjectData)
+      expect(loaded.order).toEqual(['k1', 'k2'])
+      expect(loaded.active).toBe('k1')
+      expect(loaded.circuits[loaded.active].doc).toBeDefined()
+    }
+  })
+
+  it('drops a part, junction or wire with such an id, and a part standing for such a circuit', () => {
+    const loaded = fromProjectData(
+      throughText({
+        circuits: [
+          {
+            id: 'k1',
+            name: 'Main',
+            components: [
+              { id: '__proto__', type: 'and', pos: { x: 0, y: 0 } },
+              { id: 'c2', type: 'circuit', circuit: 'constructor', pos: { x: 0, y: 4 } },
+              { id: 'c3', type: 'not', pos: { x: 0, y: 8 } },
+            ],
+            junctions: [{ id: 'valueOf', pos: { x: 1, y: 1 } }],
+            wires: [{ id: 'w4', from: pin('__proto__', 'out'), to: pin('c3', 'in') }],
+          },
+        ],
+      }),
+    )
+    const doc = loaded.circuits.k1.doc
+    expect(Object.keys(doc.components)).toEqual(['c3'])
+    expect(Object.getPrototypeOf(doc.components)).toBe(Object.prototype)
+    expect(doc.junctions).toEqual({})
+    expect(doc.wires).toEqual({})
+  })
+
+  it('brings a part from far out back within reach, and caps its delay', () => {
+    const loaded = fromProjectData(
+      throughText({
+        circuits: [{ id: 'k1', name: 'Main', components: [{ id: 'c1', type: 'not', pos: { x: 1e17, y: -1e17 }, delay: 1e9 }] }],
+      }),
+    )
+    const part = loaded.circuits.k1.doc.components.c1
+    expect(part.pos).toEqual({ x: MAX_COORD, y: -MAX_COORD })
+    expect(part.delay).toBe(MAX_DELAY)
+  })
+
+  it('cuts named circuits nested past the limit, and fast', () => {
+    const started = Date.now()
+    const loaded = fromProjectData(nested(30))
+    expect(Date.now() - started).toBeLessThan(2000)
+    expect(largestFlat(loaded.circuits)).toBeLessThanOrEqual(MAX_FLAT_PARTS)
+    // Nested within the limit, nothing is cut.
+    expect(largestFlat(fromProjectData(nested(10)).circuits)).toBe(2 ** 9)
+  })
+
+  it('keeps to the most circuits and items, and a safe next id', () => {
+    const circuits = Array.from({ length: MAX_CIRCUITS + 5 }, (_, index) => ({ id: `k${index + 1}`, name: 'C' }))
+    expect(fromProjectData(throughText({ circuits })).order).toHaveLength(MAX_CIRCUITS)
+    const junctions = Array.from({ length: MAX_ITEMS + 5 }, (_, index) => ({ id: `j${index}`, pos: { x: 0, y: 0 } }))
+    const big = fromProjectData(throughText({ circuits: [{ id: 'k1', name: 'Big', junctions, nextId: 2 ** 60 }] }))
+    expect(Object.keys(big.circuits.k1.doc.junctions)).toHaveLength(MAX_ITEMS)
+    expect(Number.isSafeInteger(big.circuits.k1.doc.nextId)).toBe(true)
+    const far = fromProjectData(
+      throughText({ circuits: [{ id: `k${MAX_ID_NUMBER}0`, name: 'Far' }, { id: 'k1', name: 'Near' }] }),
+    )
+    expect(far.nextCircuit).toBe(2)
   })
 })

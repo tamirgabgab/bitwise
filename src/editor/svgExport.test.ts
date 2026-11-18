@@ -4,7 +4,7 @@ import type { CircuitDoc, Terminal } from './document.ts'
 import { readLiveValues } from './liveValues.ts'
 import { DEFAULT_SETTINGS } from './project.ts'
 import { SimBridge } from './simBridge.ts'
-import { SvgContext } from './svgContext.ts'
+import { SvgContext, escapeXml } from './svgContext.ts'
 import { EXAMPLES } from './examples.ts'
 import { fromProjectData } from './project.ts'
 import { circuitSvg, projectSvg } from './svgExport.ts'
@@ -170,5 +170,27 @@ describe('projectSvg', () => {
       expect(svg.startsWith('<svg'), example.name).toBe(true)
       expect(svg, example.name).not.toMatch(/NaN|undefined|Infinity/)
     }
+  })
+})
+
+describe('text from a file in a picture', () => {
+  it('is escaped, and loses the characters XML does not allow', () => {
+    expect(escapeXml('a<b>&"c"')).toBe('a&lt;b&gt;&amp;&quot;c&quot;')
+    expect(escapeXml('x\u0001y\u001Fz￿')).toBe('xyz')
+    // Half of a surrogate pair goes; a whole pair (an emoji) stays.
+    expect(escapeXml('a\uD800b\uDC00c')).toBe('abc')
+    expect(escapeXml('ok \u{1F600}')).toBe('ok \u{1F600}')
+    expect(escapeXml('tab\tline\n')).toBe('tab\tline\n')
+  })
+
+  it('cannot close the text it is written in', () => {
+    const doc = addText(emptyDoc(), { x: 0, y: 0 }, '</text><script>alert(1)</script>\u0001\uD800').doc
+    const svg = picture(doc)
+    expect(svg).not.toContain('<script')
+    expect(svg).toContain('&lt;/text&gt;&lt;script&gt;')
+    expect(svg).not.toContain('\u0001')
+    expect(svg).not.toContain('\uD800')
+    // The picture can be put in a data URL, as the home screen does.
+    expect(() => encodeURIComponent(svg)).not.toThrow()
   })
 })

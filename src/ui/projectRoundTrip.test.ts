@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
+import * as editor from '../editor/index.ts'
 import { EXAMPLES } from '../editor/index.ts'
 import { DEFAULT_SETTINGS, fromProjectData, toProjectData } from '../editor/project.ts'
+import * as io from '../io/index.ts'
 import { parseProject, serializeProject } from '../io/index.ts'
 
 /*
@@ -74,5 +76,19 @@ describe('a project through the file format', () => {
     const data = EXAMPLES[0].build()
     const text = serializeProject({ ...data, settings: { ...data.settings, palette: [] } })
     expect(parseProject(text).settings.palette).toEqual(DEFAULT_SETTINGS.palette)
+  })
+})
+
+describe('the limits of a file', () => {
+  it('are the same in the strict reader and in the editor', () => {
+    expect(io.MAX_COORD).toBe(editor.MAX_COORD)
+    expect(io.MAX_ITEMS).toBe(editor.MAX_ITEMS)
+    expect(io.MAX_CIRCUITS).toBe(editor.MAX_CIRCUITS)
+    expect(io.MAX_FLAT_PARTS).toBe(editor.MAX_FLAT_PARTS)
+    expect(io.MAX_ID_NUMBER).toBe(editor.MAX_ID_NUMBER)
+    expect(io.MAX_FILE_DELAY).toBe(editor.MAX_DELAY)
+    for (const id of ['k1', 'c12', 'constructor', '__proto__', '1a', 'a'.repeat(33)]) {
+      expect(io.isSafeId(id)).toBe(editor.isSafeId(id))
+    }
   })
 })

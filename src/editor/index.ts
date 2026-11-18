@@ -10,7 +10,9 @@ export { minimapPan, minimapScene } from './minimap.ts'
 export type { MinimapScene } from './minimap.ts'
 export { defaultParamsOf, renderSymbolIcon } from './render.ts'
 export {
+  MAX_COORD,
   MAX_DELAY,
+  MAX_ITEMS,
   MAX_LABEL,
   MAX_TEXT,
   SUB_TYPE,
@@ -33,7 +35,7 @@ export type { Point } from './geometry.ts'
 export { useProbe } from './probeStore.ts'
 export { EXAMPLES } from './examples.ts'
 export type { Example } from './examples.ts'
-export { fromProjectData, isBlankProject } from './project.ts'
+export { MAX_CIRCUITS, MAX_ID_NUMBER, fromProjectData, isBlankProject, isSafeId } from './project.ts'
 export { projectSvg } from './svgExport.ts'
 export type { ProjectData } from './project.ts'
 export { MAX_NOTE, MAX_STEPS } from './steps.ts'
@@ -88,7 +90,7 @@ export {
   scopeZoom,
 } from './scopeRender.ts'
 export type { ScopeMarkers, ScopeView } from './scopeRender.ts'
-export { MAX_CIRCUIT_NAME, canPlace, interfaceOf, usersOf } from './subcircuit.ts'
+export { MAX_CIRCUIT_NAME, MAX_FLAT_PARTS, canPlace, interfaceOf, usersOf } from './subcircuit.ts'
 export { SIM_SPEEDS } from './simRunner.ts'
 export type { SimSpeed } from './simRunner.ts'
 export { useSim } from './simStore.ts'

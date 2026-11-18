@@ -24,11 +24,19 @@ export function downloadText(fileName: string, text: string, type = 'application
   setTimeout(() => URL.revokeObjectURL(url), 0)
 }
 
+/** A file the user picked: its text, or none when it is larger than was allowed. */
+export interface PickedFile {
+  readonly name: string
+  readonly text?: string
+}
+
 /**
- * Lets the user pick one file and reads it as text. Resolves with null when
- * the user closes the dialog without picking.
+ * Lets the user pick one file and reads it as text, unless it is larger than
+ * `maxBytes`: a file can come from anyone, and a huge one would hang the
+ * page while it is read. Resolves with null when the user closes the dialog
+ * without picking.
  */
-export function pickTextFile(accept: string): Promise<{ name: string; text: string } | null> {
+export function pickTextFile(accept: string, maxBytes: number): Promise<PickedFile | null> {
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'
@@ -38,6 +46,10 @@ export function pickTextFile(accept: string): Promise<{ name: string; text: stri
       const file = input.files?.[0]
       if (!file) {
         resolve(null)
+        return
+      }
+      if (file.size > maxBytes) {
+        resolve({ name: file.name })
         return
       }
       file.text().then(

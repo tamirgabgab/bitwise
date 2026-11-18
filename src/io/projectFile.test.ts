@@ -2,7 +2,14 @@ import { describe, expect, it } from 'vitest'
 import {
   FILE_FORMAT,
   FILE_FORMAT_VERSION,
+  MAX_CIRCUITS,
+  MAX_COORD,
+  MAX_FILE_LENGTH,
+  MAX_FLAT_PARTS,
+  MAX_ID_NUMBER,
+  MAX_ITEMS,
   ProjectFileError,
+  isSafeId,
   parseProject,
   serializeProject,
 } from './projectFile.ts'
@@ -190,7 +197,7 @@ describe('parseProject refuses', () => {
   it('a part with a bad position, rotation, delay or label', () => {
     expect(refusal(withPart({ pos: { x: 'a', y: 0 } }))).toMatch(/no valid position/)
     expect(refusal(withPart({ rotation: 4 }))).toMatch(/invalid rotation/)
-    expect(refusal(withPart({ delay: 0 }))).toMatch(/delay of at least 1/)
+    expect(refusal(withPart({ delay: 0 }))).toMatch(/delay from 1 to 99/)
     expect(refusal(withPart({ label: 7 }))).toMatch(/label that is not text/)
   })
 
@@ -369,5 +376,86 @@ describe('switches on a bus', () => {
     const circuit = parseProject(file({ c1: 'hello', c2: '1' }, { c1: '1Z', c2: 1.5 })).circuits[0]
     expect('inputs' in circuit).toBe(false)
     expect(circuit.steps).toEqual([{ note: '', inputs: {} }])
+  })
+})
+
+/** A file whose circuit k1 holds two of k2, k2 two of k3, and so on to k`levels`. */
+function nested(levels: number): Json {
+  const circuits = Array.from({ length: levels }, (_, index) => {
+    const id = `k${index + 1}`
+    const inner = `k${index + 2}`
+    const at = (y: number) => ({ x: 0, y })
+    const components =
+      index + 1 === levels
+        ? [{ id: 'c1', type: 'not', pos: at(0) }]
+        : [
+            { id: 'c1', type: 'circuit', circuit: inner, pos: at(0) },
+            { id: 'c2', type: 'circuit', circuit: inner, pos: at(8) },
+          ]
+    return { id, name: `Level ${index + 1}`, components }
+  })
+  return { format: FILE_FORMAT, version: FILE_FORMAT_VERSION, circuits }
+}
+
+describe('a file from anyone', () => {
+  it('may not use the name of something every object has as an id', () => {
+    for (const id of ['constructor', '__proto__', 'toString', 'hasOwnProperty']) {
+      expect(isSafeId(id)).toBe(false)
+      expect(refusal(withCircuit(0, { id }))).toMatch(/cannot use/)
+      expect(refusal(withPart({ id }))).toMatch(/cannot use/)
+    }
+    expect(parseProject(text({ ...sample(), active: 'constructor' })).active).toBe('k1')
+  })
+
+  it('may use the ids the editor makes', () => {
+    for (const id of ['k1', 'c12', 'j3', 'w40', 'part_7', 'a-b']) expect(isSafeId(id)).toBe(true)
+    for (const id of ['', '1c', 'c 1', '<b>', 'x'.repeat(33)]) expect(isSafeId(id)).toBe(false)
+  })
+
+  it('may not put a part or junction far out, where routing a wire would never end', () => {
+    expect(refusal(withPart({ pos: { x: 1e17, y: 0 } }))).toMatch(/more than 10000 grid units/)
+    expect(refusal(withPart({ pos: { x: 0, y: -(MAX_COORD + 1) } }))).toMatch(/grid units/)
+    expect(refusal(withCircuit(1, { junctions: [{ id: 'c3', pos: { x: MAX_COORD + 1, y: 0 } }] }))).toMatch(
+      /grid units/,
+    )
+    expect(() => parseProject(text(withPart({ pos: { x: MAX_COORD, y: -MAX_COORD } })))).not.toThrow()
+  })
+
+  it('may not nest circuits into more parts than the browser can hold, and says so at once', () => {
+    const started = Date.now()
+    expect(refusal(nested(30))).toMatch(`more than ${MAX_FLAT_PARTS} parts`)
+    expect(Date.now() - started).toBeLessThan(1000)
+    // 2 ** 15 parts is within the limit.
+    expect(parseProject(text(nested(16))).circuits).toHaveLength(16)
+  })
+
+  it('may not hold too many circuits, or too many items in one', () => {
+    const many = Array.from({ length: MAX_CIRCUITS + 1 }, (_, index) => ({ id: `k${index + 1}`, name: 'C' }))
+    expect(refusal({ ...sample(), circuits: many })).toMatch(`more than ${MAX_CIRCUITS} circuits`)
+    const junctions = Array.from({ length: MAX_ITEMS + 1 }, (_, index) => ({ id: `j${index}`, pos: { x: 0, y: 0 } }))
+    expect(refusal(withCircuit(1, { junctions }))).toMatch(`more than ${MAX_ITEMS} parts`)
+  })
+
+  it('may not give a part a delay past what the inspector allows', () => {
+    expect(refusal(withPart({ delay: 100 }))).toMatch(/delay from 1 to 99/)
+    expect(parseProject(text(withPart({ delay: 99 }))).circuits[1].components[0].delay).toBe(99)
+  })
+
+  it('keeps the next id a safe integer', () => {
+    const parts = (sample().circuits as Json[])[1].components as Json[]
+    const far = { id: `c${MAX_ID_NUMBER}`, type: 'output', pos: { x: 0, y: 9 } }
+    expect(refusal(withCircuit(1, { components: [...parts, far] }))).toMatch(/id with a number/)
+    const read = parseProject(text(withCircuit(1, { nextId: 2 ** 60 }))).circuits[1]
+    expect(read.nextId).toBe(6)
+  })
+
+  it('may not be longer than a project can be', () => {
+    expect(refusal(' '.repeat(MAX_FILE_LENGTH + 1))).toMatch(/larger than 5 MB/)
+  })
+
+  it('has its names cut short in a message', () => {
+    const message = refusal(withCircuit(1, { name: 'N'.repeat(5000), components: [{ id: 'c1' }] }))
+    expect(message.length).toBeLessThan(200)
+    expect(message).toContain('…')
   })
 })

@@ -34,6 +34,7 @@ import {
   setComponentLabel,
   setComponentParams,
   setComponentText,
+  withinBounds,
 } from './document.ts'
 import type { BusFormat, CircuitDoc, Fragment, Terminal, WireEnd } from './document.ts'
 import { setBusFormat } from './busFormat.ts'
@@ -49,7 +50,14 @@ import type { Point } from './geometry.ts'
 import type { GateStyle } from './symbols.ts'
 import { DEFAULT_SETTINGS, emptyProject, fromProjectData } from './project.ts'
 import type { LoadedProject, ProjectData, ProjectSettings } from './project.ts'
-import { canPlace, cleanCircuitName, reconcileAll, subRefOf } from './subcircuit.ts'
+import {
+  MAX_FLAT_PARTS,
+  canPlace,
+  cleanCircuitName,
+  largestFlat,
+  reconcileAll,
+  subRefOf,
+} from './subcircuit.ts'
 import type { Circuits } from './subcircuit.ts'
 import { DEFAULT_PALETTE } from './valueStyle.ts'
 import { DEFAULT_VIEW, fitView, zoomAt } from './view.ts'
@@ -386,7 +394,11 @@ export const useEditor = create<EditorState>()((set, get) => {
   const commit = (doc: CircuitDoc, selection?: Iterable<string>): void => {
     const state = get()
     if (doc === state.doc) return
+    // A drawing past the limits of a file could not be read back whole.
+    if (!withinBounds(doc)) return
     const placed = place(doc)
+    const grew = Object.keys(doc.components).length > Object.keys(state.doc.components).length
+    if (grew && largestFlat(placed.circuits) > MAX_FLAT_PARTS) return
     set({
       ...placed,
       past: [...state.past, state.doc].slice(-HISTORY_LIMIT),

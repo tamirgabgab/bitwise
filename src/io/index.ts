@@ -6,7 +6,15 @@
 export {
   FILE_FORMAT,
   FILE_FORMAT_VERSION,
+  MAX_CIRCUITS,
+  MAX_COORD,
+  MAX_FILE_DELAY,
+  MAX_FILE_LENGTH,
+  MAX_FLAT_PARTS,
+  MAX_ID_NUMBER,
+  MAX_ITEMS,
   ProjectFileError,
+  isSafeId,
   parseProject,
   serializeProject,
 } from './projectFile.ts'
@@ -21,6 +29,7 @@ export type {
   ProjectFile,
 } from './projectFile.ts'
 export { downloadText, pickTextFile, safeFileName } from './files.ts'
+export type { PickedFile } from './files.ts'
 export {
   MAX_PROJECT_NAME,
   chooseLocal,

@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { canvasRuntime, isBlankProject, projectSnapshot, useEditor, useSim } from '../editor/index.ts'
 import type { Example, ProjectData } from '../editor/index.ts'
 import {
+  MAX_FILE_LENGTH,
   ProjectFileError,
   addVersion,
   chooseLocal,
@@ -243,10 +244,14 @@ export function exportCircuitSvg(): void {
 
 /** Lets the user pick a project file and opens it as a new project. */
 export async function openProjectFile(): Promise<void> {
-  const file = await pickTextFile('.json,application/json')
+  const file = await pickTextFile('.json,application/json', MAX_FILE_LENGTH)
   if (!file) return
   let data: ProjectData
   try {
+    if (file.text === undefined) {
+      const size = MAX_FILE_LENGTH / 1_000_000
+      throw new ProjectFileError(`The file is larger than ${size} MB, more than a project can be.`)
+    }
     data = parseProject(file.text)
   } catch (error) {
     await ask({

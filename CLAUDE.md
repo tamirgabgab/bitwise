@@ -301,6 +301,14 @@ Run lint, test and build before calling a change done. CI runs the same three.
   with user-facing errors) and `src/editor/project.ts` (lenient load). They
   do not import each other and meet in `src/ui` (`persistence.ts`); change
   both together, and `projectRoundTrip.test.ts` checks they still match.
+- A file can come from anyone, and the site is public. Both readers keep
+  the same limits (`MAX_COORD`, `MAX_ITEMS`, `MAX_CIRCUITS`,
+  `MAX_FLAT_PARTS`, the delay, `MAX_FILE_LENGTH`): the strict one refuses,
+  the lenient one cuts, and `store.ts` makes no edit that would go past
+  them. An id must pass `isSafeId`, and a record keyed by a value from a
+  file is read with `Object.hasOwn`, never `in`. SVG text goes through
+  `escapeXml`. The built page carries a Content Security Policy
+  (`src/csp.ts`): no inline script or style, nothing from another site.
 - The browser keeps a list of projects (`src/io/storage.ts`): an index under
   `cedar-logic.projects` and each project's text under its own key. New
   projects, opened files and examples join the list instead of replacing the

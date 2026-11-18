@@ -38,8 +38,24 @@ function num(value: number): string {
   return String(Object.is(rounded, -0) ? 0 : rounded)
 }
 
-function escapeXml(text: string): string {
-  return text
+/** Whether XML allows a character (one code point; a lone half of a pair counts as one). */
+function allowedInXml(char: string): boolean {
+  const code = char.codePointAt(0) ?? 0
+  if (code < 0x20) return code === 0x09 || code === 0x0a || code === 0x0d
+  if (code >= 0xd800 && code <= 0xdfff) return false
+  return code !== 0xfffe && code !== 0xffff
+}
+
+/**
+ * Text made safe to write into SVG, as element text or a quoted attribute.
+ * Characters XML does not allow at all (most control characters, a half of
+ * a surrogate pair, U+FFFE and U+FFFF) are left out, since one of them in a
+ * label would make the whole picture unreadable.
+ */
+export function escapeXml(text: string): string {
+  return Array.from(text)
+    .filter(allowedInXml)
+    .join('')
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest'
-import { SUB_TYPE } from './document.ts'
+import { MAX_COORD, SUB_TYPE } from './document.ts'
 import type { Terminal, WireEnd } from './document.ts'
 import { toProjectData } from './project.ts'
 import type { ProjectData } from './project.ts'
@@ -815,5 +815,18 @@ describe('fitToScreen', () => {
     editor().setView({ panX: 12, panY: 34, zoom: 2 })
     editor().fitToScreen(800, 600)
     expect(editor().view).toEqual({ panX: 12, panY: 34, zoom: 2 })
+  })
+})
+
+describe('the limits of a file', () => {
+  it('make an edit that would go past them not happen, so the project can be read back', () => {
+    inverter()
+    editor().setSelection(['c2'])
+    editor().moveSelection(MAX_COORD, 0)
+    expect(editor().doc.components.c2.pos).toEqual({ x: 10, y: 0 })
+    const steps = editor().past.length
+    editor().moveSelection(MAX_COORD - 10, 0)
+    expect(editor().doc.components.c2.pos).toEqual({ x: MAX_COORD, y: 0 })
+    expect(editor().past.length).toBe(steps + 1)
   })
 })

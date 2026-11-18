@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MAX_COORD,
+  MAX_ITEMS,
+  withinBounds,
   MAX_DELAY,
   isSwitchKey,
   keyName,
@@ -500,5 +503,17 @@ describe('duplicateItems', () => {
     expect(copied.doc.components[input].pos).toEqual({ x: 0, y: 20 })
     expect(copied.doc.components[gate].pos).toEqual({ x: 12, y: 23 })
     expect(copied.doc.components.c1).toBe(doc.components.c1)
+  })
+})
+
+describe('withinBounds', () => {
+  it('holds a drawing to the limits a file has', () => {
+    const doc = addComponent(emptyDoc(), 'not', { x: MAX_COORD, y: -MAX_COORD }).doc
+    expect(withinBounds(doc)).toBe(true)
+    expect(withinBounds(addComponent(doc, 'not', { x: MAX_COORD + 1, y: 0 }).doc)).toBe(false)
+    const junctions = Object.fromEntries(
+      Array.from({ length: MAX_ITEMS }, (_, index) => [`j${index}`, { id: `j${index}`, pos: { x: 0, y: 0 } }]),
+    )
+    expect(withinBounds({ ...doc, junctions })).toBe(false)
   })
 })

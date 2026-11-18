@@ -73,6 +73,28 @@ export const MAX_LABEL = 16
 /** The slowest a part can be made, in ticks. */
 export const MAX_DELAY = 99
 
+/** How far from the origin a part or junction may sit, in grid units. */
+export const MAX_COORD = 10_000
+
+/** The most parts, junctions and wires one drawing holds together. */
+export const MAX_ITEMS = 20_000
+
+/**
+ * Whether a drawing keeps to `MAX_ITEMS` and `MAX_COORD`. A file past them
+ * is cut when it is read (`project.ts`), so an edit that would go past them
+ * is not made: the project could not be read back whole.
+ */
+export function withinBounds(doc: CircuitDoc): boolean {
+  const items =
+    Object.keys(doc.components).length + Object.keys(doc.junctions).length + Object.keys(doc.wires).length
+  if (items > MAX_ITEMS) return false
+  const near = (pos: Point): boolean => Math.abs(pos.x) <= MAX_COORD && Math.abs(pos.y) <= MAX_COORD
+  return (
+    Object.values(doc.components).every((part) => near(part.pos)) &&
+    Object.values(doc.junctions).every((junction) => near(junction.pos))
+  )
+}
+
 /**
  * The keys a switch can be given: the letters and the digits, except R,
  * which turns the selected parts.
@@ -656,8 +678,8 @@ export function deleteItems(doc: CircuitDoc, ids: Iterable<string>): CircuitDoc 
   }
   const survivesAsEnd = (terminal: Terminal): boolean =>
     terminal.kind === 'pin'
-      ? terminal.component in components
-      : !doomed.has(terminal.junction) && terminal.junction in doc.junctions
+      ? Object.hasOwn(components, terminal.component)
+      : !doomed.has(terminal.junction) && Object.hasOwn(doc.junctions, terminal.junction)
 
   const wires: Record<string, DocWire> = {}
   const usedJunctions = new Set<string>()

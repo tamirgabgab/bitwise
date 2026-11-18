@@ -10,10 +10,12 @@ import {
 import type { CircuitDoc, Terminal } from './document.ts'
 import {
   MAX_CIRCUIT_NAME,
+  MAX_FLAT_PARTS,
   canPlace,
   cleanCircuitName,
   contains,
   interfaceOf,
+  largestFlat,
   reconcileAll,
   reconcileDoc,
   repairDoc,
@@ -233,5 +235,40 @@ describe('circuits inside circuits', () => {
     expect(usersOf(circuits, 'k3')).toEqual(['k2'])
     expect(usersOf(circuits, 'k2')).toEqual(['k1'])
     expect(usersOf(circuits, 'k1')).toEqual([])
+  })
+})
+
+describe('the size of a circuit opened up', () => {
+  // k(n) holds two of k(n+1); the last holds the inverter, three parts.
+  function doubling(levels: number): Circuits {
+    let inner: Circuit = { id: `k${levels}`, name: 'Leaf', doc: inverter() }
+    const all = [inner]
+    for (let level = levels - 1; level >= 1; level--) {
+      let doc = using(inner)
+      doc = addSubcircuit(doc, subRefOf(inner), { x: 0, y: 10 }).doc
+      inner = { id: `k${level}`, name: `Level ${level}`, doc }
+      all.push(inner)
+    }
+    return project(...all)
+  }
+
+  it('counts every part of every circuit inside', () => {
+    expect(largestFlat(doubling(1))).toBe(3)
+    expect(largestFlat(doubling(5))).toBe(3 * 2 ** 4)
+    expect(largestFlat(doubling(3), { host: 'k1', target: 'k2' })).toBe(3 * 6)
+  })
+
+  it('refuses a placement that would take a circuit past the limit', () => {
+    // 3 * 2 ** 14 = 49 152 parts: one more of k2 in k1 makes 73 728.
+    const circuits = doubling(15)
+    expect(largestFlat(circuits)).toBeLessThanOrEqual(MAX_FLAT_PARTS)
+    expect(canPlace(circuits, 'k1', 'k2')).toBe(false)
+    expect(canPlace(circuits, 'k1', 'k15')).toBe(true)
+  })
+
+  it('refuses ids that are names every object has', () => {
+    const circuits = doubling(2)
+    expect(canPlace(circuits, 'k1', 'constructor')).toBe(false)
+    expect(canPlace(circuits, '__proto__', 'k2')).toBe(false)
   })
 })
