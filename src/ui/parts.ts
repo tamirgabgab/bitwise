@@ -14,6 +14,7 @@ const NAMES: Readonly<Record<string, string>> = {
   add: 'ADD',
   mul: 'MUL',
   is: 'IS',
+  table: 'Table',
   const: 'Constant',
   input: 'Input',
   button: 'Button',
@@ -58,6 +59,10 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   is: [
     'Gives 1 when its input is the chosen value, otherwise 0',
     'Gives the top value when its input is the chosen value, otherwise 0',
+  ],
+  table: [
+    'Gives what you write in its table for each input',
+    'Gives what you write in its table for each input, at any radix',
   ],
   const: ['Always gives the chosen value', 'Always gives the chosen value'],
   input: [
@@ -156,5 +161,7 @@ export function partHint(type: string, radix: number): string {
 
 /** True for a part the palette can show a table for. */
 export function hasGateTable(type: string): boolean {
+  // A table gate answers X until it is filled in: its table is in the inspector.
+  if (type === 'table') return false
   return builtinComponents.has(type) && gateTable(builtinComponents.get(type), 2) !== undefined
 }

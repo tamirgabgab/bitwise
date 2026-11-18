@@ -9,6 +9,7 @@ import { Palette } from './Palette.tsx'
 import { SettingsPanel } from './SettingsPanel.tsx'
 import { ProjectsDialog } from './ProjectsDialog.tsx'
 import { ShortcutsSheet } from './ShortcutsSheet.tsx'
+import { BaseCalculator } from './BaseCalculator.tsx'
 import { StatusBar } from './StatusBar.tsx'
 import { StepsPanel } from './StepsPanel.tsx'
 import { TimingPanel } from './TimingPanel.tsx'
@@ -45,6 +46,7 @@ export function App() {
       <ToastHost />
       <CommandPalette />
       <ShortcutsSheet />
+      <BaseCalculator />
       <ProjectsDialog />
       <Tour />
       <DialogHost />

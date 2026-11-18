@@ -41,7 +41,8 @@ export function paletteSections(settings: PaletteSettings): PaletteSection[] {
   const gates: PaletteSection = {
     id: 'gates',
     title: settings.sandbox ? 'All gates' : (preset?.name ?? 'Gates'),
-    types: settings.sandbox ? sandboxGates(settings.radix) : (preset?.gates ?? []),
+    // A table gate is any gate the kit lacks, so every kit offers it.
+    types: [...(settings.sandbox ? sandboxGates(settings.radix) : (preset?.gates ?? [])), 'table'],
   }
   return [gates, ...FIXED_SECTIONS]
 }

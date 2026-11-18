@@ -1018,6 +1018,118 @@ kbd {
   white-space: nowrap;
 }
 
+/* ---- Tables in the inspector: a table gate to fill in, a truth table to read ---- */
+
+.inspector h3 {
+  margin: 12px 0 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.table-editor-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.table-editor table {
+  border-collapse: separate;
+  border-spacing: 1px;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.table-editor th,
+.table-editor td {
+  width: var(--cell);
+  height: var(--cell);
+  padding: 0;
+  text-align: center;
+}
+
+.table-editor th {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.table-editor .table-editor-corner {
+  width: auto;
+  padding-right: 4px;
+  white-space: nowrap;
+}
+
+.table-cell {
+  display: block;
+  width: 100%;
+  height: 100%;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: var(--text-muted);
+  background: var(--hover);
+  border: none;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.table-cell:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+/* The answer the inputs point at right now. */
+.table-cell.live {
+  box-shadow: inset 0 0 0 2px var(--accent);
+}
+
+.truth-table-scroll {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.truth-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.truth-table th {
+  position: sticky;
+  top: 0;
+  padding: 3px 6px;
+  color: var(--text-muted);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-weight: 500;
+  text-align: center;
+  white-space: nowrap;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.truth-table td {
+  padding: 1px 6px;
+  text-align: center;
+}
+
+/* A rule between the inputs and the outputs. */
+.truth-table .last-in {
+  border-right: 1px solid var(--border);
+}
+
+.truth-table .truth-out {
+  font-weight: 600;
+}
+
+/* The row the inputs are on right now. */
+.truth-table tr.live td {
+  background: var(--accent-soft);
+}
+
 /* ---- Probe: what the wire under the pointer carries ---- */
 
 .probe {
@@ -1946,6 +2058,67 @@ label.swatch:focus-within {
   width: 720px;
 }
 
+.calculator {
+  width: 460px;
+}
+
+.calc-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 20px 18px;
+}
+
+.calc-operands {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.calc-body .field input.calc-input {
+  width: 220px;
+  font-family: var(--font-mono);
+}
+
+.calc-input[aria-invalid='true'] {
+  border-color: var(--text);
+}
+
+.dialog p.calc-hint {
+  margin: 4px 0 0;
+  font-size: var(--text-sm);
+}
+
+.calc-results {
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+
+.calc-results th,
+.calc-results td {
+  padding: 4px 12px 4px 0;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+
+.calc-results thead th {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.calc-results tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.calc-results td {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
 .overlay-head {
   display: flex;
   align-items: center;
@@ -2181,5 +2354,9 @@ label.swatch:focus-within {
 
   .shortcuts .keys {
     display: inline-flex;
+  }
+
+  .table-editor-scroll {
+    --cell: 40px !important;
   }
 }

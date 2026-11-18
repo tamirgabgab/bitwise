@@ -10,7 +10,7 @@ import { withRecent } from './paletteModel.ts'
  */
 
 /** A window over the app. Only one is open at a time. */
-export type Overlay = 'commands' | 'shortcuts' | 'tour' | 'projects'
+export type Overlay = 'commands' | 'shortcuts' | 'tour' | 'projects' | 'calculator'
 
 interface ChromeState {
   readonly overlay: Overlay | null
@@ -36,6 +36,7 @@ interface ChromeState {
   openQuickAdd(at: Point | null): void
   openShortcuts(): void
   openProjects(): void
+  openCalculator(): void
   startTour(): void
   endTour(): void
   closeOverlay(): void
@@ -101,6 +102,9 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   },
   openProjects() {
     set({ overlay: 'projects' })
+  },
+  openCalculator() {
+    set({ overlay: 'calculator' })
   },
   startTour() {
     // Seen once is enough: it does not come back by itself after this.

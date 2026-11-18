@@ -289,6 +289,7 @@ describe('built-in registry', () => {
         'shift',
         'split',
         'sr',
+        'table',
         'tff',
         'tobits',
         'xnor',

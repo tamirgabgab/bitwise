@@ -229,6 +229,13 @@ export function listCommands(): Command[] {
       run: () => chrome.setSettingsOpen(!chrome.settingsOpen),
     },
     {
+      id: 'view.calculator',
+      group: 'View',
+      title: 'Open the base calculator',
+      keywords: 'convert radix decimal balanced number add multiply',
+      run: chrome.openCalculator,
+    },
+    {
       id: 'view.zoom-in',
       group: 'View',
       title: 'Zoom in',

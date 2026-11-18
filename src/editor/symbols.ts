@@ -947,6 +947,8 @@ function buildSymbol(type: string, params: Readonly<Record<string, number>>): Co
       return operatorSymbol(params.inputs, '+')
     case 'mul':
       return operatorSymbol(params.inputs, '×')
+    case 'table':
+      return operatorSymbol(params.inputs, 'f')
     case 'input':
       return sourceSymbol('square', params.width ?? 1)
     case 'button':

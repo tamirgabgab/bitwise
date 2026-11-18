@@ -20,6 +20,7 @@ import { buttonSource, constSource, inputSource } from './input.ts'
 import { displaySink, outputSink } from './output.ts'
 import { counter, register } from './register.ts'
 import { decoder, demultiplexer, multiplexer } from './select.ts'
+import { tableGate } from './table.ts'
 import {
   clockSource,
   cycleSource,
@@ -44,6 +45,7 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(addGate)
     .register(mulGate)
     .register(isGate)
+    .register(tableGate)
     .register(inputSource)
     .register(buttonSource)
     .register(constSource)

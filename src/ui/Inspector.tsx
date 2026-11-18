@@ -39,6 +39,8 @@ import {
 } from './icons.tsx'
 import { partHint, partName } from './parts.ts'
 import { pinName, portLabel } from './probeText.ts'
+import { TableEditor } from './TableEditor.tsx'
+import { TruthTablePanel } from './TruthTablePanel.tsx'
 
 interface Field {
   /** The parameter this field changes. */
@@ -573,6 +575,7 @@ export function Inspector() {
         >
           Open circuit
         </button>
+        <TruthTablePanel part={component} />
       </aside>
     )
   }
@@ -675,7 +678,9 @@ export function Inspector() {
           </button>
         </div>
       )}
+      {component.type === 'table' && <TableEditor component={component} />}
       <PartValues id={component.id} />
+      <TruthTablePanel part={component} />
     </aside>
   )
 }

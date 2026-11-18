@@ -300,6 +300,11 @@ function FileMenu() {
             shortcut="?"
             onPick={pick(useChrome.getState().openShortcuts)}
           />
+          <MenuRow
+            name="Open the base calculator"
+            summary="Base n, decimal and balanced"
+            onPick={pick(useChrome.getState().openCalculator)}
+          />
           <MenuRow name="Take the tour" onPick={pick(useChrome.getState().startTour)} />
         </div>
       )}
