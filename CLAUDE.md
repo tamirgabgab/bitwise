@@ -93,6 +93,10 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   from scratch on an edit.
 - Symbols (`symbols.ts`) own the pin positions. Pin names must match the
   port names in `src/core`; a test checks this for every built-in type.
+- A symbol does not draw the leads of its pins. Each pin says how long its
+  lead is (`lead`, 1 by default), and `drawPart` in `render.ts` draws it
+  under the body: in the look of the wire on the pin when it has one, so a
+  value's color runs up to the part, otherwise like the outline.
 - `CanvasController` owns pointer and keyboard input for the canvas. React
   draws only the chrome around it and reaches the editor through the
   `useEditor` store.

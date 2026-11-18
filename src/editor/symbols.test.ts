@@ -1,8 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { builtinComponents, resolveParams } from '../core/index.ts'
 import { rectContainsPoint } from './geometry.ts'
-import { SUB_TYPE, inStyle, inputRows, symbolFor, symbolOf } from './symbols.ts'
-import type { SubRef } from './symbols.ts'
+import { SUB_TYPE, inStyle, inputRows, leadEnd, symbolFor, symbolOf } from './symbols.ts'
+import type { ComponentSymbol, SubRef } from './symbols.ts'
+
+/** The pins without their leads, which are all a face may change. */
+const placed = (symbol: ComponentSymbol) => symbol.pins.map(({ name, direction, pos, dir }) => ({ name, direction, pos, dir }))
 
 /** Every built-in type, and every input count a gate can have. */
 function allVariants(): { type: string; params: Readonly<Record<string, number>> }[] {
@@ -248,7 +251,7 @@ describe('IEC gate symbols', () => {
         const ansi = symbolFor(type, resolveParams(builtinComponents.get(type), { inputs }))
         const iec = inStyle(ansi, 'iec')
         expect(iec).not.toBe(ansi)
-        expect(iec.pins).toBe(ansi.pins)
+        expect(placed(iec)).toEqual(placed(ansi))
         expect(iec.bounds).toEqual(ansi.bounds)
         expect(iec.label?.text).toBe(text)
         expect(inStyle(ansi, 'iec')).toBe(iec)
@@ -256,7 +259,7 @@ describe('IEC gate symbols', () => {
     }
     for (const type of ['not', 'buffer']) {
       const ansi = symbolFor(type, resolveParams(builtinComponents.get(type)))
-      expect(inStyle(ansi, 'iec').pins).toBe(ansi.pins)
+      expect(placed(inStyle(ansi, 'iec'))).toEqual(placed(ansi))
       expect(inStyle(ansi, 'iec').label?.text).toBe('1')
     }
   })
@@ -267,5 +270,30 @@ describe('IEC gate symbols', () => {
     expect(inStyle(and, undefined)).toBe(and)
     const dff = symbolFor('dff', resolveParams(builtinComponents.get('dff')))
     expect(inStyle(dff, 'iec')).toBe(dff)
+  })
+})
+
+describe('leads', () => {
+  it('runs every lead from its pin into the bounds, in either gate style', () => {
+    for (const { type, params } of allVariants()) {
+      for (const style of ['ansi', 'iec'] as const) {
+        const symbol = inStyle(symbolFor(type, params), style)
+        for (const pin of symbol.pins) {
+          expect(pin.lead ?? 1, `${type} ${pin.name}`).toBeGreaterThan(0)
+          expect(rectContainsPoint(symbol.bounds, leadEnd(pin)), `${type} ${pin.name}`).toBe(true)
+        }
+      }
+    }
+  })
+
+  it('ends each lead on the body of the shape it is drawn with', () => {
+    const xor = symbolFor('xor', resolveParams(builtinComponents.get('xor')))
+    // The ANSI back of an XOR is curved and set back; an IEC box is flat at -2.
+    expect(leadEnd(xor.pins[0]).x).toBeLessThan(-2)
+    expect(leadEnd(inStyle(xor, 'iec').pins[0]).x).toBe(-2)
+    // A bubble shortens the lead of an output.
+    const nand = symbolFor('nand', resolveParams(builtinComponents.get('nand')))
+    const out = nand.pins.find((pin) => pin.name === 'out')!
+    expect(leadEnd(out).x).toBeCloseTo(2.6)
   })
 })

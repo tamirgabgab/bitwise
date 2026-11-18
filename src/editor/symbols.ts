@@ -11,6 +11,20 @@ export interface PinGeometry {
   readonly pos: Point
   /** Unit vector pointing away from the body. */
   readonly dir: Point
+  /**
+   * How far the pin's lead runs in from the tip to the body; 1 when left
+   * out. The symbol does not draw it: the renderer does, under the body and
+   * in the look of the wire on the pin, so a wire's color reaches the part.
+   */
+  readonly lead?: number
+  /** The lead's line width as a multiple of the outline's; 1 when left out. */
+  readonly weight?: number
+}
+
+/** Where the lead of `pin` meets the body. */
+export function leadEnd(pin: PinGeometry): Point {
+  const lead = pin.lead ?? 1
+  return { x: pin.pos.x - lead * pin.dir.x, y: pin.pos.y - lead * pin.dir.y }
 }
 
 /**
@@ -22,8 +36,9 @@ export interface ComponentSymbol {
   /** The area the symbol covers, pins included. */
   readonly bounds: Rect
   /**
-   * Draws the symbol at the origin. The caller sets the stroke style, fill
-   * style and line width first.
+   * Draws the symbol at the origin, without the leads of its pins. The
+   * caller draws those first, then sets the stroke style, fill style and
+   * line width.
    */
   draw(ctx: CanvasRenderingContext2D): void
   /** Writing on the body. The renderer keeps it upright when the part turns. */
@@ -37,9 +52,13 @@ export interface ComponentSymbol {
   /**
    * The same part drawn as an IEC box ("&", "≥1", "=1", "1"), for a gate
    * that has one. Pins and bounds are shared, so a drawing does not move
-   * when the user changes the style.
+   * when the user changes the style; only the leads differ.
    */
-  readonly iec?: { draw(ctx: CanvasRenderingContext2D): void; readonly label: SymbolLabel }
+  readonly iec?: {
+    draw(ctx: CanvasRenderingContext2D): void
+    readonly label: SymbolLabel
+    lead(pin: PinGeometry): number
+  }
 }
 
 /** How gates are drawn: American distinctive shapes or IEC rectangles. */
@@ -52,7 +71,13 @@ export function inStyle(symbol: ComponentSymbol, style: GateStyle | undefined): 
   if (style !== 'iec' || !symbol.iec) return symbol
   let face = iecFaces.get(symbol)
   if (!face) {
-    face = { ...symbol, draw: symbol.iec.draw, label: symbol.iec.label }
+    const { iec } = symbol
+    face = {
+      ...symbol,
+      draw: iec.draw,
+      label: iec.label,
+      pins: symbol.pins.map((pin) => ({ ...pin, lead: iec.lead(pin) })),
+    }
     iecFaces.set(symbol, face)
   }
   return face
@@ -60,11 +85,10 @@ export function inStyle(symbol: ComponentSymbol, style: GateStyle | undefined): 
 
 /**
  * An IEC box from `x0` to `x1`, `half` above and below the middle, with
- * input stubs from `inX` to its left side, an output stub to `outX`, and a
+ * input leads from `inX` to its left side, an output lead to `outX`, and a
  * bubble on the output when `inverted`.
  */
 function iecBox(
-  rows: readonly number[],
   half: number,
   x0: number,
   x1: number,
@@ -75,16 +99,8 @@ function iecBox(
 ): NonNullable<ComponentSymbol['iec']> {
   return {
     label: { text, pos: { x: (x0 + x1) / 2, y: half > 1.5 ? -half + 0.9 : 0 }, size: 0.9 },
+    lead: (pin) => (pin.direction === 'in' ? x0 - inX : outX - (inverted ? x1 + 2 * BUBBLE_RADIUS : x1)),
     draw(ctx) {
-      ctx.beginPath()
-      for (const y of rows) {
-        ctx.moveTo(inX, y)
-        ctx.lineTo(x0, y)
-      }
-      ctx.moveTo(inverted ? x1 + 2 * BUBBLE_RADIUS : x1, 0)
-      ctx.lineTo(outX, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       ctx.rect(x0, -half, x1 - x0, 2 * half)
       ctx.fill()
@@ -217,10 +233,13 @@ export function inputRows(count: number): number[] {
 
 type GateShape = 'and' | 'or' | 'xor'
 
+/** The lead of an output that is one unit from the body, or from its bubble. */
+const outLead = (inverted: boolean): number => (inverted ? 1 - 2 * BUBBLE_RADIUS : 1)
+
 function gateSymbol(shape: GateShape, inputs: number, inverted: boolean): ComponentSymbol {
   const rows = inputRows(inputs)
   const half = Math.max(1.5, rows[rows.length - 1] + 0.5)
-  // Where the back of the body is at height y, so input stubs end on it.
+  // Where the back of the body is at height y, so input leads end on it.
   const backX = (y: number): number => {
     if (shape === 'and') return -2
     const t = (1 - y / half) / 2
@@ -232,23 +251,15 @@ function gateSymbol(shape: GateShape, inputs: number, inverted: boolean): Compon
     direction: 'in',
     pos: { x: -3, y },
     dir: LEFT,
+    lead: backX(y) + 3,
   }))
-  pins.push({ name: 'out', direction: 'out', pos: { x: 3, y: 0 }, dir: RIGHT })
+  pins.push({ name: 'out', direction: 'out', pos: { x: 3, y: 0 }, dir: RIGHT, lead: outLead(inverted) })
 
   return {
     pins,
     bounds: { x0: -3, y0: -half, x1: 3, y1: half },
-    iec: iecBox(rows, half, -2, 2, -3, 3, inverted, IEC_TEXT[shape]),
+    iec: iecBox(half, -2, 2, -3, 3, inverted, IEC_TEXT[shape]),
     draw(ctx) {
-      ctx.beginPath()
-      for (const y of rows) {
-        ctx.moveTo(-3, y)
-        ctx.lineTo(backX(y), y)
-      }
-      ctx.moveTo(inverted ? 2 + 2 * BUBBLE_RADIUS : 2, 0)
-      ctx.lineTo(3, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       if (shape === 'and') {
         ctx.moveTo(-2, -half)
@@ -286,17 +297,11 @@ function unarySymbol(inverted: boolean): ComponentSymbol {
   return {
     pins: [
       { name: 'in', direction: 'in', pos: { x: -2, y: 0 }, dir: LEFT },
-      { name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT },
+      { name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT, lead: outLead(inverted) },
     ],
     bounds: { x0: -2, y0: -1, x1: 2, y1: 1 },
-    iec: iecBox([0], 1, -1, 1, -2, 2, inverted, '1'),
+    iec: iecBox(1, -1, 1, -2, 2, inverted, '1'),
     draw(ctx) {
-      ctx.beginPath()
-      ctx.moveTo(-2, 0)
-      ctx.lineTo(-1, 0)
-      ctx.moveTo(inverted ? 1 + 2 * BUBBLE_RADIUS : 1, 0)
-      ctx.lineTo(2, 0)
-      ctx.stroke()
 
       ctx.beginPath()
       ctx.moveTo(-1, -1)
@@ -341,11 +346,6 @@ function sourceSymbol(face: SymbolFace['shape'], width: number): ComponentSymbol
     },
     draw(ctx) {
       ctx.beginPath()
-      ctx.moveTo(half, 0)
-      ctx.lineTo(half + 1, 0)
-      ctx.stroke()
-
-      ctx.beginPath()
       ctx.roundRect(0 - half, -1, 2 * half, 2, 0.25)
       ctx.fill()
       ctx.stroke()
@@ -366,11 +366,6 @@ function constSymbol(width: number): ComponentSymbol {
       ...(width > 1 ? { wide: half - 0.5 } : {}),
     },
     draw(ctx) {
-      ctx.beginPath()
-      ctx.moveTo(half, 0)
-      ctx.lineTo(half + 1, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       ctx.moveTo(0 - half, -0.85)
       ctx.lineTo(half - 0.65, -0.85)
@@ -398,11 +393,6 @@ function outputSymbol(width: number): ComponentSymbol {
     },
     draw(ctx) {
       ctx.beginPath()
-      ctx.moveTo(0 - half - 1, 0)
-      ctx.lineTo(0 - half, 0)
-      ctx.stroke()
-
-      ctx.beginPath()
       if (width > 1) ctx.roundRect(0 - half, -1, 2 * half, 2, 1)
       else ctx.arc(0, 0, 1, 0, Math.PI * 2)
       ctx.fill()
@@ -428,10 +418,12 @@ function busBarSymbol(width: number, each: number, split: boolean): ComponentSym
     direction: split ? 'out' : 'in',
     pos: { x: 2 * side, y },
     dir: split ? RIGHT : LEFT,
+    lead: 2,
   }))
+  // The bus side is as heavy as the bar, and as a bus on the canvas.
   const bus: PinGeometry = split
-    ? { name: 'in', direction: 'in', pos: { x: -2, y: 0 }, dir: LEFT }
-    : { name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }
+    ? { name: 'in', direction: 'in', pos: { x: -2, y: 0 }, dir: LEFT, lead: 2, weight: 2.4 }
+    : { name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT, lead: 2, weight: 2.4 }
   const pins = split ? [bus, ...branches] : [...branches, bus]
 
   return {
@@ -447,18 +439,10 @@ function busBarSymbol(width: number, each: number, split: boolean): ComponentSym
       }
     }),
     draw(ctx) {
-      ctx.beginPath()
-      for (const pin of branches) {
-        ctx.moveTo(pin.pos.x, pin.pos.y)
-        ctx.lineTo(0, pin.pos.y)
-      }
-      ctx.stroke()
-      // The bus side and the bar are as heavy as a bus on the canvas.
+      // The bar is as heavy as a bus on the canvas.
       const plain = ctx.lineWidth
       ctx.lineWidth = plain * 2.4
       ctx.beginPath()
-      ctx.moveTo(-2 * side, 0)
-      ctx.lineTo(0, 0)
       ctx.moveTo(0, top)
       ctx.lineTo(0, bottom)
       ctx.stroke()
@@ -481,13 +465,6 @@ function taggedSymbol(shape: 'triangle' | 'bar', label: SymbolLabel): ComponentS
     bounds: { x0: -3, y0: -half, x1: 2, y1: half },
     label,
     draw(ctx) {
-      ctx.beginPath()
-      ctx.moveTo(-3, 0)
-      ctx.lineTo(-2, 0)
-      ctx.moveTo(1, 0)
-      ctx.lineTo(2, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       if (shape === 'triangle') {
         ctx.moveTo(-2, -half)
@@ -520,15 +497,6 @@ function operatorSymbol(inputs: number, operator: string): ComponentSymbol {
     bounds: { x0: -3, y0: -half, x1: 3, y1: half },
     label: { text: operator, pos: { x: 0, y: 0 }, size: 1.5 },
     draw(ctx) {
-      ctx.beginPath()
-      for (const y of rows) {
-        ctx.moveTo(-3, y)
-        ctx.lineTo(-2, y)
-      }
-      ctx.moveTo(2, 0)
-      ctx.lineTo(3, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       ctx.roundRect(-2, -half, 4, 2 * half, 0.6)
       ctx.fill()
@@ -567,12 +535,6 @@ function boxSymbol(type: string, params: Readonly<Record<string, number>>): Comp
     bounds: { x0: -3, y0: -half, x1: 3, y1: half },
     draw(ctx) {
       ctx.beginPath()
-      for (const pin of pins) {
-        ctx.moveTo(pin.pos.x, pin.pos.y)
-        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y)
-      }
-      ctx.stroke()
-      ctx.beginPath()
       ctx.rect(-2, -half, 4, 2 * half)
       ctx.fill()
       ctx.stroke()
@@ -586,11 +548,6 @@ function clockSymbol(): ComponentSymbol {
     pins: [{ name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT }],
     bounds: { x0: -1, y0: -1, x1: 2, y1: 1 },
     draw(ctx) {
-      ctx.beginPath()
-      ctx.moveTo(1, 0)
-      ctx.lineTo(2, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       ctx.roundRect(-1, -1, 2, 2, 0.25)
       ctx.fill()
@@ -615,11 +572,6 @@ function cycleSymbol(): ComponentSymbol {
     pins: clock.pins,
     bounds: clock.bounds,
     draw(ctx) {
-      ctx.beginPath()
-      ctx.moveTo(1, 0)
-      ctx.lineTo(2, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       ctx.roundRect(-1, -1, 2, 2, 0.25)
       ctx.fill()
@@ -661,12 +613,6 @@ function converterSymbol(bits: number, toBits: boolean): ComponentSymbol {
     pins,
     bounds: { x0: -3, y0: -half, x1: 3, y1: half },
     draw(ctx) {
-      ctx.beginPath()
-      for (const pin of pins) {
-        ctx.moveTo(pin.pos.x, pin.pos.y)
-        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y)
-      }
-      ctx.stroke()
       ctx.beginPath()
       ctx.rect(-2, -half, 4, 2 * half)
       ctx.fill()
@@ -730,12 +676,6 @@ function memorySymbol(inputs: readonly SidePin[], half: number, async: boolean):
     bounds: { x0: -3, y0: 0 - reach, x1: 3, y1: reach },
     draw(ctx) {
       ctx.beginPath()
-      for (const pin of pins) {
-        ctx.moveTo(pin.pos.x, pin.pos.y)
-        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y - pin.dir.y)
-      }
-      ctx.stroke()
-      ctx.beginPath()
       ctx.roundRect(-2, 0 - half, 4, 2 * half, 0.3)
       ctx.fill()
       ctx.stroke()
@@ -785,18 +725,20 @@ function blockSymbol(
   const bottom = Math.max(...rows) + 1
   const columns = under.length === 1 ? [0] : under.map((_pin, index) => 2 * index - (under.length - 1))
 
+  // A pin that carries several digits has a lead as heavy as a bus.
+  const heavy = (from: BlockPin): { weight?: number } => (from.bus ? { weight: 2.2 } : {})
   const placed: { readonly pin: PinGeometry; readonly from: BlockPin }[] = [
     ...inputs.map((from, index) => ({
       from,
-      pin: { name: from.name, direction: 'in', pos: { x: -4, y: inRows[index] }, dir: LEFT } as PinGeometry,
+      pin: { name: from.name, direction: 'in', pos: { x: -4, y: inRows[index] }, dir: LEFT, ...heavy(from) } as PinGeometry,
     })),
     ...outputs.map((from, index) => ({
       from,
-      pin: { name: from.name, direction: 'out', pos: { x: 4, y: outRows[index] }, dir: RIGHT } as PinGeometry,
+      pin: { name: from.name, direction: 'out', pos: { x: 4, y: outRows[index] }, dir: RIGHT, ...heavy(from) } as PinGeometry,
     })),
     ...under.map((from, index) => ({
       from,
-      pin: { name: from.name, direction: 'in', pos: { x: columns[index], y: bottom + 1 }, dir: DOWN } as PinGeometry,
+      pin: { name: from.name, direction: 'in', pos: { x: columns[index], y: bottom + 1 }, dir: DOWN, ...heavy(from) } as PinGeometry,
     })),
   ]
   const notes: SymbolLabel[] = [{ text: title, pos: { x: 0, y: top + 0.85 }, size: 0.74 }]
@@ -817,15 +759,6 @@ function blockSymbol(
     notes,
     bounds: { x0: -4, y0: top, x1: 4, y1: under.length > 0 ? bottom + 1 : bottom },
     draw(ctx) {
-      const plain = ctx.lineWidth
-      for (const { pin, from } of placed) {
-        ctx.lineWidth = from.bus ? plain * 2.2 : plain
-        ctx.beginPath()
-        ctx.moveTo(pin.pos.x, pin.pos.y)
-        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y - pin.dir.y)
-        ctx.stroke()
-      }
-      ctx.lineWidth = plain
       ctx.beginPath()
       ctx.roundRect(-3, top, 6, bottom - top, 0.3)
       ctx.fill()
@@ -992,12 +925,6 @@ function displaySymbol(digits: number): ComponentSymbol {
     },
     draw(ctx) {
       ctx.beginPath()
-      for (const pin of pins) {
-        ctx.moveTo(pin.pos.x, pin.pos.y)
-        ctx.lineTo(-3, pin.pos.y)
-      }
-      ctx.stroke()
-      ctx.beginPath()
       ctx.roundRect(-3, top, 7, bottom - top, 0.3)
       ctx.fill()
       ctx.stroke()
@@ -1146,12 +1073,6 @@ function chipSymbol(sub: SubRef): ComponentSymbol {
     bounds: { x0: -5, y0: top, x1: 5, y1: half },
     draw(ctx) {
       ctx.beginPath()
-      for (const pin of pins) {
-        ctx.moveTo(pin.pos.x, pin.pos.y)
-        ctx.lineTo(pin.pos.x - pin.dir.x, pin.pos.y)
-      }
-      ctx.stroke()
-      ctx.beginPath()
       ctx.roundRect(-4, top, 8, half - top, 0.3)
       ctx.fill()
       ctx.stroke()
@@ -1193,15 +1114,10 @@ function netSymbol(name: string): ComponentSymbol {
   const end = start + body
   const tip = end + 0.7
   return {
-    pins: [{ name: NET_PIN, direction: 'in', pos: { x: 0, y: 0 }, dir: LEFT }],
+    pins: [{ name: NET_PIN, direction: 'in', pos: { x: 0, y: 0 }, dir: LEFT, lead: start }],
     notes: [{ text: name, pos: { x: (start + end) / 2, y: 0 }, size: NET_SIZE }],
     bounds: { x0: 0, y0: -0.8, x1: tip, y1: 0.8 },
     draw(ctx) {
-      ctx.beginPath()
-      ctx.moveTo(0, 0)
-      ctx.lineTo(start, 0)
-      ctx.stroke()
-
       ctx.beginPath()
       ctx.moveTo(start, -0.7)
       ctx.lineTo(end, -0.7)

@@ -13,8 +13,8 @@ import type { BusFormat, CircuitDoc, DocComponent, SubRef } from './document.ts'
 import { formatAt } from './busFormat.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues, WireValue } from './liveValues.ts'
-import { DEFAULT_FRAME, FRAME_SIZE, FRAME_TITLE, inStyle, symbolOf } from './symbols.ts'
-import type { ComponentSymbol, GateStyle, SymbolFace, SymbolReadout } from './symbols.ts'
+import { DEFAULT_FRAME, FRAME_SIZE, FRAME_TITLE, inStyle, leadEnd, symbolOf } from './symbols.ts'
+import type { ComponentSymbol, GateStyle, PinGeometry, SymbolFace, SymbolReadout } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { inkOn } from './valueStyle.ts'
 import type { ValueStyle, WireLook } from './valueStyle.ts'
@@ -322,8 +322,11 @@ interface PartLook {
 }
 
 /**
- * Draws one part where it stands: its outline, the writing on it, and its
- * face showing `faceSignal` (left blank when undefined).
+ * Draws one part where it stands: the leads of its pins, its outline, the
+ * writing on it, and its face showing `faceSignal` (left blank when
+ * undefined). A lead whose pin has a wire takes the look of that wire,
+ * from `wireOn`, so the wire's color runs on up to the body; the others
+ * are drawn like the outline.
  */
 function drawPart(
   ctx: CanvasRenderingContext2D,
@@ -336,10 +339,25 @@ function drawPart(
   name?: string,
   number?: { readonly digits: readonly Digit[]; readonly radix: number },
   keyCap?: string,
+  wireOn?: (pin: PinGeometry) => WireLook | undefined,
 ): void {
   ctx.save()
   ctx.translate(placement.pos.x, placement.pos.y)
   ctx.rotate((placement.rotation * Math.PI) / 2)
+  // The leads go under the body, which covers where they end.
+  for (const pin of symbol.pins) {
+    const wire = wireOn?.(pin)
+    if (wire) strokeWire(ctx, [pin.pos, leadEnd(pin)], wire)
+    else {
+      ctx.beginPath()
+      ctx.moveTo(pin.pos.x, pin.pos.y)
+      const end = leadEnd(pin)
+      ctx.lineTo(end.x, end.y)
+      ctx.strokeStyle = look.stroke
+      ctx.lineWidth = look.lineWidth * (pin.weight ?? 1)
+      ctx.stroke()
+    }
+  }
   ctx.strokeStyle = look.stroke
   ctx.fillStyle = look.fill
   ctx.lineWidth = look.lineWidth
@@ -595,6 +613,10 @@ export function renderScene(
         radix: live.radix,
       },
       component.key === undefined ? undefined : keyName(component.key),
+      (pin) => {
+        const terminal = { kind: 'pin', component: component.id, port: pin.name } as const
+        return wiredPins.has(terminalKey(terminal)) ? wireLook(style, live.at(terminal)) : undefined
+      },
     )
 
     ctx.save()
