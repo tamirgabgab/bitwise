@@ -153,8 +153,8 @@ describe('parseProject refuses', () => {
   })
 
   it('JSON that is not a project', () => {
-    expect(refusal({ hello: 1 })).toBe('This is not a Cedar Logic project file.')
-    expect(refusal([1, 2])).toBe('This is not a Cedar Logic project file.')
+    expect(refusal({ hello: 1 })).toBe('This is not a Bitwise project file.')
+    expect(refusal([1, 2])).toBe('This is not a Bitwise project file.')
   })
 
   it('a file without a valid version', () => {

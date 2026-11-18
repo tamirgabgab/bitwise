@@ -45,7 +45,7 @@ function HomeBox({ close }: { close: () => void }) {
   return (
     <div className="home-page">
       <header className="home-head">
-        <h1 id="home-title">Cedar Logic</h1>
+        <h1 id="home-title">Bitwise</h1>
         <div className="home-actions">
           <button type="button" className="button button-main" onClick={then(startNewProject)}>
             <NewIcon />

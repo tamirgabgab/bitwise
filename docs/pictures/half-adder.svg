@@ -1,0 +1,55 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="576" height="416" viewBox="0 0 576 416">
+<path d="M0 0L576 0L576 416L0 416Z" fill="#fcfdfc"/>
+<path d="M120 163.2L240 163.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M120 307.2L182.4 307.2A9.6 9.6 0 0 0 192 297.6L192 220.8A9.6 9.6 0 0 1 201.6 211.2L240 211.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M120 163.2L206.4 163.2A9.6 9.6 0 0 1 216 172.8L216 297.6A9.6 9.6 0 0 0 225.6 307.2L240 307.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M120 307.2L182.4 307.2A9.6 9.6 0 0 1 192 316.8L192 345.6A9.6 9.6 0 0 0 201.6 355.2L240 355.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M384 187.2L456 187.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M384 331.2L456 331.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M197.76 307.2A5.76 5.76 0 0 1 186.24 307.2A5.76 5.76 0 0 1 197.76 307.2" fill="#16201c"/>
+<path d="M221.76 163.2A5.76 5.76 0 0 1 210.24 163.2A5.76 5.76 0 0 1 221.76 163.2" fill="#d92d34"/>
+<path d="M120 163.2L96 163.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M54 139.2L90 139.2A6 6 0 0 1 96 145.2L96 181.2A6 6 0 0 1 90 187.2L54 187.2A6 6 0 0 1 48 181.2L48 145.2A6 6 0 0 1 54 139.2Z" fill="#ffffff"/>
+<path d="M54 139.2L90 139.2A6 6 0 0 1 96 145.2L96 181.2A6 6 0 0 1 90 187.2L54 187.2A6 6 0 0 1 48 181.2L48 145.2A6 6 0 0 1 54 139.2Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M60.48 147.84L83.52 147.84A3.84 3.84 0 0 1 87.36 151.68L87.36 174.72A3.84 3.84 0 0 1 83.52 178.56L60.48 178.56A3.84 3.84 0 0 1 56.64 174.72L56.64 151.68A3.84 3.84 0 0 1 60.48 147.84Z" fill="#d92d34"/>
+<path d="M60.48 147.84L83.52 147.84A3.84 3.84 0 0 1 87.36 151.68L87.36 174.72A3.84 3.84 0 0 1 83.52 178.56L60.48 178.56A3.84 3.84 0 0 1 56.64 174.72L56.64 151.68A3.84 3.84 0 0 1 60.48 147.84Z" fill="none" stroke="#1c2925" stroke-width="2.34" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="72" y="164.49" font-family="&quot;IBM Plex Mono&quot;, &quot;IBM Plex Sans&quot;, system-ui, sans-serif" font-size="21.5" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#ffffff">1</text>
+<text x="84" y="126.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="none" stroke="#fcfdfc" stroke-width="4.57" stroke-linejoin="round">A</text>
+<text x="84" y="126.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">A</text>
+<path d="M120 307.2L96 307.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M54 283.2L90 283.2A6 6 0 0 1 96 289.2L96 325.2A6 6 0 0 1 90 331.2L54 331.2A6 6 0 0 1 48 325.2L48 289.2A6 6 0 0 1 54 283.2Z" fill="#ffffff"/>
+<path d="M54 283.2L90 283.2A6 6 0 0 1 96 289.2L96 325.2A6 6 0 0 1 90 331.2L54 331.2A6 6 0 0 1 48 325.2L48 289.2A6 6 0 0 1 54 283.2Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M60.48 291.84L83.52 291.84A3.84 3.84 0 0 1 87.36 295.68L87.36 318.72A3.84 3.84 0 0 1 83.52 322.56L60.48 322.56A3.84 3.84 0 0 1 56.64 318.72L56.64 295.68A3.84 3.84 0 0 1 60.48 291.84Z" fill="#16201c"/>
+<path d="M60.48 291.84L83.52 291.84A3.84 3.84 0 0 1 87.36 295.68L87.36 318.72A3.84 3.84 0 0 1 83.52 322.56L60.48 322.56A3.84 3.84 0 0 1 56.64 318.72L56.64 295.68A3.84 3.84 0 0 1 60.48 291.84Z" fill="none" stroke="#1c2925" stroke-width="2.34" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="72" y="308.49" font-family="&quot;IBM Plex Mono&quot;, &quot;IBM Plex Sans&quot;, system-ui, sans-serif" font-size="21.5" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#ffffff">0</text>
+<text x="84" y="270.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="none" stroke="#fcfdfc" stroke-width="4.57" stroke-linejoin="round">B</text>
+<text x="84" y="270.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">B</text>
+<path d="M240 163.2L257.33 163.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M240 211.2L257.33 211.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M384 187.2L360 187.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M264 151.2Q328.8 151.2 360 187.2Q328.8 223.2 264 223.2Q283.2 187.2 264 151.2Z" fill="#ffffff"/>
+<path d="M264 151.2Q328.8 151.2 360 187.2Q328.8 223.2 264 223.2Q283.2 187.2 264 151.2Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M252 223.2Q271.2 187.2 252 151.2" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M240 307.2L264 307.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M240 355.2L264 355.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M384 331.2L360 331.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M264 295.2L312 295.2L312 295.2A48 36 0 0 1 312 367.2L264 367.2Z" fill="#ffffff"/>
+<path d="M264 295.2L312 295.2L312 295.2A48 36 0 0 1 312 367.2L264 367.2Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M456 187.2L480 187.2" fill="none" stroke="#d92d34" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M528 187.2A24 24 0 0 1 480 187.2A24 24 0 0 1 528 187.2" fill="#ffffff"/>
+<path d="M528 187.2A24 24 0 0 1 480 187.2A24 24 0 0 1 528 187.2" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M521.28 187.2A17.28 17.28 0 0 1 486.72 187.2A17.28 17.28 0 0 1 521.28 187.2" fill="#d92d34"/>
+<path d="M521.28 187.2A17.28 17.28 0 0 1 486.72 187.2A17.28 17.28 0 0 1 521.28 187.2" fill="none" stroke="#1c2925" stroke-width="2.34" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="504" y="188.65" font-family="&quot;IBM Plex Mono&quot;, &quot;IBM Plex Sans&quot;, system-ui, sans-serif" font-size="24.19" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#ffffff">1</text>
+<text x="492" y="150.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="none" stroke="#fcfdfc" stroke-width="4.57" stroke-linejoin="round">S</text>
+<text x="492" y="150.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">S</text>
+<path d="M456 331.2L480 331.2" fill="none" stroke="#16201c" stroke-width="3.36" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M528 331.2A24 24 0 0 1 480 331.2A24 24 0 0 1 528 331.2" fill="#ffffff"/>
+<path d="M528 331.2A24 24 0 0 1 480 331.2A24 24 0 0 1 528 331.2" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M521.28 331.2A17.28 17.28 0 0 1 486.72 331.2A17.28 17.28 0 0 1 521.28 331.2" fill="#16201c"/>
+<path d="M521.28 331.2A17.28 17.28 0 0 1 486.72 331.2A17.28 17.28 0 0 1 521.28 331.2" fill="none" stroke="#1c2925" stroke-width="2.34" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="504" y="332.65" font-family="&quot;IBM Plex Mono&quot;, &quot;IBM Plex Sans&quot;, system-ui, sans-serif" font-size="24.19" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#ffffff">0</text>
+<text x="492" y="294.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="none" stroke="#fcfdfc" stroke-width="4.57" stroke-linejoin="round">C</text>
+<text x="492" y="294.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="16.32" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">C</text>
+<text x="288" y="68.57" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="22.8" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">S is the sum, C the carry</text>
+</svg>

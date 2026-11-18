@@ -23,7 +23,7 @@ function contentSecurityPolicy(): Plugin {
 // https://vite.dev/config/
 export default defineConfig({
   // Relative paths, so the built site works under any folder, such as
-  // /cedar_logic/ on GitHub Pages.
+  // /bitwise/ on GitHub Pages.
   base: './',
   plugins: [react(), contentSecurityPolicy()],
   test: {

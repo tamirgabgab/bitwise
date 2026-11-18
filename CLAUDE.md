@@ -1,8 +1,13 @@
-# Cedar Logic
+# Bitwise
 
 A browser-based digital logic simulator inspired by CedarLogic: build a
 circuit and watch it simulate at the same time. The roadmap and the
 reasoning behind the architecture live in `docs/PLAN.md`.
+
+The app was called Cedar Logic until November 2026. The browser storage
+keys (`cedar-logic.*`) and the file format mark (`FILE_FORMAT`) keep the old
+name, so saved projects and files still open; do not rename them. A saved
+file is now `.bitwise.json`, and `.cedar.json` still opens.
 
 ## Commands
 
@@ -10,11 +15,13 @@ reasoning behind the architecture live in `docs/PLAN.md`.
 - `npm test` — run unit tests once (`npm run test:watch` to watch)
 - `npm run lint` — oxlint
 - `npm run build` — type-check, then build to `dist/`
+- `npm run pictures` — draw the README pictures again (`scripts/readme-pictures.ts`
+  into `docs/pictures`); run it after a change to how circuits look
 
 Run lint, test and build before calling a change done. CI runs the same three.
 
 Every push to `main` that passes them is published to GitHub Pages
-(`.github/workflows/pages.yml`), at https://tamirgabgab.github.io/cedar_logic/.
+(`.github/workflows/pages.yml`), at https://tamirgabgab.github.io/bitwise/.
 The build uses relative paths (`base: './'`), so it works under that folder.
 
 ## Layers

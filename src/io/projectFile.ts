@@ -18,7 +18,7 @@ import {
  * user can act on instead of a half-loaded drawing.
  */
 
-/** Marks a JSON document as a Cedar Logic project. */
+/** Marks a JSON document as a Bitwise project. */
 export const FILE_FORMAT = 'cedar-logic'
 
 /**
@@ -606,16 +606,16 @@ export function parseProject(text: string): ProjectFile {
   try {
     data = JSON.parse(text)
   } catch {
-    fail('This is not a Cedar Logic project: the file is not valid JSON.')
+    fail('This is not a Bitwise project: the file is not valid JSON.')
   }
   if (!isObject(data) || data.format !== FILE_FORMAT) {
-    fail('This is not a Cedar Logic project file.')
+    fail('This is not a Bitwise project file.')
   }
   const version = data.version
   if (!isWhole(version) || version < 1) fail('The project file has no valid format version.')
   if (version > FILE_FORMAT_VERSION) {
     fail(
-      `This project was saved by a newer version of Cedar Logic (file format ${version}). ` +
+      `This project was saved by a newer version of Bitwise (file format ${version}). ` +
         'Update the app to open it.',
     )
   }

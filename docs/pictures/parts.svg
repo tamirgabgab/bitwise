@@ -1,0 +1,103 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1704" height="264" viewBox="0 0 1704 264">
+<path d="M0 0L1704 0L1704 264L0 264Z" fill="#fcfdfc"/>
+<path d="M48 96L72 96" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M48 144L72 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M192 96L168 96" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M192 144L168 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M120 48L120 72" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M120 192L120 168" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M79.2 72L160.8 72A7.2 7.2 0 0 1 168 79.2L168 160.8A7.2 7.2 0 0 1 160.8 168L79.2 168A7.2 7.2 0 0 1 72 160.8L72 79.2A7.2 7.2 0 0 1 79.2 72Z" fill="#ffffff"/>
+<path d="M79.2 72L160.8 72A7.2 7.2 0 0 1 168 79.2L168 160.8A7.2 7.2 0 0 1 160.8 168L79.2 168A7.2 7.2 0 0 1 72 160.8L72 79.2A7.2 7.2 0 0 1 79.2 72Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M72 133.2L88.8 144L72 154.8" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="87.6" y="97.04" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.28" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">D</text>
+<text x="152.4" y="97.04" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.28" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Q</text>
+<text x="152.4" y="145.04" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.28" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Q̅</text>
+<text x="120" y="87.74" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="14.4" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">S</text>
+<text x="120" y="153.98" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="14.4" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">R</text>
+<path d="M50.88 96A2.88 2.88 0 0 1 45.12 96A2.88 2.88 0 0 1 50.88 96" fill="#1c2925"/>
+<path d="M50.88 144A2.88 2.88 0 0 1 45.12 144A2.88 2.88 0 0 1 50.88 144" fill="#1c2925"/>
+<path d="M194.88 96A2.88 2.88 0 0 1 189.12 96A2.88 2.88 0 0 1 194.88 96" fill="#1c2925"/>
+<path d="M194.88 144A2.88 2.88 0 0 1 189.12 144A2.88 2.88 0 0 1 194.88 144" fill="#1c2925"/>
+<path d="M122.88 48A2.88 2.88 0 0 1 117.12 48A2.88 2.88 0 0 1 122.88 48" fill="#1c2925"/>
+<path d="M122.88 192A2.88 2.88 0 0 1 117.12 192A2.88 2.88 0 0 1 122.88 192" fill="#1c2925"/>
+<path d="M312 120L336 120" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M312 144L336 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M504 120L480 120" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M408 192L408 168" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M343.2 72L472.8 72A7.2 7.2 0 0 1 480 79.2L480 160.8A7.2 7.2 0 0 1 472.8 168L343.2 168A7.2 7.2 0 0 1 336 160.8L336 79.2A7.2 7.2 0 0 1 343.2 72Z" fill="#ffffff"/>
+<path d="M343.2 72L472.8 72A7.2 7.2 0 0 1 480 79.2L480 160.8A7.2 7.2 0 0 1 472.8 168L343.2 168A7.2 7.2 0 0 1 336 160.8L336 79.2A7.2 7.2 0 0 1 343.2 72Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="408" y="93.47" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.76" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Mux</text>
+<text x="354" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">0</text>
+<text x="354" y="144.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">1</text>
+<text x="408" y="155.64" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Sel</text>
+<path d="M314.88 120A2.88 2.88 0 0 1 309.12 120A2.88 2.88 0 0 1 314.88 120" fill="#1c2925"/>
+<path d="M314.88 144A2.88 2.88 0 0 1 309.12 144A2.88 2.88 0 0 1 314.88 144" fill="#1c2925"/>
+<path d="M506.88 120A2.88 2.88 0 0 1 501.12 120A2.88 2.88 0 0 1 506.88 120" fill="#1c2925"/>
+<path d="M410.88 192A2.88 2.88 0 0 1 405.12 192A2.88 2.88 0 0 1 410.88 192" fill="#1c2925"/>
+<path d="M600 96L624 96" fill="none" stroke="#1c2925" stroke-width="6.86" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M600 120L624 120" fill="none" stroke="#1c2925" stroke-width="6.86" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M600 144L624 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M792 120L768 120" fill="none" stroke="#1c2925" stroke-width="6.86" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M792 144L768 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M631.2 48L760.8 48A7.2 7.2 0 0 1 768 55.2L768 160.8A7.2 7.2 0 0 1 760.8 168L631.2 168A7.2 7.2 0 0 1 624 160.8L624 55.2A7.2 7.2 0 0 1 631.2 48Z" fill="#ffffff"/>
+<path d="M631.2 48L760.8 48A7.2 7.2 0 0 1 768 55.2L768 160.8A7.2 7.2 0 0 1 760.8 168L631.2 168A7.2 7.2 0 0 1 624 160.8L624 55.2A7.2 7.2 0 0 1 631.2 48Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="696" y="69.47" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.76" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Adder</text>
+<text x="642" y="96.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">A</text>
+<text x="642" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">B</text>
+<text x="642" y="144.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Cin</text>
+<text x="750" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Sum</text>
+<text x="750" y="144.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Cout</text>
+<path d="M602.88 96A2.88 2.88 0 0 1 597.12 96A2.88 2.88 0 0 1 602.88 96" fill="#1c2925"/>
+<path d="M602.88 120A2.88 2.88 0 0 1 597.12 120A2.88 2.88 0 0 1 602.88 120" fill="#1c2925"/>
+<path d="M602.88 144A2.88 2.88 0 0 1 597.12 144A2.88 2.88 0 0 1 602.88 144" fill="#1c2925"/>
+<path d="M794.88 120A2.88 2.88 0 0 1 789.12 120A2.88 2.88 0 0 1 794.88 120" fill="#1c2925"/>
+<path d="M794.88 144A2.88 2.88 0 0 1 789.12 144A2.88 2.88 0 0 1 794.88 144" fill="#1c2925"/>
+<path d="M888 96L912 96" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M888 120L912 120" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M888 144L912 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M888 168L912 168" fill="none" stroke="#1c2925" stroke-width="6.86" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1080 120L1056 120" fill="none" stroke="#1c2925" stroke-width="6.86" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1080 144L1056 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M984 216L984 192" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M919.2 48L1048.8 48A7.2 7.2 0 0 1 1056 55.2L1056 184.8A7.2 7.2 0 0 1 1048.8 192L919.2 192A7.2 7.2 0 0 1 912 184.8L912 55.2A7.2 7.2 0 0 1 919.2 48Z" fill="#ffffff"/>
+<path d="M919.2 48L1048.8 48A7.2 7.2 0 0 1 1056 55.2L1056 184.8A7.2 7.2 0 0 1 1048.8 192L919.2 192A7.2 7.2 0 0 1 912 184.8L912 55.2A7.2 7.2 0 0 1 919.2 48Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M912 85.2L928.8 96L912 106.8" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="984" y="69.47" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.76" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Counter</text>
+<text x="930" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">En</text>
+<text x="930" y="144.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Load</text>
+<text x="930" y="168.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">D</text>
+<text x="1038" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Q</text>
+<text x="1038" y="144.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Co</text>
+<text x="984" y="179.64" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">R</text>
+<path d="M890.88 96A2.88 2.88 0 0 1 885.12 96A2.88 2.88 0 0 1 890.88 96" fill="#1c2925"/>
+<path d="M890.88 120A2.88 2.88 0 0 1 885.12 120A2.88 2.88 0 0 1 890.88 120" fill="#1c2925"/>
+<path d="M890.88 144A2.88 2.88 0 0 1 885.12 144A2.88 2.88 0 0 1 890.88 144" fill="#1c2925"/>
+<path d="M890.88 168A2.88 2.88 0 0 1 885.12 168A2.88 2.88 0 0 1 890.88 168" fill="#1c2925"/>
+<path d="M1082.88 120A2.88 2.88 0 0 1 1077.12 120A2.88 2.88 0 0 1 1082.88 120" fill="#1c2925"/>
+<path d="M1082.88 144A2.88 2.88 0 0 1 1077.12 144A2.88 2.88 0 0 1 1082.88 144" fill="#1c2925"/>
+<path d="M986.88 216A2.88 2.88 0 0 1 981.12 216A2.88 2.88 0 0 1 986.88 216" fill="#1c2925"/>
+<path d="M1176 120L1200 120" fill="none" stroke="#1c2925" stroke-width="6.86" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1368 120L1344 120" fill="none" stroke="#1c2925" stroke-width="6.86" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1207.2 72L1336.8 72A7.2 7.2 0 0 1 1344 79.2L1344 136.8A7.2 7.2 0 0 1 1336.8 144L1207.2 144A7.2 7.2 0 0 1 1200 136.8L1200 79.2A7.2 7.2 0 0 1 1207.2 72Z" fill="#ffffff"/>
+<path d="M1207.2 72L1336.8 72A7.2 7.2 0 0 1 1344 79.2L1344 136.8A7.2 7.2 0 0 1 1336.8 144L1207.2 144A7.2 7.2 0 0 1 1200 136.8L1200 79.2A7.2 7.2 0 0 1 1207.2 72Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1272" y="93.47" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.76" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">ROM</text>
+<text x="1218" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">A</text>
+<text x="1326" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">Q</text>
+<path d="M1178.88 120A2.88 2.88 0 0 1 1173.12 120A2.88 2.88 0 0 1 1178.88 120" fill="#1c2925"/>
+<path d="M1370.88 120A2.88 2.88 0 0 1 1365.12 120A2.88 2.88 0 0 1 1370.88 120" fill="#1c2925"/>
+<path d="M1464 120L1488 120" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1464 144L1488 144" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1656 120L1632 120" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1560 192L1560 168" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1495.2 72L1624.8 72A7.2 7.2 0 0 1 1632 79.2L1632 160.8A7.2 7.2 0 0 1 1624.8 168L1495.2 168A7.2 7.2 0 0 1 1488 160.8L1488 79.2A7.2 7.2 0 0 1 1495.2 72Z" fill="#ffffff"/>
+<path d="M1495.2 72L1624.8 72A7.2 7.2 0 0 1 1632 79.2L1632 160.8A7.2 7.2 0 0 1 1624.8 168L1495.2 168A7.2 7.2 0 0 1 1488 160.8L1488 79.2A7.2 7.2 0 0 1 1495.2 72Z" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M1488 133.2L1504.8 144L1488 154.8" fill="none" stroke="#1c2925" stroke-width="3.12" stroke-linecap="round" stroke-linejoin="round"/>
+<text x="1560" y="93.47" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="17.76" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">FSM</text>
+<text x="1506" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">go</text>
+<text x="1614" y="120.84" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">on</text>
+<text x="1560" y="155.64" font-family="&quot;IBM Plex Sans&quot;, system-ui, &quot;Segoe UI&quot;, sans-serif" font-size="13.92" font-weight="600" text-anchor="middle" dominant-baseline="central" fill="#1c2925">R</text>
+<path d="M1466.88 120A2.88 2.88 0 0 1 1461.12 120A2.88 2.88 0 0 1 1466.88 120" fill="#1c2925"/>
+<path d="M1466.88 144A2.88 2.88 0 0 1 1461.12 144A2.88 2.88 0 0 1 1466.88 144" fill="#1c2925"/>
+<path d="M1658.88 120A2.88 2.88 0 0 1 1653.12 120A2.88 2.88 0 0 1 1658.88 120" fill="#1c2925"/>
+<path d="M1562.88 192A2.88 2.88 0 0 1 1557.12 192A2.88 2.88 0 0 1 1562.88 192" fill="#1c2925"/>
+</svg>

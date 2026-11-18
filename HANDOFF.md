@@ -1,8 +1,8 @@
-# ‏HANDOFF — סימולטור לוגי Cedar Logic
+# ‏HANDOFF — סימולטור לוגי Bitwise
 
 > מסמך זה נכתב כדי שסשן חדש יוכל להמשיך מכאן בלי שום זיכרון מהשיחה הקודמת.
 > עודכן לאחרונה: 2026-11-19, אחרי הפרסום ב-GitHub Pages, צביעת רגלי הפינים
-> ובחירת תכנית העבודה לימים הבאים (סעיף 8).
+> בחירת תכנית העבודה לימים הבאים (סעיף 8) ושינוי השם ל-Bitwise.
 
 ## 1. מטרת הפרויקט
 
@@ -294,8 +294,8 @@ Falstad ו-Digital. סיכום המחקר נמצא בקובץ `docs/PLAN.md`.
 
 ### מה נעשה עד עכשיו, לפי הסדר
 
-1. הסשן התחיל בלי תיקייה. הריפו `tamirgabgab/cedar_logic` שוכפל אל
-   `C:\Users\User\Desktop\Claude Projects\cedar_logic`, והסשן עבר לשם. הריפו
+1. הסשן התחיל בלי תיקייה. הריפו `tamirgabgab/bitwise` שוכפל אל
+   `C:\Users\User\Desktop\Claude Projects\bitwise`, והסשן עבר לשם. הריפו
    הכיל רק `README.md` וקומיט אחד, "Initial commit".
 2. בוצע מחקר: נקרא המאמר של DigiSim, נבדק הריפו `CedarvilleCS/CedarLogic`
    ונקראו מקורות על המבנה הפנימי של CedarLogic.
@@ -484,8 +484,8 @@ Falstad ו-Digital. סיכום המחקר נמצא בקובץ `docs/PLAN.md`.
 64. עדכון הקובץ הזה ושורת הסטטוס ב-`docs/PLAN.md`.
 65. פרסום ב-GitHub Pages: `.github/workflows/pages.yml` מריץ lint, בדיקות
     ו-build על כל דחיפה ל-main ומפרסם את `dist`. ‏`base: './'` ב-`vite.config.ts`
-    כדי שהאתר יעבוד תחת `/cedar_logic/`; נבדק בשרת סטטי מקומי בתת-נתיב (הגופנים
-    נטענים, אין שגיאות CSP). ‏README מקשר ל-https://tamirgabgab.github.io/cedar_logic/.
+    כדי שהאתר יעבוד תחת `/bitwise/`; נבדק בשרת סטטי מקומי בתת-נתיב (הגופנים
+    נטענים, אין שגיאות CSP). ‏README מקשר ל-https://tamirgabgab.github.io/bitwise/.
     הבעלים הפעיל את Pages, והאתר עלה ונבדק (קומיטים `e4fd1d8`, ‏`92a631c`;
     השני מעביר את ה-workflows לגרסאות הנוכחיות של הפעולות).
 66. רגלי הפינים (קומיט `c808358`): הבעלים הראה שליד רכיב נשאר קטע שחור
@@ -494,6 +494,17 @@ Falstad ו-Digital. סיכום המחקר נמצא בקובץ `docs/PLAN.md`.
     כמו קו המתאר כשאין חוט. לפנים של IEC יש רגליים משלהם (`iec.lead`).
     נבדק בדפדפן בבסיס 2; לא נבדקו ביד IEC, בסיס 3 והערכה הכהה.
 67. הבעלים ביקש תכנית עבודה, קיבל 25 הצעות ובחר 14. הן בסעיף 8.
+68. שינוי שם: התוכנה נקראת עכשיו Bitwise, כי השם הקודם היה קרוב מדי
+    ל-CedarLogic. הבעלים בחר את השם ושינה את שם המאגר ל-`tamirgabgab/bitwise`;
+    האתר עבר ל-https://tamirgabgab.github.io/bitwise/. השם הוחלף בממשק,
+    בהודעות, ב-`package.json` ובמסמכים. מפתחות האחסון (`cedar-logic.*`)
+    ו-`FILE_FORMAT` נשארו בשם הישן בכוונה, כדי שפרויקטים וקבצים שמורים
+    ייפתחו. קובץ נשמר כ-`.bitwise.json`, ו-`.cedar.json` עדיין נפתח.
+    את התיקייה במחשב הבעלים משנה בעצמו אחרי סגירת הסשן; עד אז הנתיבים
+    במסמך הזה כבר כתובים עם `bitwise`.
+69. תמונות ב-README: `scripts/readme-pictures.ts` (`npm run pictures`) מצייר
+    חמש תמונות SVG ל-`docs/pictures` דרך `circuitSvg`, מהדוגמאות ועם ערכים
+    על המתגים. ‏Node 24 מריץ את קובץ ה-TypeScript ישירות.
 
 ### מה בתהליך ולא גמור
 
@@ -1236,7 +1247,7 @@ Claude.
 ## 5. קבצים חשובים
 
 כל הנתיבים יחסיים לשורש הריפו,
-`C:\Users\User\Desktop\Claude Projects\cedar_logic`.
+`C:\Users\User\Desktop\Claude Projects\bitwise`.
 
 ### מסמכים והגדרות
 
@@ -1573,7 +1584,7 @@ Claude.
 
 ### שירותים חיצוניים
 
-- שירות GitHub: הריפו `tamirgabgab/cedar_logic`, עם GitHub Actions לבדיקות.
+- שירות GitHub: הריפו `tamirgabgab/bitwise`, עם GitHub Actions לבדיקות.
 - אין משתני סביבה נדרשים, ואין שירותים נוספים.
 
 ### זהות git
@@ -1598,7 +1609,7 @@ Claude.
 
 - **כל ההרצות עד קומיט שלב 2 עברו בהצלחה,** כולל ההרצה על `a467504`.
 - **ההרצה על קומיט שלב 3 נבדקת מיד אחרי הדחיפה,** והתוצאה נמסרת לבעלים בשיחה.
-  כדאי להציץ בדף [Actions](https://github.com/tamirgabgab/cedar_logic/actions)
+  כדאי להציץ בדף [Actions](https://github.com/tamirgabgab/bitwise/actions)
   בתחילת הסשן הבא.
 - **הריפו ציבורי.** דף ה-Actions נפתח בדפדפן בלי התחברות, כך שכל מה שנדחף
   גלוי לכולם, כולל המפרט שבתיקייה `docs`.
@@ -1680,7 +1691,7 @@ Claude.
 
 הבעלים בחר רשימת המשך (18 בנובמבר 2026), והיא כתובה מיד למטה תחת "רשימת
 ההמשך שנבחרה". היא מחולקת לשמונה סבבים, סשן לכל סבב, עם מודל ומאמץ לכל אחד.
-**לפני הכול:** לוודא שהאתר עולה ב-https://tamirgabgab.github.io/cedar_logic/.
+**לפני הכול:** לוודא שהאתר עולה ב-https://tamirgabgab.github.io/bitwise/.
 אם הוא מחזיר 404, ‏Pages עוד לא הופעל בהגדרות המאגר, או שהריצה של
 `Pages` ב-Actions נכשלה.
 

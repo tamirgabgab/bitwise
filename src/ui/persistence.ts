@@ -228,8 +228,8 @@ export function goBackTo(versionId: string): boolean {
 /** Saves the project as a file on the user's computer. */
 export function saveProjectFile(): void {
   const name = safeFileName(openName(), 'project')
-  downloadText(`${name}.cedar.json`, projectText(true))
-  toast(`Saved the project as ${name}.cedar.json`)
+  downloadText(`${name}.bitwise.json`, projectText(true))
+  toast(`Saved the project as ${name}.bitwise.json`)
 }
 
 /** Saves a picture of the open circuit, as it looks now, as an SVG file. */
@@ -261,7 +261,7 @@ export async function openProjectFile(): Promise<void> {
     })
     return
   }
-  const base = file.name.replace(/(\.cedar)?\.json$/i, '')
+  const base = file.name.replace(/(\.bitwise|\.cedar)?\.json$/i, '')
   if (await openAsNew(base, `“${file.name}”`, () => useEditor.getState().loadProject(data))) {
     toast(`Opened “${file.name}”`)
   }

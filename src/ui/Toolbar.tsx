@@ -366,7 +366,7 @@ export function Toolbar() {
     <header className="topbar">
       <h1 className="brand">
         <BrandMark />
-        <span className="brand-name">Cedar Logic</span>
+        <span className="brand-name">Bitwise</span>
       </h1>
 
       <div className="tool-group">
