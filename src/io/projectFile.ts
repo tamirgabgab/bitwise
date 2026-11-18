@@ -28,6 +28,7 @@ export const FILE_FORMAT_VERSION = 1
 const CIRCUIT_PART = 'circuit'
 /** The type of a part that is only writing on the canvas. */
 const TEXT_PART = 'text'
+const FRAME_PART = 'frame'
 
 export interface FilePoint {
   readonly x: number
@@ -51,8 +52,10 @@ export interface FileComponent {
   readonly key?: string
   /** On a part of type "circuit": the id of the circuit it stands for. */
   readonly circuit?: string
-  /** On a part of type "text": the writing of the label. */
+  /** On a part of type "text": the writing of the label. On a "frame": its title. */
   readonly text?: string
+  /** On a part of type "frame": its width and height. */
+  readonly size?: FilePoint
 }
 
 export interface FileJunction {
@@ -257,6 +260,12 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
       fail(`${what} is a text label with nothing written on it.`)
     }
     return { id, type: TEXT_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text }
+  }
+  if (value.type === FRAME_PART) {
+    if (typeof value.text !== 'string' || value.text.trim() === '') fail(`${what} is a frame with no title.`)
+    const size = pointOf(value.size, what)
+    if (size.x <= 0 || size.y <= 0) fail(`${what} is a frame with no size.`)
+    return { id, type: FRAME_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text, size }
   }
   if (typeof value.type !== 'string' || !builtinComponents.has(value.type)) {
     fail(`${what} has the unknown type "${String(value.type)}".`)

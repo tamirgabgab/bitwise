@@ -38,6 +38,7 @@ const NAMES: Readonly<Record<string, string>> = {
   register: 'Register',
   counter: 'Counter',
   text: 'Text',
+  frame: 'Frame',
 }
 
 /** What each part does, in one line. Binary first, then the general rule. */
@@ -146,6 +147,10 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   text: [
     'Writing on the canvas. It is not part of the circuit',
     'Writing on the canvas. It is not part of the circuit',
+  ],
+  frame: [
+    'A titled box around part of the drawing. What lies inside moves with it',
+    'A titled box around part of the drawing. What lies inside moves with it',
   ],
 }
 

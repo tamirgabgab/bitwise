@@ -2,20 +2,21 @@ import {
   bendWire,
   duplicateItems,
   isSwitchKey,
-  moveItems,
+  resizeFrame,
   sameTerminal,
   terminalEnd,
+  withFrameContents,
 } from './document.ts'
-import type { CircuitDoc, WireEnd } from './document.ts'
+import type { CircuitDoc, DocComponent, WireEnd } from './document.ts'
 import { rectFromPoints, rotatePoint, snapPoint } from './geometry.ts'
 import type { Point, Rotation } from './geometry.ts'
-import { docBounds, hitTest, itemsInRect, terminalOfHit } from './hitTest.ts'
+import { docBounds, frameHandleAt, hitTest, itemsInRect, terminalOfHit } from './hitTest.ts'
 import type { Hit } from './hitTest.ts'
 import { isPokeable, readLiveValues } from './liveValues.ts'
 import type { LiveValues } from './liveValues.ts'
 import { useProbe } from './probeStore.ts'
 import { WirePulses, flowDirections } from './pulses.ts'
-import { renderScene } from './render.ts'
+import { defaultParamsOf, renderScene } from './render.ts'
 import type { Scene } from './render.ts'
 import { routeWire } from './routing.ts'
 import type { RouteEnd } from './routing.ts'
@@ -37,10 +38,10 @@ import {
 } from './session.ts'
 import { useSim } from './simStore.ts'
 import { useEditor } from './store.ts'
-import type { EditorState, ProjectSettings } from './store.ts'
+import type { EditorState, Placing, ProjectSettings } from './store.ts'
 import { subRefOf } from './subcircuit.ts'
 import { circuitSvg } from './svgExport.ts'
-import { symbolOf } from './symbols.ts'
+import { FRAME_SIZE, symbolOf } from './symbols.ts'
 import { readCanvasTheme } from './theme.ts'
 import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
@@ -51,6 +52,8 @@ import { influenceCone } from './cone.ts'
 import type { ConeMarks } from './cone.ts'
 import { WheelSteps, digitOfKey, typedBusValue } from './digitKeys.ts'
 import { alignGuides } from './guides.ts'
+import { placementParams } from './placement.ts'
+import { moveAndSplice, spliceTarget } from './splice.ts'
 import type { Guide } from './guides.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
@@ -102,6 +105,15 @@ type Mode =
       dy: number
     }
   | { readonly kind: 'marquee'; readonly start: Point; current: Point; readonly additive: boolean }
+  /** The lower right corner of a frame being dragged to resize it. */
+  | {
+      readonly kind: 'resize'
+      readonly id: string
+      readonly start: Point
+      readonly size: Point
+      dx: number
+      dy: number
+    }
   | {
       readonly kind: 'wire'
       readonly from: WireEnd
@@ -135,10 +147,14 @@ export class CanvasController {
   private pointerAt: { x: number; y: number } | null = null
   /** The pointer rests on the face of a switch or button. */
   private hoverPoke = false
+  /** The pointer rests on the corner that resizes a selected frame. */
+  private hoverHandle = false
   /** The document as it would look if the drag in progress ended now. */
   private previewDoc: CircuitDoc | null = null
   /** Where the parts being dragged line up with the others. */
   private guides: readonly Guide[] = []
+  /** The part carried in from the palette, as last drawn, and what it was worked out for. */
+  private ghost: { placing: Placing; doc: CircuitDoc; scene: Scene['ghost'] } | null = null
   /** The cone of influence last worked out, and what it was worked out for. */
   private cone: { doc: CircuitDoc; selection: ReadonlySet<string>; marks: ConeMarks | undefined } | null =
     null
@@ -419,8 +435,22 @@ export class CanvasController {
   private ghostOf(state: EditorState): Scene['ghost'] {
     const placing = state.placing
     if (!placing?.pos) return null
+    if (this.ghost?.placing === placing && this.ghost.doc === state.doc) return this.ghost.scene
     const circuit = placing.circuit === undefined ? undefined : state.circuits[placing.circuit]
-    return { type: placing.type, pos: placing.pos, sub: circuit ? subRefOf(circuit) : undefined }
+    const sub = circuit ? subRefOf(circuit) : undefined
+    // The wire it would go into if it were dropped here.
+    const part: DocComponent = {
+      id: '',
+      type: placing.type,
+      params: { ...defaultParamsOf(placing.type), ...placementParams(placing.type, state.settings.radix) },
+      delay: 1,
+      pos: placing.pos,
+      rotation: 0,
+      ...(sub ? { sub } : {}),
+    }
+    const scene = { type: placing.type, pos: placing.pos, sub, onto: spliceTarget(state.doc, part)?.wire }
+    this.ghost = { placing, doc: state.doc, scene }
+    return scene
   }
 
   private toWorld(event: MouseEvent): Point {
@@ -516,6 +546,7 @@ export class CanvasController {
     else if (this.mode.kind === 'wire') cursor = 'crosshair'
     else if (this.mode.kind === 'move') cursor = this.mode.copy ? 'copy' : 'move'
     else if (this.mode.kind === 'bend') cursor = 'move'
+    else if (this.mode.kind === 'resize' || this.hoverHandle) cursor = 'nwse-resize'
     else if (this.mode.kind === 'hold' || this.hoverPoke) cursor = 'pointer'
     else if (this.hover?.kind === 'wire' && useEditor.getState().selection.has(this.hover.id)) {
       cursor = 'move'
@@ -549,6 +580,15 @@ export class CanvasController {
 
     const state = useEditor.getState()
     const world = this.toWorld(event)
+
+    const resized = frameHandleAt(state.doc, state.selection, world)
+    if (resized !== undefined) {
+      const size = state.doc.components[resized].size ?? FRAME_SIZE
+      this.mode = { kind: 'resize', id: resized, start: world, size, dx: 0, dy: 0 }
+      this.setCursor()
+      return
+    }
+
     const hit = hitTest(state.doc, world)
 
     if (hit?.kind === 'pin') {
@@ -623,8 +663,9 @@ export class CanvasController {
         mode.dx = dx
         mode.dy = dy
         if (!mode.copy) {
-          this.previewDoc = moveItems(state.doc, state.selection, dx, dy)
-          this.guides = alignGuides(this.previewDoc, state.selection)
+          this.previewDoc = moveAndSplice(state.doc, state.selection, dx, dy)
+          // What lies inside a frame moves with it and lines up with nothing of its own.
+          this.guides = alignGuides(this.previewDoc, withFrameContents(state.doc, state.selection))
         } else if (dx === 0 && dy === 0) {
           this.previewDoc = null
           this.guides = []
@@ -651,6 +692,16 @@ export class CanvasController {
         mode.current = world
         this.requestDraw()
         return
+      case 'resize': {
+        const dx = Math.round(world.x - mode.start.x)
+        const dy = Math.round(world.y - mode.start.y)
+        if (dx === mode.dx && dy === mode.dy) return
+        mode.dx = dx
+        mode.dy = dy
+        this.previewDoc = resizeFrame(state.doc, mode.id, { x: mode.size.x + dx, y: mode.size.y + dy })
+        this.requestDraw()
+        return
+      }
       case 'wire':
         mode.current = world
         mode.target = this.wireTarget(mode.from, world)
@@ -663,6 +714,7 @@ export class CanvasController {
         const changed = JSON.stringify(hover) !== JSON.stringify(this.hover)
         this.hover = hover
         this.hoverPoke = this.pokeTarget(state.doc, hover, world) !== null
+        this.hoverHandle = frameHandleAt(state.doc, state.selection, world) !== undefined
         this.setCursor()
         if (changed) {
           this.probe(hover, event)
@@ -742,10 +794,13 @@ export class CanvasController {
       }
       case 'move':
         if (mode.copy) state.duplicateSelection(mode.dx, mode.dy)
-        else if (mode.dx !== 0 || mode.dy !== 0) state.moveSelection(mode.dx, mode.dy)
+        else if (mode.dx !== 0 || mode.dy !== 0) state.moveSelection(mode.dx, mode.dy, true)
         break
       case 'bend':
         state.bendWire(mode.wire, mode.at, mode.dx, mode.dy)
+        break
+      case 'resize':
+        state.resizeFrame(mode.id, { x: mode.size.x + mode.dx, y: mode.size.y + mode.dy })
         break
       case 'marquee': {
         const inside = itemsInRect(state.doc, rectFromPoints(mode.start, mode.current))

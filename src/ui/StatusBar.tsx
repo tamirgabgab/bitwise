@@ -1,4 +1,4 @@
-import { SUB_TYPE, useEditor, useSim, valueText } from '../editor/index.ts'
+import { SUB_TYPE, isAnnotation, useEditor, useSim, valueText } from '../editor/index.ts'
 import { useStorage } from './persistence.ts'
 
 function plural(count: number, noun: string): string {
@@ -6,7 +6,10 @@ function plural(count: number, noun: string): string {
 }
 
 export function StatusBar() {
-  const parts = useEditor((state) => Object.keys(state.doc.components).length)
+  // Writing and frames are drawing, not parts of the circuit.
+  const parts = useEditor(
+    (state) => Object.values(state.doc.components).filter((part) => !isAnnotation(part.type)).length,
+  )
   const wires = useEditor((state) => Object.keys(state.doc.wires).length)
   const selected = useEditor((state) => state.selection.size)
   const isPlacing = useEditor((state) => state.placing !== null)

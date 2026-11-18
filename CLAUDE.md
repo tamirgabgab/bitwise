@@ -177,6 +177,20 @@ Run lint, test and build before calling a change done. CI runs the same three.
   over a key the user gave a switch.
 - The cone of influence (`cone.ts`, `useSim.coneShown`) lights what the
   selection drives and fades what has nothing to do with it.
+- Undo keeps only drawings. `describeEdit` (`editNames.ts`) names a step
+  from the difference between the drawing before and after it ("Add AND",
+  "Connect wire"), and `jumpHistory` goes straight to any step; the edit
+  history window (`HistoryDialog.tsx`) lists them.
+- A part with no wires that is dropped onto a wire, by a drag or from the
+  palette, goes into it (`splice.ts`): the side with a driver goes to an
+  input, an output takes the rest. Only a wire of the width of its pins.
+- A frame is a part of type `FRAME_TYPE` with a title (`text`) and a
+  `size`; its `pos` is its top left corner. Like a text label it is not in
+  the circuit and wires may pass it. Whatever lies wholly inside it moves
+  and copies with it (`withFrameContents`). It is picked up by its title
+  band or its edge, resized from its lower right corner, and drawn under
+  everything in tints of the ink, never a value color or amber unless it
+  is selected.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
   live only for the session. Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.

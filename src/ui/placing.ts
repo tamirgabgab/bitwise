@@ -33,7 +33,8 @@ export function beginPlacing(type: string, event: ReactPointerEvent, circuit?: s
     const pos = gridAt(e)
     stop()
     if (!pos) return
-    addComponent(type, pos, circuit)
+    // Dropped onto a wire, the part goes into it.
+    addComponent(type, pos, circuit, true)
     added(type)
   }
 

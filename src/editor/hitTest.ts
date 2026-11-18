@@ -1,4 +1,4 @@
-import { terminalEnd } from './document.ts'
+import { FRAME_TYPE, terminalEnd } from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
 import {
   closestOnPolyline,
@@ -9,7 +9,7 @@ import {
   snapPoint,
 } from './geometry.ts'
 import type { Point, Rect } from './geometry.ts'
-import { symbolOf } from './symbols.ts'
+import { FRAME_TITLE, symbolOf } from './symbols.ts'
 import { wirePath } from './wireLayout.ts'
 
 /** What the pointer is over. */
@@ -23,6 +23,35 @@ export type Hit =
 const PIN_REACH = 0.55
 const JUNCTION_REACH = 0.45
 const WIRE_REACH = 0.35
+/** How close to its edge a frame can be picked up. */
+const FRAME_EDGE = 0.4
+/** How close to its lower right corner a selected frame can be resized. */
+const HANDLE_REACH = 0.7
+
+/**
+ * True when `p` is on what can pick a frame up: the band with its title, or
+ * its edge. Its inside is left free, to reach the parts there and to drag
+ * an area out.
+ */
+function onFrameGrip(box: Rect, p: Point): boolean {
+  if (p.x < box.x0 - FRAME_EDGE || p.x > box.x1 + FRAME_EDGE) return false
+  if (p.y < box.y0 - FRAME_EDGE || p.y > box.y1 + FRAME_EDGE) return false
+  return (
+    p.y <= box.y0 + FRAME_TITLE ||
+    p.y >= box.y1 - FRAME_EDGE ||
+    p.x <= box.x0 + FRAME_EDGE ||
+    p.x >= box.x1 - FRAME_EDGE
+  )
+}
+
+/** The selected frame whose lower right corner is under `p`, if there is one. */
+export function frameHandleAt(doc: CircuitDoc, selection: ReadonlySet<string>, p: Point): string | undefined {
+  for (const id of selection) {
+    const bounds = doc.components[id]?.type === FRAME_TYPE ? componentBounds(doc, id) : undefined
+    if (bounds && distance(p, { x: bounds.x1, y: bounds.y1 }) <= HANDLE_REACH) return id
+  }
+  return undefined
+}
 
 export function componentBounds(doc: CircuitDoc, id: string): Rect | undefined {
   const component = doc.components[id]
@@ -78,11 +107,18 @@ export function hitTest(doc: CircuitDoc, p: Point): Hit | null {
       return { kind: 'wire', id: wire.id, pos: snapPoint(nearest) }
     }
   }
-  // Later parts are drawn on top, so they are tried first.
+  // Later parts are drawn on top, so they are tried first. Frames lie
+  // under everything and are tried last.
   const ids = Object.keys(doc.components)
   for (let i = ids.length - 1; i >= 0; i--) {
+    if (doc.components[ids[i]].type === FRAME_TYPE) continue
     const bounds = componentBounds(doc, ids[i])
     if (bounds && rectContainsPoint(bounds, p)) return { kind: 'component', id: ids[i] }
+  }
+  for (let i = ids.length - 1; i >= 0; i--) {
+    if (doc.components[ids[i]].type !== FRAME_TYPE) continue
+    const bounds = componentBounds(doc, ids[i])
+    if (bounds && onFrameGrip(bounds, p)) return { kind: 'component', id: ids[i] }
   }
   return null
 }

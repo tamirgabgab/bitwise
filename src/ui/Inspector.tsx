@@ -5,6 +5,7 @@ import {
   MAX_LABEL,
   MAX_TEXT,
   SUB_TYPE,
+  FRAME_TYPE,
   TEXT_TYPE,
   breakpointOn,
   describeNode,
@@ -135,8 +136,10 @@ interface NameFieldProps {
   id: string
   type: string
   label: string
-  /** The field holds the writing of a text label, not the name of a part. */
+  /** The field holds the writing of a text label or a frame's title, not the name of a part. */
   writing?: boolean
+  /** What the field is called, when not "Text" or "Name". */
+  caption?: string
 }
 
 /**
@@ -144,7 +147,7 @@ interface NameFieldProps {
  * typed freely and becomes an edit, one step of undo, when the user is done
  * with the field.
  */
-function NameField({ id, type, label, writing = false }: NameFieldProps) {
+function NameField({ id, type, label, writing = false, caption }: NameFieldProps) {
   const [draft, setDraft] = useState(label)
   const latest = useRef(label)
   const fieldId = useId()
@@ -174,7 +177,7 @@ function NameField({ id, type, label, writing = false }: NameFieldProps) {
 
   return (
     <div className="field">
-      <label htmlFor={fieldId}>{writing ? 'Text' : 'Name'}</label>
+      <label htmlFor={fieldId}>{caption ?? (writing ? 'Text' : 'Name')}</label>
       <input
         id={fieldId}
         value={draft}
@@ -472,7 +475,7 @@ function ArrangePanel() {
   }
   const movable = extractable(doc, selection).length
   if (parts === 0) return null
-  const { alignSelection, distributeSelection, selectionToCircuit } = useEditor.getState()
+  const { alignSelection, distributeSelection, selectionToCircuit, frameSelection } = useEditor.getState()
 
   return (
     <aside className="inspector" aria-label="Selected parts">
@@ -523,6 +526,14 @@ function ArrangePanel() {
       >
         Make a circuit
       </button>
+      <button
+        type="button"
+        className="button"
+        title="Draw a titled frame around these parts. What lies inside moves with it"
+        onClick={frameSelection}
+      >
+        Add a frame
+      </button>
       <ConeCheck />
     </aside>
   )
@@ -567,6 +578,27 @@ export function Inspector() {
           writing
         />
         <p className="note">Writing on the canvas. It is not part of the circuit.</p>
+      </aside>
+    )
+  }
+
+  if (component.type === FRAME_TYPE) {
+    const title = component.text ?? ''
+    return (
+      <aside className="inspector" aria-label="Frame settings">
+        <h2>Frame</h2>
+        <NameField
+          key={`${active}:${component.id}:${title}`}
+          id={component.id}
+          type={component.type}
+          label={title}
+          writing
+          caption="Title"
+        />
+        <p className="note">
+          Not part of the circuit. Whatever lies wholly inside moves with it. Drag its lower right
+          corner to resize it.
+        </p>
       </aside>
     )
   }

@@ -14,7 +14,9 @@ export {
   MAX_LABEL,
   MAX_TEXT,
   SUB_TYPE,
+  FRAME_TYPE,
   TEXT_TYPE,
+  isAnnotation,
   isSwitchKey,
   keyName,
   takesKey,
@@ -23,6 +25,7 @@ export type { AlignEdge, Axis } from './arrange.ts'
 export { extractable } from './extract.ts'
 export type { DocComponent, Terminal } from './document.ts'
 export { digitOfKey } from './digitKeys.ts'
+export { describeEdit } from './editNames.ts'
 export { MAX_TRUTH_ROWS, rowOf, truthTable } from './truthTable.ts'
 export type { TruthColumn, TruthRow, TruthTable } from './truthTable.ts'
 export type { Point } from './geometry.ts'

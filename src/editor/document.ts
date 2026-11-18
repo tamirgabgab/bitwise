@@ -1,11 +1,11 @@
 import { builtinComponents, resolveParams } from '../core/index.ts'
-import { add, rotatePoint, samePoint } from './geometry.ts'
-import type { Point, Rotation } from './geometry.ts'
+import { add, placeRect, rectContainsPoint, rectContainsRect, rotatePoint, samePoint } from './geometry.ts'
+import type { Point, Rect, Rotation } from './geometry.ts'
 import type { RouteEnd } from './routing.ts'
-import { DEFAULT_TEXT, SUB_TYPE, TEXT_TYPE, symbolOf } from './symbols.ts'
+import { DEFAULT_FRAME, DEFAULT_TEXT, FRAME_SIZE, FRAME_TYPE, SUB_TYPE, TEXT_TYPE, symbolOf } from './symbols.ts'
 import type { SubRef } from './symbols.ts'
 
-export { SUB_TYPE, TEXT_TYPE }
+export { FRAME_TYPE, SUB_TYPE, TEXT_TYPE }
 export type { SubPin, SubRef } from './symbols.ts'
 
 /*
@@ -36,12 +36,26 @@ export interface DocComponent {
   readonly key?: string
   /** Set on a part that stands for a named circuit; its type is `SUB_TYPE`. */
   readonly sub?: SubRef
-  /** What a text label says; its type is `TEXT_TYPE`. */
+  /** What a text label says, or the title of a frame. */
   readonly text?: string
+  /**
+   * On a frame, whose type is `FRAME_TYPE`: its width and height in grid
+   * units. Its `pos` is its top left corner.
+   */
+  readonly size?: Point
 }
 
 /** The longest writing a text label can hold. */
 export const MAX_TEXT = 60
+
+/** The smallest and the largest a frame can be on either side, in grid units. */
+export const MIN_FRAME = 4
+export const MAX_FRAME = 400
+
+/** True for a part that is only drawing, not part of the circuit: a text label or a frame. */
+export function isAnnotation(type: string): boolean {
+  return type === TEXT_TYPE || type === FRAME_TYPE
+}
 
 /** The longest label a part can have. */
 export const MAX_LABEL = 16
@@ -229,11 +243,112 @@ export function addText(
   }
 }
 
-/** Changes what a text label says. Blank writing is ignored. */
+/** A frame size kept within `MIN_FRAME` and `MAX_FRAME`, in whole grid units. */
+export function cleanFrameSize(size: Point): Point {
+  const fit = (value: number): number =>
+    Math.max(MIN_FRAME, Math.min(MAX_FRAME, Math.round(Number.isFinite(value) ? value : MIN_FRAME)))
+  return { x: fit(size.x), y: fit(size.y) }
+}
+
+/** Adds a frame with its top left corner at `pos`. */
+export function addFrame(
+  doc: CircuitDoc,
+  pos: Point,
+  size: Point = FRAME_SIZE,
+  title: string = DEFAULT_FRAME,
+): { doc: CircuitDoc; id: string } {
+  const id = `c${doc.nextId}`
+  const component: DocComponent = {
+    id,
+    type: FRAME_TYPE,
+    params: {},
+    delay: 1,
+    pos,
+    rotation: 0,
+    text: cleanText(title) ?? DEFAULT_FRAME,
+    size: cleanFrameSize(size),
+  }
+  return {
+    doc: { ...doc, components: { ...doc.components, [id]: component }, nextId: doc.nextId + 1 },
+    id,
+  }
+}
+
+/** Changes the size of a frame. */
+export function resizeFrame(doc: CircuitDoc, id: string, size: Point): CircuitDoc {
+  const component = doc.components[id]
+  if (!component || component.type !== FRAME_TYPE) return doc
+  const clean = cleanFrameSize(size)
+  const old = component.size ?? FRAME_SIZE
+  if (clean.x === old.x && clean.y === old.y) return doc
+  return { ...doc, components: { ...doc.components, [id]: { ...component, size: clean } } }
+}
+
+/** The box a part covers on the canvas, pins included. */
+function boxOf(component: DocComponent): Rect {
+  return placeRect(symbolOf(component).bounds, component.pos, component.rotation)
+}
+
+/** The parts and junctions that lie wholly inside a frame, frames inside it too. */
+export function frameContents(doc: CircuitDoc, id: string): string[] {
+  const frame = doc.components[id]
+  if (!frame || frame.type !== FRAME_TYPE) return []
+  const box = boxOf(frame)
+  const inside: string[] = []
+  for (const component of Object.values(doc.components)) {
+    if (component.id !== id && rectContainsRect(box, boxOf(component))) inside.push(component.id)
+  }
+  for (const junction of Object.values(doc.junctions)) {
+    if (rectContainsPoint(box, junction.pos)) inside.push(junction.id)
+  }
+  return inside
+}
+
+/** The listed ids, plus everything that lies inside a frame among them. */
+export function withFrameContents(doc: CircuitDoc, ids: Iterable<string>): Set<string> {
+  const all = new Set(ids)
+  for (const id of all) {
+    if (doc.components[id]?.type !== FRAME_TYPE) continue
+    for (const inner of frameContents(doc, id)) all.add(inner)
+  }
+  return all
+}
+
+/**
+ * Adds a frame around the listed parts and junctions, with room for its
+ * title above them. Undefined when none of them is there.
+ */
+export function frameAround(
+  doc: CircuitDoc,
+  ids: Iterable<string>,
+): { doc: CircuitDoc; id: string } | undefined {
+  let x0 = Infinity
+  let y0 = Infinity
+  let x1 = -Infinity
+  let y1 = -Infinity
+  const grow = (box: Rect): void => {
+    x0 = Math.min(x0, box.x0)
+    y0 = Math.min(y0, box.y0)
+    x1 = Math.max(x1, box.x1)
+    y1 = Math.max(y1, box.y1)
+  }
+  for (const id of ids) {
+    const component = doc.components[id]
+    if (component) grow(boxOf(component))
+    const junction = doc.junctions[id]
+    if (junction) grow({ x0: junction.pos.x, y0: junction.pos.y, x1: junction.pos.x, y1: junction.pos.y })
+  }
+  if (x0 === Infinity) return undefined
+  const left = Math.floor(x0) - 1
+  const top = Math.floor(y0) - 3
+  return addFrame(doc, { x: left, y: top }, { x: Math.ceil(x1) + 1 - left, y: Math.ceil(y1) + 1 - top })
+}
+
+/** Changes what a text label says or what a frame is called. Blank writing is ignored. */
 export function setComponentText(doc: CircuitDoc, id: string, text: string): CircuitDoc {
   const component = doc.components[id]
   const clean = cleanText(text)
-  if (!component || component.type !== TEXT_TYPE || clean === undefined) return doc
+  if (!component || !isAnnotation(component.type) || clean === undefined) return doc
   if (clean === component.text) return doc
   return { ...doc, components: { ...doc.components, [id]: { ...component, text: clean } } }
 }
@@ -241,7 +356,7 @@ export function setComponentText(doc: CircuitDoc, id: string, text: string): Cir
 /** Names a part, or takes its name away when `label` is blank. */
 export function setComponentLabel(doc: CircuitDoc, id: string, label: string): CircuitDoc {
   const component = doc.components[id]
-  if (!component || component.type === TEXT_TYPE) return doc
+  if (!component || isAnnotation(component.type)) return doc
   const text = label.trim().slice(0, MAX_LABEL)
   if (text === (component.label ?? '')) return doc
   const next: DocComponent = { ...component, label: text }
@@ -415,7 +530,10 @@ export function bendWire(
   return { doc: moveItems(next, junctions, dx, dy), junctions: [...junctions] }
 }
 
-/** Moves the listed parts and junctions. Wires follow on their own. */
+/**
+ * Moves the listed parts and junctions, and whatever lies inside a frame
+ * among them. Wires follow on their own.
+ */
 export function moveItems(
   doc: CircuitDoc,
   ids: Iterable<string>,
@@ -425,7 +543,7 @@ export function moveItems(
   if (dx === 0 && dy === 0) return doc
   let components = doc.components
   let junctions = doc.junctions
-  for (const id of ids) {
+  for (const id of withFrameContents(doc, ids)) {
     const component = doc.components[id]
     if (component) {
       if (components === doc.components) components = { ...components }
@@ -452,8 +570,8 @@ export function rotateComponents(doc: CircuitDoc, ids: Iterable<string>): Circui
   let components = doc.components
   for (const id of ids) {
     const component = doc.components[id]
-    // Writing stays upright, so turning it would only move its box.
-    if (!component || component.type === TEXT_TYPE) continue
+    // Writing stays upright, so turning it would only move its box; a frame stays square to the page.
+    if (!component || isAnnotation(component.type)) continue
     if (components === doc.components) components = { ...components }
     ;(components as Record<string, DocComponent>)[id] = {
       ...component,
@@ -500,11 +618,11 @@ export function deleteItems(doc: CircuitDoc, ids: Iterable<string>): CircuitDoc 
 }
 
 /**
- * Copies the listed parts and junctions, together with every wire that runs
- * between two of them.
+ * Copies the listed parts and junctions, together with what lies inside a
+ * frame among them and every wire that runs between two of them.
  */
 export function copyItems(doc: CircuitDoc, ids: Iterable<string>): Fragment {
-  const wanted = new Set(ids)
+  const wanted = withFrameContents(doc, ids)
   const components = Object.values(doc.components).filter((item) => wanted.has(item.id))
   const junctions = Object.values(doc.junctions).filter((item) => wanted.has(item.id))
   const included = (terminal: Terminal): boolean =>

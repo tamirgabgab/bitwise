@@ -19,6 +19,30 @@ describe('a project through the file format', () => {
     }
   })
 
+  it('reads frames back as they were written', () => {
+    const data = EXAMPLES[0].build()
+    const [first, ...rest] = data.circuits
+    const frame = {
+      id: 'c900',
+      type: 'frame',
+      params: {},
+      delay: 1,
+      pos: { x: -4, y: -6 },
+      rotation: 0,
+      text: 'Inputs',
+      size: { x: 12, y: 9 },
+    }
+    const withExtras = {
+      ...data,
+      circuits: [{ ...first, nextId: 901, components: [...first.components, frame] }, ...rest],
+    }
+    const text = serializeProject(withExtras)
+    expect(parseProject(text)).toEqual(withExtras)
+    const loaded = fromProjectData(parseProject(text))
+    expect(toProjectData(loaded)).toEqual(toProjectData(fromProjectData(withExtras)))
+    expect(loaded.circuits[first.id].doc.components.c900).toMatchObject({ text: 'Inputs', size: { x: 12, y: 9 } })
+  })
+
   it('gives a file without colors the colors a new project starts with', () => {
     const data = EXAMPLES[0].build()
     const text = serializeProject({ ...data, settings: { ...data.settings, palette: [] } })

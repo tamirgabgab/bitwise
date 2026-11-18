@@ -119,6 +119,15 @@ export function listCommands(): Command[] {
       run: editor.redo,
     },
     {
+      id: 'edit.history',
+      group: 'Edit',
+      title: 'Show the edit history',
+      detail: 'Every edit by name; pick one to go back to it',
+      keywords: 'undo redo steps list jump',
+      disabled: editor.past.length === 0 && editor.future.length === 0,
+      run: chrome.openHistory,
+    },
+    {
       id: 'edit.all',
       group: 'Edit',
       title: 'Select everything',
@@ -152,6 +161,14 @@ export function listCommands(): Command[] {
       keywords: 'remove',
       disabled: !hasSelection,
       run: editor.deleteSelection,
+    },
+    {
+      id: 'edit.frame',
+      group: 'Edit',
+      title: 'Put a frame around the selection',
+      keywords: 'group box border title section',
+      disabled: !hasSelection,
+      run: editor.frameSelection,
     },
     {
       id: 'edit.extract',

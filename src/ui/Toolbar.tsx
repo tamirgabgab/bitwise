@@ -301,6 +301,11 @@ function FileMenu() {
             onPick={pick(useChrome.getState().openShortcuts)}
           />
           <MenuRow
+            name="Show the edit history"
+            summary="Go back to any edit by name"
+            onPick={pick(useChrome.getState().openHistory)}
+          />
+          <MenuRow
             name="Open the base calculator"
             summary="Base n, decimal and balanced"
             onPick={pick(useChrome.getState().openCalculator)}

@@ -9,9 +9,11 @@ import {
 import { alignItems, distributeItems } from './arrange.ts'
 import type { AlignEdge, Axis } from './arrange.ts'
 import {
+  FRAME_TYPE,
   SUB_TYPE,
   TEXT_TYPE,
   addComponent,
+  addFrame,
   addSubcircuit,
   addText,
   bendWire,
@@ -19,8 +21,10 @@ import {
   copyItems,
   deleteItems,
   duplicateItems,
+  frameAround,
   moveItems,
   pasteFragment,
+  resizeFrame,
   rotateComponents,
   setComponentDelay,
   setComponentKey,
@@ -32,6 +36,7 @@ import type { CircuitDoc, Fragment, WireEnd } from './document.ts'
 import { extractCircuit } from './extract.ts'
 import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
 import { placementParams } from './placement.ts'
+import { applySplice, moveAndSplice, spliceTarget } from './splice.ts'
 import type { InputValue, Step } from './steps.ts'
 import { samePoint } from './geometry.ts'
 import { docBounds } from './hitTest.ts'
@@ -143,11 +148,13 @@ export interface EditorState {
   /**
    * Adds a part at `pos`, nudging it along if that exact spot is taken. For
    * a named circuit, `type` is `SUB_TYPE` and `circuit` says which one.
+   * With `splice`, a part dropped onto a wire goes into it.
    */
-  addComponent(type: string, pos: Point, circuit?: string): void
+  addComponent(type: string, pos: Point, circuit?: string, splice?: boolean): void
   /** Draws a wire between two ends. Returns false if it could not be made. */
   connect(a: WireEnd, b: WireEnd): boolean
-  moveSelection(dx: number, dy: number): void
+  /** Moves the selection. With `splice`, one part dropped onto a wire goes into it. */
+  moveSelection(dx: number, dy: number, splice?: boolean): void
   /** Drags a stretch of a wire by the junctions put in at `at`; selects them. */
   bendWire(wireId: string, at: readonly Point[], dx: number, dy: number): void
   /** Makes a second copy of the selection, that far away, and selects it. */
@@ -168,8 +175,12 @@ export interface EditorState {
   setParams(id: string, changes: Readonly<Record<string, number>>): void
   /** Names a part. A blank label takes the name away. */
   setLabel(id: string, label: string): void
-  /** Changes what a text label says. */
+  /** Changes what a text label says, or the title of a frame. */
   setText(id: string, text: string): void
+  /** Puts a frame around the selection and selects it. */
+  frameSelection(): void
+  /** Changes the size of a frame. */
+  resizeFrame(id: string, size: Point): void
   /** Gives a switch or a push button a keyboard key, or none for null. */
   setKey(id: string, code: string | null): void
   /** Sets how many ticks a part takes to answer. */
@@ -179,6 +190,11 @@ export interface EditorState {
   selectAll(): void
   undo(): void
   redo(): void
+  /**
+   * Goes straight to a step of the history: 0 is the oldest drawing kept,
+   * `past.length` the one on screen now, and beyond it the steps of redo.
+   */
+  jumpHistory(index: number): void
   copy(): void
   cut(): void
   paste(): void
@@ -363,25 +379,30 @@ export const useEditor = create<EditorState>()((set, get) => {
       putSteps(removeStep(stepsNow(), index), index < stepIndex ? stepIndex - 1 : stepIndex)
     },
 
-    addComponent(type, pos, circuit) {
+    addComponent(type, pos, circuit, splice) {
       const { doc, circuits, active } = get()
+      const put = (added: { doc: CircuitDoc; id: string }): void => {
+        const target = splice ? spliceTarget(doc, added.doc.components[added.id]) : undefined
+        commit((target && applySplice(added.doc, added.id, target)) ?? added.doc, [added.id])
+      }
       let spot = pos
       const taken = (p: Point) =>
         Object.values(doc.components).some((component) => samePoint(component.pos, p))
       while (taken(spot)) spot = { x: spot.x + 1, y: spot.y + 1 }
       if (type === SUB_TYPE) {
         if (circuit === undefined || !canPlace(circuits, active, circuit)) return
-        const added = addSubcircuit(doc, subRefOf(circuits[circuit]), spot)
-        commit(added.doc, [added.id])
+        put(addSubcircuit(doc, subRefOf(circuits[circuit]), spot))
         return
       }
       const added =
         type === TEXT_TYPE
           ? addText(doc, spot)
-          : addComponent(doc, type, spot, {
+          : type === FRAME_TYPE
+            ? addFrame(doc, spot)
+            : addComponent(doc, type, spot, {
               params: placementParams(type, get().settings.radix),
             })
-      commit(added.doc, [added.id])
+      put(added)
     },
 
     connect(a, b) {
@@ -391,9 +412,9 @@ export const useEditor = create<EditorState>()((set, get) => {
       return true
     },
 
-    moveSelection(dx, dy) {
+    moveSelection(dx, dy, splice) {
       const { doc, selection } = get()
-      commit(moveItems(doc, selection, dx, dy))
+      commit(splice ? moveAndSplice(doc, selection, dx, dy) : moveItems(doc, selection, dx, dy))
     },
 
     bendWire(wireId, at, dx, dy) {
@@ -407,6 +428,16 @@ export const useEditor = create<EditorState>()((set, get) => {
       if (dx === 0 && dy === 0) return
       const copied = duplicateItems(doc, selection, { x: dx, y: dy })
       if (copied.ids.length > 0) commit(copied.doc, copied.ids)
+    },
+
+    frameSelection() {
+      const { doc, selection } = get()
+      const framed = frameAround(doc, selection)
+      if (framed) commit(framed.doc, [framed.id])
+    },
+
+    resizeFrame(id, size) {
+      commit(resizeFrame(get().doc, id, size))
     },
 
     alignSelection(edge) {
@@ -512,6 +543,19 @@ export const useEditor = create<EditorState>()((set, get) => {
         ...placed,
         past: [...past, doc],
         future: future.slice(1),
+        selection: existingIds(placed.doc, selection),
+      })
+    },
+
+    jumpHistory(index) {
+      const { doc, past, future, selection } = get()
+      const steps = [...past, doc, ...future]
+      if (index === past.length || index < 0 || index >= steps.length) return
+      const placed = place(steps[index])
+      set({
+        ...placed,
+        past: steps.slice(0, index),
+        future: steps.slice(index + 1),
         selection: existingIds(placed.doc, selection),
       })
     },

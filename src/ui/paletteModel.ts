@@ -25,7 +25,7 @@ const FIXED_SECTIONS: readonly PaletteSection[] = [
     title: 'Larger parts',
     types: ['mux', 'demux', 'decoder', 'adder', 'compare', 'register', 'counter'],
   },
-  { id: 'notes', title: 'Notes', types: ['text'] },
+  { id: 'notes', title: 'Notes', types: ['text', 'frame'] },
 ]
 
 /** The settings that decide which gates the palette shows. */

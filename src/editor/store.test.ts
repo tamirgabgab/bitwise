@@ -65,6 +65,26 @@ describe('undo and redo', () => {
     expect(editor().doc).toBe(full)
   })
 
+  it('jumps straight to any step and back', () => {
+    inverter()
+    const full = editor().doc
+    const [empty, one] = editor().past
+    editor().jumpHistory(0)
+    expect(editor().doc).toBe(empty)
+    expect(editor().past).toEqual([])
+    expect(editor().future).toHaveLength(3)
+    editor().jumpHistory(3)
+    expect(editor().doc).toBe(full)
+    editor().jumpHistory(1)
+    expect(editor().doc).toBe(one)
+    // A jump is undo: the steps after it wait for redo.
+    editor().redo()
+    editor().redo()
+    expect(editor().doc).toBe(full)
+    editor().jumpHistory(9)
+    expect(editor().doc).toBe(full)
+  })
+
   it('forgets the redo steps after a new edit', () => {
     inverter()
     editor().undo()

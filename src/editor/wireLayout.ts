@@ -1,5 +1,5 @@
 import { terminalNets } from './connectivity.ts'
-import { TEXT_TYPE, terminalEnd, terminalKey } from './document.ts'
+import { isAnnotation, terminalEnd, terminalKey } from './document.ts'
 import type { CircuitDoc, DocWire } from './document.ts'
 import { placeRect, samePoint } from './geometry.ts'
 import type { Point } from './geometry.ts'
@@ -120,13 +120,13 @@ const at = (x: number, y: number): number => (x + 1048576) * 2097152 + (y + 1048
 
 /**
  * The grid points the parts of a drawing cover, pins included. A wire has
- * no business there, except at its own two ends. Text labels are only
- * writing, so wires may pass them.
+ * no business there, except at its own two ends. Text labels and frames
+ * are only drawing, so wires may pass them.
  */
 function partCells(doc: CircuitDoc): Set<number> {
   const cells = new Set<number>()
   for (const component of Object.values(doc.components)) {
-    if (component.type === TEXT_TYPE) continue
+    if (isAnnotation(component.type)) continue
     const box = placeRect(symbolOf(component).bounds, component.pos, component.rotation)
     for (let x = Math.ceil(box.x0); x <= Math.floor(box.x1); x++) {
       for (let y = Math.ceil(box.y0); y <= Math.floor(box.y1); y++) cells.add(at(x, y))

@@ -8,11 +8,11 @@ import {
   resolveParams,
 } from '../core/index.ts'
 import type { Digit, Signal } from '../core/index.ts'
-import { junctionDegrees, keyName, terminalKey } from './document.ts'
+import { FRAME_TYPE, junctionDegrees, keyName, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues, WireValue } from './liveValues.ts'
-import { symbolOf } from './symbols.ts'
+import { DEFAULT_FRAME, FRAME_SIZE, FRAME_TITLE, symbolOf } from './symbols.ts'
 import type { ComponentSymbol, SymbolFace, SymbolReadout } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { inkOn } from './valueStyle.ts'
@@ -33,8 +33,16 @@ export interface Scene {
   /** The wire being drawn right now. */
   readonly wirePreview: readonly Point[] | null
   readonly marquee: Rect | null
-  /** A part being dragged in from the palette. */
-  readonly ghost: { readonly type: string; readonly pos: Point; readonly sub?: SubRef } | null
+  /**
+   * A part being dragged in from the palette, and the wire it would go into
+   * if it were dropped there.
+   */
+  readonly ghost: {
+    readonly type: string
+    readonly pos: Point
+    readonly sub?: SubRef
+    readonly onto?: string
+  } | null
   /** The values of the running circuit, and how to show them. */
   readonly live: LiveValues
   readonly style: ValueStyle
@@ -211,6 +219,7 @@ function drawText(
   color: string,
   halo?: string,
   family = FONT,
+  align: CanvasTextAlign = 'center',
 ): void {
   const matrix = ctx.getTransform()
   const scale = Math.hypot(matrix.a, matrix.b)
@@ -221,7 +230,7 @@ function drawText(
   ctx.save()
   ctx.setTransform(1, 0, 0, 1, 0, 0)
   ctx.font = `600 ${pixels}px ${family}`
-  ctx.textAlign = 'center'
+  ctx.textAlign = align
   ctx.textBaseline = 'middle'
   // The visual middle of digits and capitals sits a little above the em middle.
   const baseline = y + pixels * 0.06
@@ -366,6 +375,52 @@ function drawPart(
   ctx.restore()
 }
 
+/**
+ * A frame: a quiet box, tinted only a little, with its title in the band
+ * along the top. Its colors are the ink of the parts, never a value color
+ * or the accent, unless it is selected. A selected frame shows the handle
+ * that resizes it.
+ */
+function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  frame: DocComponent,
+  selected: boolean,
+  theme: CanvasTheme,
+): void {
+  const { x, y } = frame.pos
+  const { x: w, y: h } = frame.size ?? FRAME_SIZE
+  const alpha = ctx.globalAlpha
+  ctx.beginPath()
+  ctx.roundRect(x, y, w, h, 0.5)
+  ctx.globalAlpha = alpha * 0.045
+  ctx.fillStyle = theme.ink
+  ctx.fill()
+  ctx.globalAlpha = alpha * (selected ? 1 : 0.38)
+  ctx.strokeStyle = selected ? theme.accent : theme.ink
+  ctx.lineWidth = selected ? 0.1 : 0.07
+  ctx.stroke()
+  ctx.beginPath()
+  ctx.moveTo(x, y + FRAME_TITLE)
+  ctx.lineTo(x + w, y + FRAME_TITLE)
+  ctx.globalAlpha = alpha * 0.18
+  ctx.strokeStyle = theme.ink
+  ctx.lineWidth = 0.06
+  ctx.stroke()
+  ctx.globalAlpha = alpha * 0.75
+  drawText(ctx, frame.text ?? DEFAULT_FRAME, { x: x + 0.6, y: y + FRAME_TITLE / 2 }, 0.8, theme.ink, undefined, FONT, 'left')
+  ctx.globalAlpha = alpha
+  if (selected) {
+    const side = 0.6
+    ctx.beginPath()
+    ctx.rect(x + w - side / 2, y + h - side / 2, side, side)
+    ctx.fillStyle = theme.background
+    ctx.fill()
+    ctx.strokeStyle = theme.accent
+    ctx.lineWidth = 0.08
+    ctx.stroke()
+  }
+}
+
 /** What a part's face shows before any simulation: only a constant has a value. */
 function restingFace(type: string, params: Readonly<Record<string, number>>): Signal | undefined {
   return type === 'const' ? filled(params.width ?? 1, params.value) : undefined
@@ -400,6 +455,11 @@ export function renderScene(
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
 
+  // Frames lie under everything else.
+  for (const component of Object.values(doc.components)) {
+    if (component.type === FRAME_TYPE) drawFrame(ctx, component, selection.has(component.id), theme)
+  }
+
   const wiredPins = new Set<string>()
   // Where each bus gets its value written: beside its longest straight run.
   const busLabels = new Map<WireValue, { at: Point; length: number; level: boolean }>()
@@ -413,6 +473,13 @@ export function renderScene(
       tracePath(ctx, path)
       ctx.strokeStyle = theme.accentSoft
       ctx.lineWidth = selection.has(wire.id) ? 0.6 : 0.8
+      ctx.stroke()
+    }
+    if (scene.ghost?.onto === wire.id) {
+      // The part carried in would go into this wire.
+      tracePath(ctx, path)
+      ctx.strokeStyle = theme.accentSoft
+      ctx.lineWidth = 0.8
       ctx.stroke()
     }
     const value = live.at(wire.from)
@@ -464,6 +531,7 @@ export function renderScene(
   }
 
   for (const component of Object.values(doc.components)) {
+    if (component.type === FRAME_TYPE) continue
     const symbol = symbolOf(component)
     const selected = selection.has(component.id)
     const outline = selected ? theme.accent : theme.ink
@@ -593,7 +661,16 @@ export function renderScene(
     ctx.stroke()
   }
 
-  if (scene.ghost) {
+  if (scene.ghost?.type === FRAME_TYPE) {
+    const { x, y } = scene.ghost.pos
+    ctx.globalAlpha = 0.55
+    ctx.beginPath()
+    ctx.roundRect(x, y, FRAME_SIZE.x, FRAME_SIZE.y, 0.5)
+    ctx.strokeStyle = theme.accent
+    ctx.lineWidth = STROKE
+    ctx.stroke()
+    ctx.globalAlpha = 1
+  } else if (scene.ghost) {
     const { ghost } = scene
     const params = defaultParamsOf(ghost.type)
     ctx.globalAlpha = 0.55
@@ -668,6 +745,17 @@ export function renderSymbolIcon(
   )
   ctx.lineCap = 'round'
   ctx.lineJoin = 'round'
+  if (type === FRAME_TYPE) {
+    // A box with the band of its title: the writing would be too small to read.
+    ctx.strokeStyle = theme.ink
+    ctx.lineWidth = 1.5 / scale
+    ctx.beginPath()
+    ctx.roundRect(x0, y0, x1 - x0, y1 - y0, 0.8)
+    ctx.moveTo(x0, y0 + FRAME_TITLE * 1.4)
+    ctx.lineTo(x1, y0 + FRAME_TITLE * 1.4)
+    ctx.stroke()
+    return
+  }
   drawPart(
     ctx,
     symbol,

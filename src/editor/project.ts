@@ -8,9 +8,11 @@ import {
   resolveParams,
 } from '../core/index.ts'
 import {
+  FRAME_TYPE,
   MAX_LABEL,
   SUB_TYPE,
   TEXT_TYPE,
+  cleanFrameSize,
   cleanText,
   deleteItems,
   isSwitchKey,
@@ -18,6 +20,7 @@ import {
 } from './document.ts'
 import type { CircuitDoc, DocComponent, DocJunction, DocWire, Terminal } from './document.ts'
 import type { Point, Rotation } from './geometry.ts'
+import { DEFAULT_FRAME, FRAME_SIZE } from './symbols.ts'
 import {
   cleanCircuitName,
   contains,
@@ -80,8 +83,10 @@ export interface ComponentData {
   readonly key?: string
   /** On a part that stands for a named circuit: the id of that circuit. */
   readonly circuit?: string
-  /** On a text label: what it says. */
+  /** On a text label: what it says. On a frame: its title. */
   readonly text?: string
+  /** On a frame: its width and height. */
+  readonly size?: Point
 }
 
 export interface CircuitData {
@@ -136,6 +141,7 @@ function docToData(doc: CircuitDoc): Pick<CircuitData, 'nextId' | 'components' |
       ...(component.key ? { key: component.key } : {}),
       ...(component.sub ? { circuit: component.sub.circuit } : {}),
       ...(component.text !== undefined ? { text: component.text } : {}),
+      ...(component.size ? { size: component.size } : {}),
     })),
     junctions: Object.values(doc.junctions),
     wires: Object.values(doc.wires),
@@ -210,6 +216,11 @@ function componentOf(data: ComponentData): DocComponent | undefined {
     const text = cleanText(data.text)
     if (text === undefined) return undefined
     return { id: data.id, type: TEXT_TYPE, params: {}, delay: 1, pos, rotation: 0, text }
+  }
+  if (data.type === FRAME_TYPE) {
+    const text = cleanText(data.text) ?? DEFAULT_FRAME
+    const size = cleanFrameSize(pointOf(data.size) ?? FRAME_SIZE)
+    return { id: data.id, type: FRAME_TYPE, params: {}, delay: 1, pos, rotation: 0, text, size }
   }
   if (!builtinComponents.has(data.type)) return undefined
   try {

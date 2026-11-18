@@ -55,6 +55,21 @@ export const TEXT_TYPE = 'text'
 /** What a new text label says. */
 export const DEFAULT_TEXT = 'Text'
 
+/**
+ * The type of a frame: a titled rectangle around part of the drawing. It
+ * is not part of the circuit, and what lies inside it moves with it.
+ */
+export const FRAME_TYPE = 'frame'
+
+/** The title of a new frame. */
+export const DEFAULT_FRAME = 'Frame'
+
+/** The size of a frame put down from the palette, in grid units. */
+export const FRAME_SIZE = { x: 16, y: 10 } as const
+
+/** Height of the band along the top of a frame that holds its title. */
+export const FRAME_TITLE = 1.6
+
 /** Height of the writing of a text label, in grid units. */
 const TEXT_SIZE = 0.95
 
@@ -1049,6 +1064,13 @@ function textSymbol(text: string): ComponentSymbol {
 
 const texts = new Map<string, ComponentSymbol>()
 
+/** A frame is drawn apart from the parts, below the wires, so its symbol only holds its box. */
+function frameSymbol(width: number, height: number): ComponentSymbol {
+  return { pins: [], bounds: { x0: 0, y0: 0, x1: width, y1: height }, draw() {} }
+}
+
+const frames = new Map<string, ComponentSymbol>()
+
 const UNKNOWN_CIRCUIT: SubRef = { circuit: '', name: '?', inputs: [], outputs: [] }
 const chips = new WeakMap<SubRef, ComponentSymbol>()
 
@@ -1058,7 +1080,18 @@ export function symbolOf(part: {
   readonly params: Readonly<Record<string, number>>
   readonly sub?: SubRef
   readonly text?: string
+  readonly size?: Point
 }): ComponentSymbol {
+  if (part.type === FRAME_TYPE) {
+    const { x, y } = part.size ?? FRAME_SIZE
+    const key = `${x}x${y}`
+    let symbol = frames.get(key)
+    if (!symbol) {
+      symbol = frameSymbol(x, y)
+      frames.set(key, symbol)
+    }
+    return symbol
+  }
   if (part.type === TEXT_TYPE) {
     const text = part.text ?? DEFAULT_TEXT
     let symbol = texts.get(text)
