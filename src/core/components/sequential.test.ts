@@ -87,6 +87,14 @@ describe('clock', () => {
     expect(sim.pendingWakes).toBe(1)
     expect(trace(sim, clock, 8)).toBe('00011100')
   })
+
+  it('gives 0 and lets the circuit settle while it is off', () => {
+    const sim = new Simulator(undefined, 3)
+    const clock = sim.addComponent('clock', { params: { half: 2, on: 0 } })
+    expect(sim.settle(200)).toBe(true)
+    expect(sim.pendingWakes).toBe(0)
+    expect(trace(sim, clock, 8)).toBe('00000000')
+  })
 })
 
 describe('clockLevel', () => {

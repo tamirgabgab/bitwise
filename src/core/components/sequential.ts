@@ -19,17 +19,22 @@ import type { Digit } from '../signal.ts'
  *   X every wire carries for a moment at power-on would wipe the memory.
  */
 
-/** A clock: 0 for `half` ticks, then the top value for `half` ticks. */
+/**
+ * A clock: 0 for `half` ticks, then the top value for `half` ticks. While
+ * `on` is 0 it is stopped: it gives 0 and never wakes, as if `half` were
+ * endless, so a circuit with only stopped clocks can settle.
+ */
 export const clockSource: ComponentDef<boolean> = {
   type: 'clock',
-  params: { half: { default: 5, min: 1, max: 1000 } },
+  params: { half: { default: 5, min: 1, max: 1000 }, on: { default: 1, min: 0, max: 1 } },
   ports() {
     return [{ name: 'out', direction: 'out', width: 1 }]
   },
   initialState() {
     return false
   },
-  evaluate(_inputs, { half }, high, { radix, woke }) {
+  evaluate(_inputs, { half, on }, high, { radix, woke }) {
+    if (on === 0) return { outputs: { out: [0] }, state: false }
     const next = woke ? !high : high
     return { outputs: { out: [next ? radix - 1 : 0] }, state: next, wake: half }
   },

@@ -69,8 +69,9 @@ The build uses relative paths (`base: './'`), so it works under that folder.
 - A component can wake itself: `evaluate` returns `wake: k` to be evaluated
   again in k ticks (at least 1), and that evaluation gets `env.woke`. One
   request per component at a time. Only the clock uses it. A circuit with a
-  clock never settles: `pendingEvents` stays above 0 and `settle()` returns
-  false, so tests of clocked circuits use `run`.
+  running clock never settles: `pendingEvents` stays above 0 and `settle()`
+  returns false, so tests of clocked circuits use `run`. A clock whose `on`
+  parameter is 0 is stopped: it gives 0 and never wakes.
 - Sequential parts (`components/sequential.ts`) follow the owner's rules for
   radix n: the clock alternates between 0 and the top value; a clock input
   is high when 2 * value >= radix, and a rising edge is low to high, never
@@ -289,7 +290,10 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   through `useModal` (`src/ui/useModal.ts`). The
   canvas ignores keys whose target is inside a dialog.
 - The inspector is docked on the right and is there only while something
-  is selected. On a phone it is a bottom sheet.
+  is selected. On a phone it is a bottom sheet. Its numbers are `Stepper`s:
+  a typed field between − and +, checked by `readWholeNumber`
+  (`wholeNumber.ts`) against the range, with a note naming the range when
+  a value is refused.
 - `paletteModel.ts` decides the palette sections and the search;
   `minimap.ts` the overview map, shown only when part of the drawing is out
   of sight; `toasts.ts` the short messages; `tour.ts` the steps of the tour

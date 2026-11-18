@@ -45,6 +45,7 @@ import {
   ZoomOutIcon,
 } from './icons.tsx'
 import { partHint, partName } from './parts.ts'
+import { readWholeNumber } from './wholeNumber.ts'
 import { pinName, portLabel } from './probeText.ts'
 import { TableEditor } from './TableEditor.tsx'
 import { MemoryEditor } from './MemoryEditor.tsx'
@@ -59,6 +60,11 @@ interface Field {
   range(radix: number, limits: { min: number; max: number }): [number, number]
   /** How the current value is written. */
   show(value: number, settings: ProjectSettings): string
+  /**
+   * The value can be typed as a decimal number. Not for a digit of the
+   * radix, which is written in the radix's own way (A, +1, ...).
+   */
+  readonly typed?: false
 }
 
 const asValue = (value: number, settings: ProjectSettings): string => valueText(value, settings)
@@ -84,8 +90,8 @@ const FIELDS: readonly Field[] = [
     range: (_radix, limits) => [limits.min, limits.max],
     show: String,
   },
-  { param: 'value', label: 'Value', range: digitRange, show: asValue },
-  { param: 'match', label: 'Matches', range: digitRange, show: asValue },
+  { param: 'value', label: 'Value', range: digitRange, show: asValue, typed: false },
+  { param: 'match', label: 'Matches', range: digitRange, show: asValue, typed: false },
   {
     param: 'by',
     label: 'Adds',
@@ -124,9 +130,9 @@ const FIELDS: readonly Field[] = [
   },
   {
     param: 'width',
-    label: 'Width',
+    label: 'Width (digits)',
     range: (_radix, limits) => [limits.min, Math.min(limits.max, MAX_BUS)],
-    show: (value) => (value === 1 ? '1 digit' : `${value} digits`),
+    show: String,
   },
   {
     param: 'each',
@@ -141,6 +147,126 @@ const MAX_BUS = 32
 
 /** The parts whose name becomes a pin when the circuit is used as a part. */
 const NAMED: readonly string[] = ['input', 'output']
+
+interface StepperProps {
+  label: string
+  /** Shown when the label is hovered. */
+  title?: string
+  value: number
+  min: number
+  max: number
+  /** Gets a value already inside the range. */
+  onSet(next: number): void
+  /** The value written in the radix's own way; such a value is not typed. */
+  shown?: string
+}
+
+/**
+ * A number with a button on each side. Unless it is a digit of the radix,
+ * the number itself is a field: a value typed there takes effect on Enter or
+ * when the field is left, and one outside the range is refused with a note
+ * that names the range.
+ */
+function Stepper({ label, title, value, min, max, onSet, shown }: StepperProps) {
+  const [draft, setDraft] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const noteId = useId()
+  const set = (next: number): void => {
+    setDraft(null)
+    setError(null)
+    // A value left over from a larger radix can sit above the range.
+    const clamped = Math.min(max, Math.max(min, next))
+    if (clamped !== value) onSet(clamped)
+  }
+  /** Takes what was typed. Returns whether it was taken. */
+  const commit = (): boolean => {
+    if (draft === null) return true
+    const read = readWholeNumber(draft, min, max)
+    if (!read.ok) {
+      setError(read.message)
+      return false
+    }
+    set(read.value)
+    return true
+  }
+  const cancel = (): void => {
+    setDraft(null)
+    setError(null)
+  }
+
+  return (
+    <>
+      <div className="stepper" role="group" aria-label={label}>
+        <span className="stepper-label" title={title}>
+          {label}
+        </span>
+        <button
+          type="button"
+          className="tool"
+          aria-label={`${label}: lower`}
+          title={`${label}: lower`}
+          disabled={value <= min}
+          onClick={() => set(value - 1)}
+        >
+          <ZoomOutIcon />
+        </button>
+        {shown === undefined ? (
+          <input
+            className="stepper-value stepper-input"
+            aria-label={label}
+            aria-invalid={error !== null}
+            aria-describedby={error !== null ? noteId : undefined}
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+            value={draft ?? String(value)}
+            onFocus={(event) => event.target.select()}
+            onChange={(event) => {
+              const text = event.target.value
+              setDraft(text)
+              // Once the note is up, it goes the moment the value is right.
+              if (error !== null && readWholeNumber(text, min, max).ok) setError(null)
+            }}
+            onBlur={() => {
+              // A refused value is not kept in the field; the note stays to say why.
+              if (!commit()) setDraft(null)
+            }}
+            onKeyDown={(event) => {
+              if (event.code === 'Enter' || event.code === 'NumpadEnter') {
+                event.preventDefault()
+                commit()
+              } else if (event.code === 'Escape') {
+                cancel()
+              } else if (event.code === 'ArrowUp' || event.code === 'ArrowDown') {
+                event.preventDefault()
+                set(value + (event.code === 'ArrowUp' ? 1 : -1))
+              }
+            }}
+          />
+        ) : (
+          <output className="stepper-value" aria-live="polite">
+            {shown}
+          </output>
+        )}
+        <button
+          type="button"
+          className="tool"
+          aria-label={`${label}: higher`}
+          title={`${label}: higher`}
+          disabled={value >= max}
+          onClick={() => set(value + 1)}
+        >
+          <ZoomInIcon />
+        </button>
+      </div>
+      {error !== null && (
+        <p className="note stepper-error" id={noteId} role="alert">
+          {error}
+        </p>
+      )}
+    </>
+  )
+}
 
 function count(amount: number, noun: string): string {
   return `${amount} ${noun}${amount === 1 ? '' : 's'}`
@@ -754,70 +880,41 @@ export function Inspector() {
           width={component.params.width}
         />
       )}
+      {component.type === 'clock' && (
+        <label className="check" title="A stopped clock gives 0 and lets the circuit settle">
+          <input
+            type="checkbox"
+            checked={component.params.on !== 0}
+            onChange={(event) => setParams(component.id, { on: event.target.checked ? 1 : 0 })}
+          />
+          Running
+        </label>
+      )}
       {fields.map((field) => {
         const [min, max] = field.range(settings.radix, specs[field.param])
-        const value = component.params[field.param]
-        // A value left over from a larger radix can sit above the range.
-        const set = (next: number): void =>
-          setParams(component.id, { [field.param]: Math.min(max, Math.max(min, next)) })
         return (
-          <div key={field.param} className="stepper" role="group" aria-label={field.label}>
-            <span className="stepper-label">{field.label}</span>
-            <button
-              type="button"
-              className="tool"
-              aria-label={`${field.label}: lower`}
-              title={`${field.label}: lower`}
-              disabled={value <= min}
-              onClick={() => set(value - 1)}
-            >
-              <ZoomOutIcon />
-            </button>
-            <output className="stepper-value" aria-live="polite">
-              {field.show(value, settings)}
-            </output>
-            <button
-              type="button"
-              className="tool"
-              aria-label={`${field.label}: higher`}
-              title={`${field.label}: higher`}
-              disabled={value >= max}
-              onClick={() => set(value + 1)}
-            >
-              <ZoomInIcon />
-            </button>
-          </div>
+          <Stepper
+            // A fresh field for another part, so nothing typed carries over.
+            key={`${active}:${component.id}:${field.param}`}
+            label={field.label}
+            value={component.params[field.param]}
+            min={min}
+            max={max}
+            shown={field.typed === false ? field.show(component.params[field.param], settings) : undefined}
+            onSet={(next) => setParams(component.id, { [field.param]: next })}
+          />
         )
       })}
       {timed && (
-        <div className="stepper" role="group" aria-label="Delay">
-          <span className="stepper-label" title="How many ticks the part takes to answer">
-            Delay
-          </span>
-          <button
-            type="button"
-            className="tool"
-            aria-label="Delay: lower"
-            title="Delay: lower"
-            disabled={component.delay <= 1}
-            onClick={() => setDelay(component.id, component.delay - 1)}
-          >
-            <ZoomOutIcon />
-          </button>
-          <output className="stepper-value" aria-live="polite">
-            {component.delay}
-          </output>
-          <button
-            type="button"
-            className="tool"
-            aria-label="Delay: higher"
-            title="Delay: higher"
-            disabled={component.delay >= MAX_DELAY}
-            onClick={() => setDelay(component.id, component.delay + 1)}
-          >
-            <ZoomInIcon />
-          </button>
-        </div>
+        <Stepper
+          key={`${active}:${component.id}:delay`}
+          label="Delay"
+          title="How many ticks the part takes to answer"
+          value={component.delay}
+          min={1}
+          max={MAX_DELAY}
+          onSet={(next) => setDelay(component.id, next)}
+        />
       )}
       {component.type === 'table' && <TableEditor component={component} />}
       {(component.type === 'rom' || component.type === 'ram') && <MemoryEditor component={component} />}

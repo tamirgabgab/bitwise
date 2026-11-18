@@ -282,11 +282,13 @@ export class SimBridge {
     }
   }
 
-  /** The output pin of every clock, the ones inside named circuits too. */
+  /** The output pin of every running clock, the ones inside named circuits too. */
   clockPins(): PinRef[] {
     const pins: PinRef[] = []
     for (const entry of this.mirrored.values()) {
-      if (entry.type === 'clock') pins.push({ component: entry.simId, port: 'out' })
+      if (entry.type === 'clock' && entry.params.on !== 0) {
+        pins.push({ component: entry.simId, port: 'out' })
+      }
     }
     return pins
   }

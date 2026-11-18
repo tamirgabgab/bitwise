@@ -411,6 +411,15 @@ describe('SimBridge.clockPins', () => {
     bridge.sync(deleteItems(doc, ['c1']))
     expect(bridge.clockPins()).toEqual([])
   })
+
+  it('leaves out a stopped clock', () => {
+    const doc = addComponent(emptyDoc(), 'clock', { x: 0, y: 0 }).doc
+    const bridge = new SimBridge()
+    bridge.sync(setComponentParams(doc, 'c1', { on: 0 }))
+    expect(bridge.clockPins()).toEqual([])
+    bridge.sync(setComponentParams(doc, 'c1', { on: 1 }))
+    expect(bridge.clockPins()).toHaveLength(1)
+  })
 })
 
 describe('SimBridge.describeTerminal', () => {

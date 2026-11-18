@@ -759,7 +759,7 @@ kbd {
 
 .stepper-label {
   flex: 1;
-  margin-right: 8px;
+  margin-right: 4px;
   color: var(--text-muted);
 }
 
@@ -769,6 +769,41 @@ kbd {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
   text-align: center;
+}
+
+/* The number of a stepper is a field: it looks like the readout until it is
+   hovered or focused. */
+.stepper-input {
+  width: 46px;
+  min-width: 0;
+  height: 28px;
+  padding: 0 2px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: transparent;
+  color: inherit;
+  font-family: inherit;
+}
+
+.stepper-input:hover {
+  border-color: var(--border);
+}
+
+.stepper-input:focus {
+  border-color: var(--border);
+  background: var(--canvas-bg);
+}
+
+/* A refused value: ink with a thick dashed underline, like a conflict. */
+.stepper-input[aria-invalid='true'] {
+  border-color: var(--border);
+  border-bottom: 2px dashed var(--ink);
+}
+
+.inspector .note.stepper-error {
+  max-width: none;
+  margin: 4px 0 0;
+  color: var(--ink);
 }
 
 .stepper-note {
@@ -1282,8 +1317,12 @@ kbd {
   color: var(--text-muted);
 }
 
-.part-hint {
+/* What the part does is read first, so it is set in the body size. */
+.inspector .part-hint {
+  max-width: none;
   margin-top: -2px;
+  font-size: var(--text-md);
+  line-height: 1.45;
 }
 
 .part-values {
@@ -3192,6 +3231,10 @@ label.swatch:focus-within {
   .palette-head,
   .check {
     min-height: 40px;
+  }
+
+  .stepper-input {
+    height: 40px;
   }
 
   .statusbar {
