@@ -44,7 +44,7 @@ function circuitParts(doc: CircuitDoc): DocComponent[] {
 
 /** A part that keeps a value, so a loop through it is a memory and not a race. */
 function remembers(part: DocComponent): boolean {
-  return builtinComponents.get(part.type)?.stored !== undefined
+  return builtinComponents.has(part.type) && builtinComponents.get(part.type).stored !== undefined
 }
 
 /** What a pin is called: its port, or for a named circuit the label inside. */

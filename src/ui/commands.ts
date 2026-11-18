@@ -171,6 +171,23 @@ export function listCommands(): Command[] {
       run: editor.deleteSelection,
     },
     {
+      id: 'edit.arrange',
+      group: 'Edit',
+      title: 'Arrange the circuit left to right',
+      detail: 'Each part a column after what feeds it; frames move as one block',
+      keywords: 'auto layout tidy sort columns depth clean up',
+      disabled: Object.keys(editor.doc.components).length === 0,
+      run: editor.arrangeAll,
+    },
+    {
+      id: 'file.describe',
+      group: 'File',
+      title: 'Describe the circuit in words',
+      detail: 'What it is made of and what each output depends on',
+      keywords: 'text summary screen reader accessibility explain',
+      run: chrome.openDescribe,
+    },
+    {
       id: 'edit.frame',
       group: 'Edit',
       title: 'Put a frame around the selection',

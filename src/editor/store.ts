@@ -37,6 +37,7 @@ import {
 } from './document.ts'
 import type { BusFormat, CircuitDoc, Fragment, Terminal, WireEnd } from './document.ts'
 import { setBusFormat } from './busFormat.ts'
+import { autoLayout } from './layout.ts'
 import { extractCircuit } from './extract.ts'
 import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
 import { placementParams } from './placement.ts'
@@ -185,6 +186,8 @@ export interface EditorState {
   setBusFormat(terminal: Terminal, format: BusFormat): void
   /** Puts a frame around the selection and selects it. */
   frameSelection(): void
+  /** Arranges the whole open circuit left to right by depth (`layout.ts`), as one edit. */
+  arrangeAll(): void
   /** Changes the size of a frame. */
   resizeFrame(id: string, size: Point): void
   /** Gives a switch or a push button a keyboard key, or none for null. */
@@ -442,6 +445,10 @@ export const useEditor = create<EditorState>()((set, get) => {
       const { doc, selection } = get()
       const framed = frameAround(doc, selection)
       if (framed) commit(framed.doc, [framed.id])
+    },
+
+    arrangeAll() {
+      commit(autoLayout(get().doc))
     },
 
     resizeFrame(id, size) {

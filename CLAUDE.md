@@ -211,6 +211,17 @@ Run lint, test and build before calling a change done. CI runs the same three.
   no memory part, parts that drive nothing, and from the running circuit
   conflicts and mixed widths. The status bar counts the ones read off the
   drawing; the strip under the canvas lists them all.
+- `layout.ts` (`autoLayout`) arranges the whole open circuit as one edit:
+  each part a column after what feeds it (longest path, back edges of a
+  loop cut), switches first and outputs last, rows by where the feeders
+  sit. A top-level frame moves as one block with what it holds, a net
+  label with its part, a text with the part beside it. Bend junctions are
+  dropped; branch junctions go to the middle of their neighbours.
+- `describe.ts` tells a circuit in words: what it is made of, what each
+  output depends on, and the first problem. The same text is the canvas's
+  `aria-description` and the "Describe the circuit" window. A named
+  circuit is not a built-in type: check `builtinComponents.has` before
+  `get`, which throws.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
   live only for the session. Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.

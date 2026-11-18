@@ -2160,6 +2160,29 @@ label.swatch:focus-within {
   width: 380px;
 }
 
+.describe {
+  width: 480px;
+}
+
+.dialog p.describe-text {
+  margin: 0;
+  padding: 12px 20px;
+  line-height: 1.55;
+}
+
+.describe-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 20px 16px;
+}
+
+.describe-note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 .dialog p.history-note {
   margin: 0;
   padding: 10px 20px 8px;

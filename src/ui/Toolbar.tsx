@@ -306,6 +306,16 @@ function FileMenu() {
             onPick={pick(useChrome.getState().openHistory)}
           />
           <MenuRow
+            name="Arrange the circuit"
+            summary="Left to right by depth, as one edit"
+            onPick={pick(() => useEditor.getState().arrangeAll())}
+          />
+          <MenuRow
+            name="Describe the circuit in words"
+            summary="What it is made of and what each output depends on"
+            onPick={pick(useChrome.getState().openDescribe)}
+          />
+          <MenuRow
             name="Open the base calculator"
             summary="Base n, decimal and balanced"
             onPick={pick(useChrome.getState().openCalculator)}
