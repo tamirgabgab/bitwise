@@ -37,3 +37,11 @@ export {
   watchLocal,
 } from './storage.ts'
 export type { Library, StoredProject } from './storage.ts'
+export {
+  MAX_VERSION_NAME,
+  addVersion,
+  deleteVersion,
+  listVersions,
+  readVersion,
+} from './versions.ts'
+export type { Version } from './versions.ts'

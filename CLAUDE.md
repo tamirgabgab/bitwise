@@ -241,7 +241,8 @@ Run lint, test and build before calling a change done. CI runs the same three.
 ## App chrome
 
 - `useChrome` (`src/ui/chrome.ts`) holds what belongs to the app and not to
-  the project: the open overlay (command search, shortcuts, tour), folded
+  the project: the open overlay (command search, shortcuts, tour, home,
+  versions), presentation mode, folded
   palette sections, parts used lately, the height of the timing panel and
   whether the tour was shown. It is saved under its own storage key.
 - The slash key opens the command search as quick add (`quickAdd` in
@@ -275,6 +276,16 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `.ux-profile.md` at the root is the visual and copy standard ("Instrument",
   on a Linear base) that the UX skills and `ux-audit` read. Read it before
   changing UI, CSS or microcopy.
+- The home screen (`HomeScreen.tsx`, overlay `home`) is where every visit
+  but the first starts (the first starts with the tour). It lists the
+  projects the browser keeps and the examples, each with a picture
+  (`Thumbnail.tsx`, from `projectSvg` in `svgExport.ts`), drawn one at a
+  time after the screen shows and kept in memory.
+- Presentation mode (`presentation.ts`, `useChrome.presenting`) hides the
+  chrome with the `.presenting` class, asks for the browser's full screen,
+  opens the steps when the circuit has some, and draws the pointer as an
+  amber laser (`LaserPointer.tsx`). Esc or leaving full screen ends it;
+  clicks still reach the canvas.
 
 ## Conventions
 
@@ -296,6 +307,11 @@ Run lint, test and build before calling a change done. CI runs the same three.
   open one; `persistence.ts` asks before replacing only when storage is off.
   Each tab has its own open project; the index remembers only the one
   opened last, where a new tab starts.
+- Versions of a project (`src/io/versions.ts`) are kept in the browser under
+  `cedar-logic.versions.<id>`, never in the project file: one by hand, one
+  each time the project is opened, and one before going back to an older
+  version. At most `MAX_VERSIONS`, the oldest automatic ones going first;
+  a full storage drops the oldest. Deleting a project deletes its versions.
 - TypeScript runs with `erasableSyntaxOnly`: no enums, namespaces or
   parameter properties. Use union types and `as const` objects.
 - Relative imports include the `.ts` / `.tsx` extension.

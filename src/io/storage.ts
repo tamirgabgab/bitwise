@@ -7,6 +7,8 @@
  * last, which is where a new tab starts.
  */
 
+import { versionsKey } from './versions.ts'
+
 const INDEX_KEY = 'cedar-logic.projects'
 /** Where the one project of earlier versions was kept. */
 const OLD_KEY = 'cedar-logic.project'
@@ -273,10 +275,11 @@ export function duplicateLocal(id: string, name: string): string | null {
   return done ? copy : null
 }
 
-/** Removes a project from the browser. If it was open, none is open after. */
+/** Removes a project, and its versions, from the browser. If it was open, none is open after. */
 export function deleteLocal(id: string): boolean {
   return update((library, store) => {
     store.removeItem(textKey(id))
+    store.removeItem(versionsKey(id))
     return {
       open: library.open === id ? null : library.open,
       projects: library.projects.filter((project) => project.id !== id),

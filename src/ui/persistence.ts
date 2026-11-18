@@ -3,6 +3,7 @@ import { canvasRuntime, isBlankProject, projectSnapshot, useEditor, useSim } fro
 import type { Example, ProjectData } from '../editor/index.ts'
 import {
   ProjectFileError,
+  addVersion,
   chooseLocal,
   createLocal,
   deleteLocal,
@@ -10,6 +11,7 @@ import {
   duplicateLocal,
   freshName,
   listLocal,
+  listVersions,
   loadLocal,
   parseProject,
   pickTextFile,
@@ -94,6 +96,7 @@ export function startPersistence(): void {
   if (stored !== null) {
     try {
       openProjectText(stored)
+      noteOpened(stored)
     } catch (error) {
       // Kept under another name, so the next save does not wipe it out.
       setAsideLocal()
@@ -178,6 +181,49 @@ async function openAsNew(base: string, what: string, apply: () => void): Promise
   return true
 }
 
+/** The name of an automatic version kept when a project is opened. */
+const OPENED = 'As it was opened'
+
+/** Keeps a project as it was when it was opened, so the session can be undone as a whole. */
+function noteOpened(text: string): void {
+  const { open } = listLocal()
+  if (open !== null) addVersion(open, text, OPENED, true)
+}
+
+/**
+ * Keeps the open project, as it is now, as a version with `name`. False if
+ * the browser is not keeping projects.
+ */
+export function saveVersion(name: string): boolean {
+  saveNow()
+  const { open } = listLocal()
+  const version = open === null ? null : addVersion(open, projectText(), name, false)
+  if (version) toast(`Saved the version “${version.name}”`)
+  return version !== null
+}
+
+/**
+ * Puts the open project back as it was in one of its versions. What it is
+ * now is kept as a version first, so going back can itself be undone.
+ */
+export function goBackTo(versionId: string): boolean {
+  saveNow()
+  const { open } = listLocal()
+  if (open === null) return false
+  const version = listVersions(open).find((item) => item.id === versionId)
+  if (!version) return false
+  addVersion(open, projectText(), `Before going back to ${version.name}`, true)
+  try {
+    openProjectText(version.text)
+  } catch {
+    toast(`The version “${version.name}” could not be read. Your project is unchanged.`)
+    return false
+  }
+  saveNow()
+  toast(`Went back to “${version.name}”`)
+  return true
+}
+
 /** Saves the project as a file on the user's computer. */
 export function saveProjectFile(): void {
   const name = safeFileName(openName(), 'project')
@@ -257,6 +303,7 @@ export async function switchProject(id: string): Promise<boolean> {
     })
     return false
   }
+  noteOpened(text)
   toast(`Opened “${name}”`)
   return true
 }

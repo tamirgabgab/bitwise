@@ -4,6 +4,7 @@ import { useChrome } from './chrome.ts'
 import { MeterBoard } from './MeterBoard.tsx'
 import { Minimap } from './Minimap.tsx'
 import { ProbeBubble } from './ProbeBubble.tsx'
+import { LaserPointer } from './LaserPointer.tsx'
 import { problemName } from './parts.ts'
 import { ValueLegend } from './ValueLegend.tsx'
 
@@ -11,6 +12,7 @@ export function CanvasView() {
   const ref = useRef<HTMLCanvasElement>(null)
   const isEmpty = useEditor((state) => Object.keys(state.doc.components).length === 0)
   const isPlacing = useEditor((state) => state.placing !== null)
+  const presenting = useChrome((state) => state.presenting)
   // What a screen reader hears of the drawing: the circuit in words.
   const description = useEditor((state) =>
     describeCircuit(state.doc, state.circuits[state.active]?.name ?? '', problemName),
@@ -57,6 +59,7 @@ export function CanvasView() {
       )}
       <ValueLegend />
       <Minimap />
+      {presenting && <LaserPointer />}
       <MeterBoard />
       <ProbeBubble />
     </div>

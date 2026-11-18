@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { EXAMPLES, useEditor, useSim } from '../editor/index.ts'
+import { useChrome } from './chrome.ts'
 import { listCommands, searchCommands } from './commands.ts'
 import type { Command } from './commands.ts'
 import { SHORTCUTS } from './shortcuts.ts'
@@ -102,5 +103,30 @@ describe('listCommands', () => {
     for (const item of listCommands()) {
       if (item.shortcut) expect(listed).toContain(item.shortcut)
     }
+  })
+})
+
+describe('the commands of the canvas look and the workspace', () => {
+  it('switches the canvas look and the gate style, and leaves the current look disabled', () => {
+    const find = (id: string) => listCommands().find((item) => item.id === id)!
+    expect(find('view.look.classic').disabled).toBe(true)
+    find('view.look.chalk').run()
+    expect(useEditor.getState().canvasLook).toBe('chalk')
+    expect(find('view.look.chalk').disabled).toBe(true)
+    find('view.look.classic').run()
+
+    expect(find('view.gates').title).toBe('Draw gates as IEC boxes')
+    find('view.gates').run()
+    expect(useEditor.getState().gateStyle).toBe('iec')
+    expect(find('view.gates').title).toBe('Draw gates as ANSI shapes')
+    find('view.gates').run()
+  })
+
+  it('opens the home screen and the versions', () => {
+    listCommands().find((item) => item.id === 'file.projects')!.run()
+    expect(useChrome.getState().overlay).toBe('home')
+    listCommands().find((item) => item.id === 'file.versions')!.run()
+    expect(useChrome.getState().overlay).toBe('versions')
+    useChrome.getState().closeOverlay()
   })
 })

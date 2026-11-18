@@ -1,10 +1,14 @@
 import type { CircuitDoc } from './document.ts'
 import { docBounds } from './hitTest.ts'
+import { readLiveValues } from './liveValues.ts'
 import type { LiveValues } from './liveValues.ts'
+import type { Project } from './project.ts'
+import { SimBridge } from './simBridge.ts'
 import { renderScene } from './render.ts'
 import { SvgContext } from './svgContext.ts'
 import type { GateStyle } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
+import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
 import { UNIT } from './view.ts'
 import { wirePath } from './wireLayout.ts'
@@ -64,3 +68,27 @@ export function circuitSvg(
     `viewBox="0 0 ${width} ${height}">\n${ctx.body}\n</svg>\n`
   )
 }
+
+/** How long a picture of a project lets its circuit settle, in ticks. */
+const PICTURE_TICKS = 200
+
+/**
+ * A picture of a whole project, for a thumbnail: the circuit that was open,
+ * with its switches at rest and the values that gives once it settles (or
+ * after a while, for a circuit with a clock).
+ */
+export function projectSvg(project: Project, theme: CanvasTheme, gates?: GateStyle): string {
+  const doc = project.circuits[project.active]?.doc ?? project.circuits[project.order[0]].doc
+  const bridge = new SimBridge()
+  bridge.sim.setRadix(project.settings.radix)
+  bridge.sync(doc, project.circuits)
+  bridge.sim.settle(PICTURE_TICKS)
+  return circuitSvg(
+    doc,
+    theme,
+    makeValueStyle(project.settings, theme),
+    readLiveValues(doc, bridge),
+    gates,
+  )
+}
+

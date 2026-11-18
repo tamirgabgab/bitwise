@@ -16,6 +16,7 @@ import {
 import type { SimSpeed } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 import { fitToScreen, zoomAroundCenter } from './commands.ts'
+import { startPresenting } from './presentation.ts'
 import {
   BrandMark,
   ChevronIcon,
@@ -24,6 +25,7 @@ import {
   MoonIcon,
   PauseIcon,
   PlayIcon,
+  PresentIcon,
   RedoIcon,
   RestartIcon,
   RotateIcon,
@@ -172,6 +174,15 @@ function PanelToggles() {
       >
         <StepsIcon />
       </button>
+      <button
+        type="button"
+        className="tool"
+        aria-label="Present full screen"
+        title="Present full screen: only the canvas and the steps (Esc to leave)"
+        onClick={startPresenting}
+      >
+        <PresentIcon />
+      </button>
     </div>
   )
 }
@@ -272,9 +283,14 @@ function FileMenu() {
         >
           <MenuRow name="Start a new project" onPick={pick(() => void startNewProject())} />
           <MenuRow
-            name="Manage projects"
-            summary="Switch, rename, copy or delete"
-            onPick={pick(useChrome.getState().openProjects)}
+            name="Home"
+            summary="Your projects and the examples, with pictures"
+            onPick={pick(useChrome.getState().openHome)}
+          />
+          <MenuRow
+            name="Versions of this project"
+            summary="Save a version, or go back to one"
+            onPick={pick(useChrome.getState().openVersions)}
           />
           <MenuRow
             name="Open a project file"

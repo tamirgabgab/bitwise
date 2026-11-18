@@ -8,7 +8,9 @@ import { Inspector } from './Inspector.tsx'
 import { Palette } from './Palette.tsx'
 import { SettingsPanel } from './SettingsPanel.tsx'
 import { ProblemsPanel } from './ProblemsPanel.tsx'
-import { ProjectsDialog } from './ProjectsDialog.tsx'
+import { HomeScreen } from './HomeScreen.tsx'
+import { VersionsDialog } from './VersionsDialog.tsx'
+import { listenForPresentation } from './presentation.ts'
 import { ShortcutsSheet } from './ShortcutsSheet.tsx'
 import { BaseCalculator } from './BaseCalculator.tsx'
 import { HistoryDialog } from './HistoryDialog.tsx'
@@ -25,16 +27,21 @@ const closeSettings = (): void => useChrome.getState().setSettingsOpen(false)
 
 export function App() {
   const settingsOpen = useChrome((state) => state.settingsOpen)
+  const presenting = useChrome((state) => state.presenting)
 
   useEffect(() => listenForChromeKeys(), [])
+  useEffect(() => listenForPresentation(), [])
   useEffect(() => {
-    // A first visit starts with the tour, unless something else is open.
-    const { tourDone, overlay, startTour } = useChrome.getState()
-    if (!tourDone && overlay === null && !document.querySelector('dialog[open]')) startTour()
+    // A first visit starts with the tour; every later one at the home
+    // screen. Neither when something else is open already.
+    const { tourDone, overlay, startTour, openHome } = useChrome.getState()
+    if (overlay !== null || document.querySelector('dialog[open]')) return
+    if (tourDone) openHome()
+    else startTour()
   }, [])
 
   return (
-    <div className="app">
+    <div className={presenting ? 'app presenting' : 'app'}>
       <Toolbar />
       <CircuitTabs />
       <div className="workspace">
@@ -53,7 +60,8 @@ export function App() {
       <BaseCalculator />
       <HistoryDialog />
       <DescribeDialog />
-      <ProjectsDialog />
+      <HomeScreen />
+      <VersionsDialog />
       <Tour />
       <DialogHost />
     </div>

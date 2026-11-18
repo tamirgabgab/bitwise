@@ -301,3 +301,13 @@ export const FitIcon = () => (
     <path d="M6.5 7h5v4h-5Z" />
   </Icon>
 )
+
+/** A screen on a stand with a pointer: present full screen. */
+export const PresentIcon = () => (
+  <Icon>
+    <rect x="2.5" y="3" width="13" height="9" rx="1" />
+    <path d="M9 12v3M6 15.5h6" />
+    <circle cx="9" cy="7.5" r="1.2" />
+  </Icon>
+)
+

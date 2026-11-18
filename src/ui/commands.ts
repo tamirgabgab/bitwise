@@ -14,6 +14,7 @@ import {
   useSim,
 } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
+import { startPresenting } from './presentation.ts'
 import { matchRank, matchesQuery, paletteSections } from './paletteModel.ts'
 import { partHint, partName } from './parts.ts'
 import {
@@ -74,9 +75,26 @@ export function listCommands(): Command[] {
     {
       id: 'file.projects',
       group: 'File',
-      title: 'Manage projects',
-      keywords: 'list switch rename duplicate copy delete library saved',
-      run: chrome.openProjects,
+      title: 'Go to the home screen',
+      detail: 'Your projects and the examples, with pictures',
+      keywords: 'home projects list switch rename duplicate copy delete library saved gallery',
+      run: chrome.openHome,
+    },
+    {
+      id: 'file.versions',
+      group: 'File',
+      title: 'Show the versions of this project',
+      detail: 'Save a version, or go back to one',
+      keywords: 'history snapshot checkpoint restore timeline backup',
+      run: chrome.openVersions,
+    },
+    {
+      id: 'view.present',
+      group: 'View',
+      title: 'Present full screen',
+      detail: 'Only the canvas and the steps, with a laser pointer',
+      keywords: 'presentation slideshow fullscreen laser pointer lecture',
+      run: startPresenting,
     },
     {
       id: 'file.open',

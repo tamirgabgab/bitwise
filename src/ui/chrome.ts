@@ -14,7 +14,8 @@ export type Overlay =
   | 'commands'
   | 'shortcuts'
   | 'tour'
-  | 'projects'
+  | 'home'
+  | 'versions'
   | 'calculator'
   | 'history'
   | 'describe'
@@ -40,11 +41,17 @@ interface ChromeState {
   readonly timingHeight: number | null
   /** True once the tour of a first visit has been shown. */
   readonly tourDone: boolean
+  /**
+   * Presentation mode: the chrome is hidden, the canvas fills the screen and
+   * the pointer is a laser. Not kept from one visit to the next.
+   */
+  readonly presenting: boolean
 
   openCommands(query?: string): void
   openQuickAdd(at: Point | null): void
   openShortcuts(): void
-  openProjects(): void
+  openHome(): void
+  openVersions(): void
   openCalculator(): void
   openHistory(): void
   openDescribe(): void
@@ -53,6 +60,7 @@ interface ChromeState {
   closeOverlay(): void
   setSettingsOpen(open: boolean): void
   setProblemsOpen(open: boolean): void
+  setPresenting(presenting: boolean): void
   toggleSection(id: string): void
   noteUsed(type: string): void
   setTimingHeight(height: number | null): void
@@ -102,6 +110,7 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   quickAdd: null,
   settingsOpen: false,
   problemsOpen: false,
+  presenting: false,
   ...load(),
 
   openCommands(query = '') {
@@ -113,8 +122,11 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   openShortcuts() {
     set({ overlay: 'shortcuts' })
   },
-  openProjects() {
-    set({ overlay: 'projects' })
+  openHome() {
+    set({ overlay: 'home' })
+  },
+  openVersions() {
+    set({ overlay: 'versions' })
   },
   openCalculator() {
     set({ overlay: 'calculator' })
@@ -141,6 +153,9 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   },
   setProblemsOpen(problemsOpen) {
     set({ problemsOpen })
+  },
+  setPresenting(presenting) {
+    set(presenting ? { presenting, overlay: null, settingsOpen: false } : { presenting })
   },
   toggleSection(id) {
     const { collapsed } = get()

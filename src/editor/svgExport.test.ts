@@ -5,7 +5,9 @@ import { readLiveValues } from './liveValues.ts'
 import { DEFAULT_SETTINGS } from './project.ts'
 import { SimBridge } from './simBridge.ts'
 import { SvgContext } from './svgContext.ts'
-import { circuitSvg } from './svgExport.ts'
+import { EXAMPLES } from './examples.ts'
+import { fromProjectData } from './project.ts'
+import { circuitSvg, projectSvg } from './svgExport.ts'
 import type { GateStyle } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
@@ -157,5 +159,16 @@ describe('SvgContext', () => {
     ctx.stroke()
     expect(ctx.body).toContain('stroke-dasharray="4 8"')
     expect(ctx.body).toContain('d="M0 0L4 4"')
+  })
+})
+
+describe('projectSvg', () => {
+  it('draws the open circuit of every example, settled', () => {
+    for (const example of EXAMPLES) {
+      const project = fromProjectData(example.build())
+      const svg = projectSvg(project, THEME)
+      expect(svg.startsWith('<svg'), example.name).toBe(true)
+      expect(svg, example.name).not.toMatch(/NaN|undefined|Infinity/)
+    }
   })
 })
