@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM), three rounds of interface work (finding things, the workspace, polish and a first-visit tour) and a round of fixes and additions after a review in the browser (readability, the full timing diagram, a richer inspector, a list of projects, the critical path, quick add and wire dragging). After those, the follow-up rounds chosen in `HANDOFF.md` began: round 1 (a table gate, a live truth table and a base calculator), round 2 (alignment guides, typing a value on a switch and the cone of influence), round 3 (dropping a part onto a wire, frames and a named edit history), round 4 (net labels), round 5 (markers, a meter board, bus formats and a problems panel), round 6 (auto layout and a description in words), round 7 (canvas looks and IEC gate symbols) and round 8 (a home screen, project versions and presentation mode) are done. That list is finished; the rest of "After the MVP" remains.
+Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM), three rounds of interface work (finding things, the workspace, polish and a first-visit tour) and a round of fixes and additions after a review in the browser (readability, the full timing diagram, a richer inspector, a list of projects, the critical path, quick add and wire dragging). After those, the follow-up rounds chosen in `HANDOFF.md` began: round 1 (a table gate, a live truth table and a base calculator), round 2 (alignment guides, typing a value on a switch and the cone of influence), round 3 (dropping a part onto a wire, frames and a named edit history), round 4 (net labels), round 5 (markers, a meter board, bus formats and a problems panel), round 6 (auto layout and a description in words), round 7 (canvas looks and IEC gate symbols) and round 8 (a home screen, project versions and presentation mode) are done. That list is finished. Then a security review hardened reading a project from anyone (limits, safe ids, clean SVG text and a Content Security Policy), and two items of "After the MVP" were done: a ROM and a RAM, and a state machine with its own editor and a build from flip-flops and gates. Left: a testbench, sharing by URL and a desktop build.
 
 ## Decisions
 
@@ -379,7 +379,7 @@ count, save it, close the browser, and load it back.
 
 ## After the MVP
 
-- **Buses and larger components.** Done, except RAM and ROM. Any part can
+- **Buses and larger components.** Done. Any part can
   be given a width in the inspector, a bus is drawn as a heavy line with its
   value written beside it, and a splitter and a merger go between a bus and
   its digits. The larger parts are a multiplexer, a demultiplexer, a
@@ -387,13 +387,16 @@ count, save it, close the browser, and load it back.
   for any radix: one select digit chooses among n ways, and a flag (carry,
   comparison, decoder output) is 0 or the top value. A wire between pins of
   different widths is drawn like a conflict and each side keeps to itself.
-  Left to do: RAM and ROM.
+  A ROM and a RAM hold up to 256 words of up to 8 digits, with a separate
+  data input and output; their words are typed or pasted in the inspector.
 - **Timing diagram.** Done. Signals over time, oscilloscope style: any wire
   by a right-click, zoom in time, a freeze that stops the scrolling, a
   cursor that reads every row's value, and a step trace in value colors
   above radix 2.
-- **State-diagram (FSM) editor.** Draw states and transitions, run them as a
-  component, and later convert them to a flip-flop circuit automatically.
+- **State-diagram (FSM) editor.** Done. A Moore machine of up to 16 states,
+  4 inputs and 4 outputs is drawn in a window of its own and runs as a part.
+  "Build from gates" makes a new circuit of D flip-flops and gates, minimized
+  in the manner of Quine and McCluskey at any radix.
 - **Testing and sharing.** Automatic truth table: done, in the inspector, up
   to 256 rows and for parts without memory. Left to do: testbench, share by
   URL.
