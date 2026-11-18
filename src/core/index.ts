@@ -30,6 +30,19 @@ export {
   wordCount,
 } from './components/memory.ts'
 export type { RamState } from './components/memory.ts'
+export {
+  ANY,
+  MAX_MACHINE_INPUTS,
+  MAX_MACHINE_OUTPUTS,
+  MAX_RULES,
+  MAX_STATES,
+  nextState,
+  ruleFrom,
+  ruleTo,
+  ruleWhen,
+  stateOutput,
+} from './components/machine.ts'
+export type { MachineState } from './components/machine.ts'
 export type { RegisterState } from './components/register.ts'
 export { builtinComponents, createBuiltinRegistry } from './components/index.ts'
 export { MAX_DISPLAY_DIGITS, numberValue } from './components/output.ts'

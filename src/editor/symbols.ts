@@ -1,6 +1,7 @@
 import { branchWidths, builtinComponents, resolveParams } from '../core/index.ts'
 import type { PortDirection } from '../core/index.ts'
 import type { Point, Rect } from './geometry.ts'
+import type { Machine } from './machine.ts'
 
 /** A pin of a symbol, in the symbol's own unrotated coordinates. */
 export interface PinGeometry {
@@ -936,9 +937,24 @@ function largeSymbol(type: string, params: Readonly<Record<string, number>>): Co
         [{ name: 'q', text: 'Q', bus }],
         [{ name: 'we', text: 'WE' }],
       )
+    case 'fsm':
+      return machineSymbol(
+        Array.from({ length: params.inputs ?? 0 }, (_, input) => `I${input}`),
+        Array.from({ length: params.outputs ?? 0 }, (_, output) => `O${output}`),
+      )
     default:
       return undefined
   }
+}
+
+/** A state machine: its inputs and the clock on the left, its outputs on the right, reset under it. */
+function machineSymbol(inputs: readonly string[], outputs: readonly string[]): ComponentSymbol {
+  return blockSymbol(
+    'FSM',
+    [...inputs.map((text, input) => ({ name: `in${input}`, text })), { name: 'clk', text: '', clock: true }],
+    outputs.map((text, output) => ({ name: `out${output}`, text })),
+    [{ name: 'reset', text: 'R' }],
+  )
 }
 
 const CLOCK_PIN = { name: 'clk', text: '', clock: true } as const
@@ -1203,6 +1219,7 @@ const nets = new Map<string, ComponentSymbol>()
 
 const UNKNOWN_CIRCUIT: SubRef = { circuit: '', name: '?', inputs: [], outputs: [] }
 const chips = new WeakMap<SubRef, ComponentSymbol>()
+const machines = new WeakMap<Machine, ComponentSymbol>()
 
 /** The symbol of a part of the drawing, whether built in or a named circuit. */
 export function symbolOf(part: {
@@ -1212,7 +1229,17 @@ export function symbolOf(part: {
   readonly text?: string
   readonly size?: Point
   readonly label?: string
+  readonly machine?: Machine
 }): ComponentSymbol {
+  if (part.machine) {
+    // Its pins are named after the machine's inputs and outputs.
+    let symbol = machines.get(part.machine)
+    if (!symbol) {
+      symbol = machineSymbol(part.machine.inputs, part.machine.outputs)
+      machines.set(part.machine, symbol)
+    }
+    return symbol
+  }
   if (part.type === NET_TYPE) {
     // Only a palette icon or a ghost has no name yet; a placed label always has one.
     const name = part.label ?? 'N1'
@@ -1253,17 +1280,28 @@ export function symbolOf(part: {
 }
 
 const cache = new Map<string, ComponentSymbol>()
+// A part's parameters are one object until they change, so most lookups
+// skip writing out every parameter, of which a memory has hundreds.
+const byParams = new WeakMap<object, Map<string, ComponentSymbol>>()
 
 /** The symbol for a component type with the given (complete) parameters. */
 export function symbolFor(
   type: string,
   params: Readonly<Record<string, number>>,
 ): ComponentSymbol {
+  let known = byParams.get(params)
+  const hit = known?.get(type)
+  if (hit) return hit
   const key = `${type}:${JSON.stringify(params)}`
   let symbol = cache.get(key)
   if (!symbol) {
     symbol = buildSymbol(type, params)
     cache.set(key, symbol)
   }
+  if (!known) {
+    known = new Map()
+    byParams.set(params, known)
+  }
+  known.set(type, symbol)
   return symbol
 }

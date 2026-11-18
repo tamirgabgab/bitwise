@@ -274,6 +274,7 @@ describe('built-in registry', () => {
         'dff',
         'display',
         'frombits',
+        'fsm',
         'input',
         'is',
         'merge',

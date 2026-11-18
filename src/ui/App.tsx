@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { canvasHooks } from '../editor/index.ts'
 import { CanvasView } from './CanvasView.tsx'
 import { listenForChromeKeys, useChrome } from './chrome.ts'
 import { CircuitTabs } from './CircuitTabs.tsx'
@@ -15,6 +16,7 @@ import { ShortcutsSheet } from './ShortcutsSheet.tsx'
 import { BaseCalculator } from './BaseCalculator.tsx'
 import { HistoryDialog } from './HistoryDialog.tsx'
 import { DescribeDialog } from './DescribeDialog.tsx'
+import { MachineEditor } from './MachineEditor.tsx'
 import { StatusBar } from './StatusBar.tsx'
 import { StepsPanel } from './StepsPanel.tsx'
 import { TimingPanel } from './TimingPanel.tsx'
@@ -31,6 +33,12 @@ export function App() {
 
   useEffect(() => listenForChromeKeys(), [])
   useEffect(() => listenForPresentation(), [])
+  useEffect(() => {
+    canvasHooks.editMachine = (part) => useChrome.getState().openMachine(part)
+    return () => {
+      canvasHooks.editMachine = null
+    }
+  }, [])
   useEffect(() => {
     // A first visit starts with the tour; every later one at the home
     // screen. Neither when something else is open already.
@@ -60,6 +68,7 @@ export function App() {
       <BaseCalculator />
       <HistoryDialog />
       <DescribeDialog />
+      <MachineEditor />
       <HomeScreen />
       <VersionsDialog />
       <Tour />

@@ -5,7 +5,7 @@
  */
 
 export { CanvasController } from './canvasController.ts'
-export { canvasRuntime } from './runtime.ts'
+export { canvasHooks, canvasRuntime } from './runtime.ts'
 export { minimapPan, minimapScene } from './minimap.ts'
 export type { MinimapScene } from './minimap.ts'
 export { defaultParamsOf, renderSymbolIcon } from './render.ts'
@@ -37,6 +37,16 @@ export { EXAMPLES } from './examples.ts'
 export type { Example } from './examples.ts'
 export { MAX_CIRCUITS, MAX_ID_NUMBER, fromProjectData, isBlankProject, isSafeId } from './project.ts'
 export { projectSvg } from './svgExport.ts'
+export {
+  MACHINE_SPACE,
+  MACHINE_TYPE,
+  MAX_PIN_NAME,
+  MAX_STATE_NAME,
+  freeStateId,
+  freeStateName,
+  shadowedRules,
+} from './machine.ts'
+export type { Machine, MachineNode, MachineRule } from './machine.ts'
 export type { ProjectData } from './project.ts'
 export { MAX_NOTE, MAX_STEPS } from './steps.ts'
 export type { InputValue, Step } from './steps.ts'

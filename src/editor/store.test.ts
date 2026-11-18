@@ -830,3 +830,53 @@ describe('the limits of a file', () => {
     expect(editor().past.length).toBe(steps + 1)
   })
 })
+
+describe('a state machine', () => {
+  it('starts with a machine, changes it in one step of undo, and copies it with the part', () => {
+    editor().addComponent('fsm', { x: 0, y: 0 })
+    const placed = editor().doc.components.c1
+    expect(placed.machine?.states.map((state) => state.name)).toEqual(['Off', 'On'])
+    expect(placed.params.states).toBe(2)
+    const machine = {
+      ...placed.machine!,
+      inputs: ['a', 'b'],
+      states: [...placed.machine!.states, { id: 's3', name: 'Wait', pos: { x: 200, y: 300 }, outputs: [1] }],
+    }
+    const steps = editor().past.length
+    editor().setMachine('c1', machine)
+    expect(editor().doc.components.c1.params).toMatchObject({ states: 3, inputs: 2 })
+    expect(editor().doc.components.c1.machine?.rules[0].when).toEqual([1, null])
+    expect(editor().past.length).toBe(steps + 1)
+    editor().undo()
+    expect(editor().doc.components.c1).toBe(placed)
+    editor().redo()
+    editor().duplicateSelection(4, 4)
+    expect(editor().doc.components.c2.machine).toBe(editor().doc.components.c1.machine)
+  })
+
+  it('drops the wires of pins a new machine no longer has', () => {
+    editor().addComponent('fsm', { x: 0, y: 0 })
+    editor().addComponent('input', { x: -10, y: 0 })
+    editor().connect(at('c2', 'out'), at('c1', 'in0'))
+    expect(Object.keys(editor().doc.wires)).toHaveLength(1)
+    editor().setMachine('c1', { ...editor().doc.components.c1.machine!, inputs: [] })
+    expect(Object.keys(editor().doc.wires)).toHaveLength(0)
+  })
+
+  it('is built from flip-flops and gates as a new circuit, or says why not', () => {
+    editor().addComponent('fsm', { x: 0, y: 0 })
+    editor().setLabel('c1', 'Lamp')
+    const first = editor().active
+    const built = editor().machineToCircuit('c1')
+    expect(built).toEqual({ circuit: editor().active })
+    expect(editor().active).not.toBe(first)
+    expect(editor().circuits[editor().active].name).toBe('Lamp gates')
+    expect(Object.values(editor().doc.components).some((part) => part.type === 'dff')).toBe(true)
+
+    editor().selectCircuit(first)
+    const machine = editor().doc.components.c1.machine!
+    editor().setMachine('c1', { ...machine, states: [{ ...machine.states[0], outputs: [5] }, machine.states[1]] })
+    expect(editor().machineToCircuit('c1')).toEqual({ problem: expect.stringMatching(/no room for/) })
+    expect(editor().machineToCircuit('c9')).toEqual({ problem: expect.stringMatching(/not a state machine/) })
+  })
+})

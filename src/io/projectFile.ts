@@ -1,5 +1,9 @@
 import {
+  MAX_MACHINE_INPUTS,
+  MAX_MACHINE_OUTPUTS,
   MAX_RADIX,
+  MAX_RULES,
+  MAX_STATES,
   MIN_RADIX,
   builtinComponents,
   defaultPresetId,
@@ -30,6 +34,8 @@ const CIRCUIT_PART = 'circuit'
 const TEXT_PART = 'text'
 const FRAME_PART = 'frame'
 const NET_PART = 'net'
+/** The type of a state machine, which carries the machine it runs. */
+const MACHINE_PART = 'fsm'
 
 export interface FilePoint {
   readonly x: number
@@ -57,6 +63,28 @@ export interface FileComponent {
   readonly text?: string
   /** On a part of type "frame": its width and height. */
   readonly size?: FilePoint
+  /** On a part of type "fsm": the machine it runs. */
+  readonly machine?: FileMachine
+}
+
+/**
+ * A state machine as it is drawn. The first state is where it starts; a
+ * rule asks each input for a digit (written for radix 16), or null for any.
+ */
+export interface FileMachine {
+  readonly inputs: readonly string[]
+  readonly outputs: readonly string[]
+  readonly states: readonly {
+    readonly id: string
+    readonly name: string
+    readonly pos: FilePoint
+    readonly outputs: readonly number[]
+  }[]
+  readonly rules: readonly {
+    readonly from: string
+    readonly to: string
+    readonly when: readonly (number | null)[]
+  }[]
 }
 
 export interface FileJunction {
@@ -95,6 +123,12 @@ export const MAX_FLAT_PARTS = 50_000
 export const MAX_FILE_DELAY = 99
 /** The largest number in an id, so the next id is always a safe integer. */
 export const MAX_ID_NUMBER = 1_000_000_000
+/** The longest name of a state in a state machine. */
+export const MAX_STATE_NAME = 12
+/** The longest name of an input or output of a state machine. */
+export const MAX_PIN_NAME = 6
+/** How far a state may sit in the machine editor, both ways, in pixels. */
+export const MACHINE_SPACE = 2000
 
 /**
  * Whether `id` can name a circuit, part, junction or wire: a letter and then
@@ -270,6 +304,67 @@ function settingsOf(value: unknown): FileSettings {
   }
 }
 
+function machineOf(value: unknown, what: string): FileMachine {
+  if (!isObject(value)) fail(`${what} is a state machine with no machine.`)
+  const isDigit = (digit: unknown): digit is number => isWhole(digit) && digit >= 0 && digit < MAX_RADIX
+  const names = (list: unknown, most: number, kind: string): string[] => {
+    if (!Array.isArray(list) || list.length > most) fail(`${what} must have a list of up to ${most} ${kind}.`)
+    return list.map((name) => {
+      if (typeof name !== 'string' || name.trim() === '' || name.length > MAX_PIN_NAME) {
+        fail(`${what} has ${kind} whose names are not 1 to ${MAX_PIN_NAME} characters.`)
+      }
+      return name
+    })
+  }
+  const inputs = names(value.inputs, MAX_MACHINE_INPUTS, 'inputs')
+  const outputs = names(value.outputs, MAX_MACHINE_OUTPUTS, 'outputs')
+
+  const stateList = value.states
+  if (!Array.isArray(stateList) || stateList.length === 0 || stateList.length > MAX_STATES) {
+    fail(`${what} must have from 1 to ${MAX_STATES} states.`)
+  }
+  const ids = new Set<string>()
+  const states = stateList.map((state) => {
+    if (!isObject(state) || typeof state.id !== 'string' || !/^[A-Za-z]\w{0,15}$/.test(state.id)) {
+      fail(`${what} has a state without a usable id.`)
+    }
+    if (ids.has(state.id)) fail(`${what} has two states with the id ${state.id}.`)
+    ids.add(state.id)
+    const name = state.name
+    if (typeof name !== 'string' || name.trim() === '' || name.length > MAX_STATE_NAME) {
+      fail(`${what} has a state whose name is not 1 to ${MAX_STATE_NAME} characters.`)
+    }
+    const pos = pointOf(state.pos, what)
+    if (pos.x < 0 || pos.y < 0 || pos.x > MACHINE_SPACE || pos.y > MACHINE_SPACE) {
+      fail(`${what} has a state outside the machine editor.`)
+    }
+    const digits = state.outputs
+    if (!Array.isArray(digits) || digits.length !== outputs.length || !digits.every(isDigit)) {
+      fail(`${what}: state "${shown(name)}" must give a digit from 0 to F on each output.`)
+    }
+    return { id: state.id, name, pos, outputs: digits as number[] }
+  })
+
+  const ruleList = value.rules
+  if (!Array.isArray(ruleList) || ruleList.length > MAX_RULES) fail(`${what} must have a list of up to ${MAX_RULES} rules.`)
+  const rules = ruleList.map((rule) => {
+    if (!isObject(rule) || typeof rule.from !== 'string' || typeof rule.to !== 'string') {
+      fail(`${what} has a rule that does not say where it goes.`)
+    }
+    if (!ids.has(rule.from) || !ids.has(rule.to)) fail(`${what} has a rule to or from a state it does not have.`)
+    const when = rule.when
+    if (
+      !Array.isArray(when) ||
+      when.length !== inputs.length ||
+      !when.every((digit) => digit === null || isDigit(digit))
+    ) {
+      fail(`${what} has a rule that does not ask each input for a digit from 0 to F or any.`)
+    }
+    return { from: rule.from, to: rule.to, when: when as (number | null)[] }
+  })
+  return { inputs, outputs, states, rules }
+}
+
 function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<string>): FileComponent {
   if (!isObject(value)) fail(`${where}: a part is not an object.`)
   const id = idOf(value.id, `${where}: a part`)
@@ -318,6 +413,7 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
     if (size.x <= 0 || size.y <= 0) fail(`${what} is a frame with no size.`)
     return { id, type: FRAME_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text, size }
   }
+  const machine = value.type === MACHINE_PART ? { machine: machineOf(value.machine, what) } : {}
   if (typeof value.type !== 'string' || !builtinComponents.has(value.type)) {
     fail(`${what} has the unknown type "${shown(String(value.type))}".`)
   }
@@ -331,7 +427,7 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
   } catch (error) {
     fail(`${what}: ${error instanceof Error ? error.message : 'invalid parameters'}.`)
   }
-  return { id, type: value.type, params, delay, pos, rotation, ...named, ...keyed }
+  return { id, type: value.type, params, delay, pos, rotation, ...named, ...keyed, ...machine }
 }
 
 function terminalOf(

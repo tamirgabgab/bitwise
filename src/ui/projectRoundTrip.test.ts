@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as editor from '../editor/index.ts'
 import { EXAMPLES } from '../editor/index.ts'
+import { addComponent, emptyDoc } from '../editor/document.ts'
 import { DEFAULT_SETTINGS, fromProjectData, toProjectData } from '../editor/project.ts'
 import * as io from '../io/index.ts'
 import { parseProject, serializeProject } from '../io/index.ts'
@@ -56,6 +57,41 @@ describe('a project through the file format', () => {
     expect(parts.c901).toMatchObject({ type: 'net', label: 'CARRY', rotation: 2 })
   })
 
+  it('reads a state machine back, and makes its parameters again from the machine', () => {
+    const data = EXAMPLES[0].build()
+    const [first, ...rest] = data.circuits
+    const machine = {
+      inputs: ['a', 'b'],
+      outputs: ['y'],
+      states: [
+        { id: 's1', name: 'Idle', pos: { x: 100, y: 100 }, outputs: [0] },
+        { id: 's2', name: 'Busy', pos: { x: 300, y: 100 }, outputs: [1] },
+      ],
+      rules: [
+        { from: 's1', to: 's2', when: [1, null] },
+        { from: 's2', to: 's1', when: [null, 0] },
+      ],
+    }
+    const doc = { ...emptyDoc(), nextId: first.nextId }
+    const placed = addComponent(doc, 'fsm', { x: 20, y: 0 }, { machine }).doc.components[`c${first.nextId}`]
+    const withMachine = {
+      ...data,
+      circuits: [{ ...first, nextId: first.nextId + 1, components: [...first.components, placed] }, ...rest],
+    }
+    const text = serializeProject(withMachine)
+    expect(parseProject(text)).toEqual(withMachine)
+    const loaded = fromProjectData(parseProject(text))
+    expect(toProjectData(loaded)).toEqual(toProjectData(fromProjectData(withMachine)))
+    expect(loaded.circuits[first.id].doc.components[placed.id]).toEqual(placed)
+
+    // Parameters that disagree with the machine are made again from it.
+    const tampered = text.replace('"states":2', '"states":1')
+    expect(tampered).not.toBe(text)
+    expect(fromProjectData(parseProject(tampered)).circuits[first.id].doc.components[placed.id].params.states).toBe(2)
+    expect(() => parseProject(text.replace('"to":"s1"', '"to":"s9"'))).toThrow(/a state it does not have/)
+    expect(() => parseProject(text.replace('"Busy"', '"A very long name"'))).toThrow(/name is not 1 to 12/)
+  })
+
   it('reads the format of a bus back, and refuses one it does not know', () => {
     const data = EXAMPLES[0].build()
     const [first, ...rest] = data.circuits
@@ -87,6 +123,9 @@ describe('the limits of a file', () => {
     expect(io.MAX_FLAT_PARTS).toBe(editor.MAX_FLAT_PARTS)
     expect(io.MAX_ID_NUMBER).toBe(editor.MAX_ID_NUMBER)
     expect(io.MAX_FILE_DELAY).toBe(editor.MAX_DELAY)
+    expect(io.MAX_PIN_NAME).toBe(editor.MAX_PIN_NAME)
+    expect(io.MAX_STATE_NAME).toBe(editor.MAX_STATE_NAME)
+    expect(io.MACHINE_SPACE).toBe(editor.MACHINE_SPACE)
     for (const id of ['k1', 'c12', 'constructor', '__proto__', '1a', 'a'.repeat(33)]) {
       expect(io.isSafeId(id)).toBe(editor.isSafeId(id))
     }

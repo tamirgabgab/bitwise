@@ -30,7 +30,7 @@ import {
   useSim,
   valueText,
 } from '../editor/index.ts'
-import type { AlignEdge, BreakWhen, BusFormat, ProjectSettings, Terminal } from '../editor/index.ts'
+import type { AlignEdge, BreakWhen, BusFormat, Machine, ProjectSettings, Terminal } from '../editor/index.ts'
 import {
   AlignBottomIcon,
   AlignCenterXIcon,
@@ -48,6 +48,7 @@ import { partHint, partName } from './parts.ts'
 import { pinName, portLabel } from './probeText.ts'
 import { TableEditor } from './TableEditor.tsx'
 import { MemoryEditor } from './MemoryEditor.tsx'
+import { MachineSummary } from './MachineSummary.tsx'
 import { TruthTablePanel } from './TruthTablePanel.tsx'
 
 interface Field {
@@ -456,12 +457,20 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   )
 }
 
+/** The name a state machine gives one of its pins, if it names it. */
+function machinePinName(machine: Machine | undefined, port: string): string | undefined {
+  const numbered = machine ? /^(in|out)(\d)$/.exec(port) : null
+  if (!machine || !numbered) return undefined
+  return (numbered[1] === 'in' ? machine.inputs : machine.outputs)[Number(numbered[2])]
+}
+
 /**
  * What a part carries right now: the value a memory part keeps, then every
  * pin, inputs first. It follows the simulation as it runs.
  */
 function PartValues({ id }: { id: string }) {
   const settings = useEditor((state) => state.settings)
+  const machine = useEditor((state) => state.doc.components[id]?.machine)
   useSim((state) => state.revision)
   const reading = readPart(id)
   if (!reading || reading.pins.length === 0) return null
@@ -473,8 +482,17 @@ function PartValues({ id }: { id: string }) {
     <section className="part-values" aria-label="Values now">
       {reading.stored && (
         <p className="wire-reading">
-          <span className="wire-value">{signalText(reading.stored, settings)}</span>
-          <span>kept inside</span>
+          {machine ? (
+            <>
+              <span>in state</span>
+              <span className="wire-value">{machine.states[reading.stored[0]]?.name ?? '?'}</span>
+            </>
+          ) : (
+            <>
+              <span className="wire-value">{signalText(reading.stored, settings)}</span>
+              <span>kept inside</span>
+            </>
+          )}
         </p>
       )}
       <ul className="probe-pins">
@@ -482,7 +500,7 @@ function PartValues({ id }: { id: string }) {
           <li key={pin.port}>
             <span>
               {pin.direction === 'in' ? '\u2192 ' : '\u2190 '}
-              {portLabel(pin.port)}
+              {machinePinName(machine, pin.port) ?? portLabel(pin.port)}
             </span>
             <span className="probe-pin-value">{signalText(pin.signal, settings)}</span>
           </li>
@@ -704,7 +722,8 @@ export function Inspector() {
 
   const def = builtinComponents.get(component.type)
   const specs = def.params
-  const fields = FIELDS.filter((field) => field.param in specs)
+  // A state machine's numbers all come from its machine, drawn in its own editor.
+  const fields = component.machine ? [] : FIELDS.filter((field) => field.param in specs)
   const named = NAMED.includes(component.type)
   const keyed = takesKey(component.type)
   // Only a part that turns inputs into outputs has a delay worth setting.
@@ -802,6 +821,7 @@ export function Inspector() {
       )}
       {component.type === 'table' && <TableEditor component={component} />}
       {(component.type === 'rom' || component.type === 'ram') && <MemoryEditor component={component} />}
+      {component.machine && <MachineSummary id={component.id} machine={component.machine} />}
       <PartValues id={component.id} />
       <TruthTablePanel part={component} />
       <ConeCheck />

@@ -17,6 +17,7 @@ import {
   xorGate,
 } from './gates.ts'
 import { buttonSource, constSource, inputSource } from './input.ts'
+import { stateMachine } from './machine.ts'
 import { ram, rom } from './memory.ts'
 import { displaySink, outputSink } from './output.ts'
 import { counter, register } from './register.ts'
@@ -71,6 +72,7 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(counter)
     .register(rom)
     .register(ram)
+    .register(stateMachine)
 }
 
 /** The registry a simulator uses unless it is given another one. */

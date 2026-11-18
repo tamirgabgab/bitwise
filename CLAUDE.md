@@ -170,6 +170,18 @@ Run lint, test and build before calling a change done. CI runs the same three.
   `clk` while `we` is on (unattached, off), starts from the same words and
   goes back to them on a restart; `memory` in its `ComponentDef` gives the
   inspector every word (`MemoryEditor.tsx`).
+- A state machine (`components/machine.ts`, type `fsm`) is Moore: on the
+  rising edge of `clk` it follows the first rule of its state whose
+  conditions the inputs meet, and `reset` at the top value takes it at once
+  to state 0, the start. The engine reads it from parameters; the drawing
+  keeps the `Machine` on the part (`editor/machine.ts`: inputs, outputs,
+  states with a name and a place, rules), and `compileMachine` makes the
+  parameters again on every change and on load. `MachineEditor.tsx` draws
+  it in a window of its own (double-click the part). `machineCircuit.ts`
+  builds it from D flip-flops and gates as a new circuit: state k is kept
+  as the digits of k, and each function is a sum of products minimized in
+  the manner of Quine and McCluskey at any radix, up to `MAX_MACHINE_ROWS`
+  rows. A test proves the result behaves like the part.
 - A table gate (`components/table.ts`, type `table`) keeps its answers in
   the parameters `c0` to `c255`, laid out for radix 16 (`tableCell`), so it
   keeps them when the radix changes; one it has no room for reads as X. The

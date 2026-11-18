@@ -11,6 +11,7 @@ import {
   resizeFrame,
   rotateComponents,
   setComponentLabel,
+  setComponentMachine,
   setComponentParams,
   setComponentText,
 } from './document.ts'
@@ -96,5 +97,14 @@ describe('describeEdit on frames', () => {
     expect(name(doc, moveItems(doc, new Set([framed.id]), 2, 0))).toBe('Move FRAME')
     expect(name(doc, resizeFrame(doc, framed.id, { x: 30, y: 30 }))).toBe('Resize FRAME')
     expect(name(doc, setComponentText(doc, framed.id, 'ALU'))).toBe('Rename FRAME')
+  })
+})
+
+describe('describeEdit on a state machine', () => {
+  it('names a change to its machine', () => {
+    const doc = addComponent(emptyDoc(), 'fsm', { x: 0, y: 0 }).doc
+    const machine = doc.components.c1.machine!
+    const edited = setComponentMachine(doc, 'c1', { ...machine, outputs: ['lamp'] })
+    expect(name(doc, edited)).toBe('Edit the machine of FSM')
   })
 })

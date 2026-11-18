@@ -19,6 +19,7 @@ export type Overlay =
   | 'calculator'
   | 'history'
   | 'describe'
+  | 'machine'
 
 interface ChromeState {
   readonly overlay: Overlay | null
@@ -46,6 +47,8 @@ interface ChromeState {
    * the pointer is a laser. Not kept from one visit to the next.
    */
   readonly presenting: boolean
+  /** The state machine part the machine editor works on. */
+  readonly machinePart: string | null
 
   openCommands(query?: string): void
   openQuickAdd(at: Point | null): void
@@ -55,6 +58,8 @@ interface ChromeState {
   openCalculator(): void
   openHistory(): void
   openDescribe(): void
+  /** Opens the machine editor on a state machine part of the open circuit. */
+  openMachine(part: string): void
   startTour(): void
   endTour(): void
   closeOverlay(): void
@@ -111,6 +116,7 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   settingsOpen: false,
   problemsOpen: false,
   presenting: false,
+  machinePart: null,
   ...load(),
 
   openCommands(query = '') {
@@ -136,6 +142,9 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   },
   openDescribe() {
     set({ overlay: 'describe' })
+  },
+  openMachine(part) {
+    set({ overlay: 'machine', machinePart: part })
   },
   startTour() {
     // Seen once is enough: it does not come back by itself after this.

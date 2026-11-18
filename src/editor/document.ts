@@ -1,6 +1,8 @@
 import { builtinComponents, resolveParams } from '../core/index.ts'
 import { add, placeRect, rectContainsPoint, rectContainsRect, rotatePoint, samePoint } from './geometry.ts'
 import type { Point, Rect, Rotation } from './geometry.ts'
+import { MACHINE_TYPE, cleanMachine, compileMachine, defaultMachine } from './machine.ts'
+import type { Machine } from './machine.ts'
 import type { RouteEnd } from './routing.ts'
 import {
   DEFAULT_FRAME,
@@ -53,6 +55,8 @@ export interface DocComponent {
    * units. Its `pos` is its top left corner.
    */
   readonly size?: Point
+  /** On a state machine, whose type is `MACHINE_TYPE`: the machine it runs. */
+  readonly machine?: Machine
 }
 
 /** The longest writing a text label can hold. */
@@ -204,6 +208,8 @@ export interface AddComponentOptions {
   readonly rotation?: Rotation
   /** The keyboard key of a switch or a push button. */
   readonly key?: string
+  /** The machine a state machine part runs; a new one gets `defaultMachine`. */
+  readonly machine?: Machine
 }
 
 /** Adds a part. Throws if the type or its parameters are not valid. */
@@ -213,7 +219,8 @@ export function addComponent(
   pos: Point,
   options: AddComponentOptions = {},
 ): { doc: CircuitDoc; id: string } {
-  const params = resolveParams(builtinComponents.get(type), options.params)
+  const machine = type === MACHINE_TYPE ? (options.machine ?? defaultMachine()) : undefined
+  const params = resolveParams(builtinComponents.get(type), machine ? compileMachine(machine) : options.params)
   const id = `c${doc.nextId}`
   const component: DocComponent = {
     id,
@@ -224,6 +231,7 @@ export function addComponent(
     rotation: options.rotation ?? 0,
     ...(options.label?.trim() ? { label: options.label.trim().slice(0, MAX_LABEL) } : {}),
     ...(takesKey(type) && isSwitchKey(options.key) ? { key: options.key } : {}),
+    ...(machine ? { machine } : {}),
   }
   return {
     doc: { ...doc, components: { ...doc.components, [id]: component }, nextId: doc.nextId + 1 },
@@ -494,6 +502,22 @@ export function setComponentParams(
     components: { ...doc.components, [id]: { ...component, params } },
   }
   return stale.length > 0 ? deleteItems(next, stale) : next
+}
+
+/**
+ * Gives a state machine part a new machine, and the parameters that run it.
+ * Wires on pins it no longer has go. A machine that makes no sense is ignored.
+ */
+export function setComponentMachine(doc: CircuitDoc, id: string, machine: Machine): CircuitDoc {
+  const component = doc.components[id]
+  const clean = cleanMachine(machine)
+  if (!component || component.type !== MACHINE_TYPE || !clean) return doc
+  const withMachine: CircuitDoc = {
+    ...doc,
+    components: { ...doc.components, [id]: { ...component, machine: clean } },
+  }
+  const params = resolveParams(builtinComponents.get(MACHINE_TYPE), compileMachine(clean))
+  return setComponentParams(withMachine, id, params)
 }
 
 export function addJunction(doc: CircuitDoc, pos: Point): { doc: CircuitDoc; id: string } {

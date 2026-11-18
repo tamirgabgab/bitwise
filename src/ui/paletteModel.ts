@@ -17,7 +17,7 @@ export interface PaletteSection {
 
 const FIXED_SECTIONS: readonly PaletteSection[] = [
   { id: 'io', title: 'Inputs and outputs', types: ['input', 'button', 'output', 'display'] },
-  { id: 'sequential', title: 'Sequential', types: ['clock', 'cycle', 'sr', 'dff', 'tff', 'jkff'] },
+  { id: 'sequential', title: 'Sequential', types: ['clock', 'cycle', 'sr', 'dff', 'tff', 'jkff', 'fsm'] },
   { id: 'bits', title: 'Digits and bits', types: ['tobits', 'frombits'] },
   { id: 'buses', title: 'Buses', types: ['split', 'merge'] },
   { id: 'wiring', title: 'Wiring', types: ['net'] },

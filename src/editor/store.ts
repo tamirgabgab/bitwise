@@ -32,6 +32,7 @@ import {
   setComponentDelay,
   setComponentKey,
   setComponentLabel,
+  setComponentMachine,
   setComponentParams,
   setComponentText,
   withinBounds,
@@ -39,6 +40,8 @@ import {
 import type { BusFormat, CircuitDoc, Fragment, Terminal, WireEnd } from './document.ts'
 import { setBusFormat } from './busFormat.ts'
 import { autoLayout } from './layout.ts'
+import type { Machine } from './machine.ts'
+import { machineCircuit } from './machineCircuit.ts'
 import { extractCircuit } from './extract.ts'
 import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
 import { placementParams } from './placement.ts'
@@ -48,7 +51,7 @@ import { samePoint } from './geometry.ts'
 import { docBounds } from './hitTest.ts'
 import type { Point } from './geometry.ts'
 import type { GateStyle } from './symbols.ts'
-import { DEFAULT_SETTINGS, emptyProject, fromProjectData } from './project.ts'
+import { DEFAULT_SETTINGS, MAX_CIRCUITS, emptyProject, fromProjectData } from './project.ts'
 import type { LoadedProject, ProjectData, ProjectSettings } from './project.ts'
 import {
   MAX_FLAT_PARTS,
@@ -241,6 +244,13 @@ export interface EditorState {
   setLabel(id: string, label: string): void
   /** Changes what a text label says, or the title of a frame. */
   setText(id: string, text: string): void
+  /** Gives a state machine part a new machine: one step of undo. */
+  setMachine(id: string, machine: Machine): void
+  /**
+   * Builds the machine of a state machine part from flip-flops and gates, as
+   * a new circuit of the project, and opens it. Its id, or why it cannot.
+   */
+  machineToCircuit(id: string): { readonly circuit: string } | { readonly problem: string }
   /** Writes the bus at `terminal` in `format`, on every wire of its net. */
   setBusFormat(terminal: Terminal, format: BusFormat): void
   /** Puts a frame around the selection and selects it. */
@@ -571,6 +581,34 @@ export const useEditor = create<EditorState>()((set, get) => {
 
     setText(id, text) {
       commit(setComponentText(get().doc, id, text))
+    },
+
+    setMachine(id, machine) {
+      commit(setComponentMachine(get().doc, id, machine))
+    },
+
+    machineToCircuit(partId) {
+      const state = get()
+      const machine = state.doc.components[partId]?.machine
+      if (!machine) return { problem: 'This part is not a state machine.' }
+      if (state.order.length >= MAX_CIRCUITS) {
+        return { problem: `A project holds at most ${MAX_CIRCUITS} circuits.` }
+      }
+      const doc = machineCircuit(machine, state.settings.radix)
+      if (typeof doc === 'string') return { problem: doc }
+      const id = `k${state.nextCircuit}`
+      const names = new Set(Object.values(state.circuits).map((circuit) => circuit.name))
+      const base = `${state.doc.components[partId].label ?? 'Machine'} gates`
+      let name = base
+      for (let number = 2; names.has(name); number++) name = `${base} ${number}`
+      set({
+        circuits: { ...state.circuits, [id]: { id, name, doc } },
+        order: [...state.order, id],
+        nextCircuit: state.nextCircuit + 1,
+        unframed: new Set([...state.unframed, id]),
+      })
+      get().selectCircuit(id)
+      return { circuit: id }
     },
 
     setBusFormat(terminal, format) {

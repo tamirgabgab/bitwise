@@ -2900,6 +2900,263 @@ label.swatch:focus-within {
   }
 }
 
+/* ---- Machine editor: states as circles, rules as arrows, a panel beside ---- */
+
+.machine-editor {
+  width: min(1100px, calc(100vw - 32px));
+  max-width: none;
+  overflow: hidden;
+}
+
+.machine-body {
+  display: flex;
+  flex-direction: column;
+  height: min(760px, calc(100vh - 48px));
+}
+
+.machine-main {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+}
+
+.machine-drawing {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  background: var(--canvas-bg);
+  touch-action: none;
+  user-select: none;
+}
+
+.machine-state circle {
+  fill: var(--part-fill);
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.machine-state {
+  cursor: grab;
+}
+
+.machine-state.live circle {
+  fill: var(--accent-soft);
+}
+
+.machine-state.chosen circle {
+  stroke: var(--accent);
+  stroke-width: 2.5;
+}
+
+.machine-state text,
+.machine-arrow text {
+  fill: var(--text);
+  text-anchor: middle;
+  dominant-baseline: middle;
+}
+
+.machine-name {
+  font-weight: 600;
+}
+
+.machine-outputs,
+.machine-arrow text {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.machine-outputs {
+  fill: var(--text-muted) !important;
+}
+
+.machine-arrow path,
+.machine-start {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 1.5;
+}
+
+.machine-arrow.chosen path {
+  stroke: var(--accent);
+}
+
+.machine-arrow path.machine-arrow-hit {
+  stroke: transparent;
+  stroke-width: 14;
+  cursor: pointer;
+}
+
+.machine-arrow text {
+  cursor: pointer;
+  paint-order: stroke;
+  stroke: var(--canvas-bg);
+  stroke-width: 4px;
+}
+
+.machine-arrow text.chosen {
+  fill: var(--accent);
+}
+
+.machine-head {
+  fill: var(--ink);
+}
+
+.machine-head.chosen {
+  fill: var(--accent);
+}
+
+.machine-panel {
+  width: 300px;
+  flex-shrink: 0;
+  padding: 4px 16px 12px;
+  overflow-y: auto;
+  border-left: 1px solid var(--border);
+}
+
+.machine-panel h3 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 6px;
+  font-size: var(--text-md);
+  font-weight: 600;
+}
+
+.machine-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 30px;
+}
+
+.machine-row input,
+.machine-row select {
+  height: 28px;
+  min-width: 0;
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--canvas-bg);
+  color: inherit;
+  font: inherit;
+}
+
+.machine-row input {
+  flex: 1;
+}
+
+.machine-row select {
+  max-width: 120px;
+}
+
+.machine-row .field-label {
+  flex: 1;
+}
+
+.machine-tag {
+  padding: 0 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.machine-rules {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.machine-rules li {
+  padding: 4px 0 6px;
+  border-top: 1px solid var(--border);
+}
+
+.machine-rules li.chosen {
+  box-shadow: inset 2px 0 0 var(--accent);
+  padding-left: 8px;
+}
+
+.machine-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.machine-confirm {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.machine-confirm p {
+  margin: 0;
+  color: var(--text);
+}
+
+.machine-foot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 16px;
+  padding: 10px 16px 12px 20px;
+  border-top: 1px solid var(--border);
+}
+
+.dialog .machine-foot p {
+  margin: 0;
+}
+
+.machine-foot .machine-actions {
+  margin-top: 0;
+}
+
+.machine-problem {
+  flex-basis: 100%;
+  color: var(--text);
+  text-decoration: underline dashed;
+  text-decoration-thickness: 2px;
+}
+
+.machine-summary .machine-actions {
+  margin-bottom: 8px;
+}
+
+@media (max-width: 640px) {
+  .machine-editor {
+    width: 100vw;
+    height: 100dvh;
+    max-height: none;
+    margin: 0;
+    border-radius: 0;
+  }
+
+  .machine-body {
+    height: 100dvh;
+  }
+
+  .machine-main {
+    flex-direction: column;
+  }
+
+  .machine-drawing {
+    height: 45%;
+    flex: none;
+  }
+
+  .machine-panel {
+    width: auto;
+    flex: 1;
+    border-left: none;
+    border-top: 1px solid var(--border);
+  }
+}
+
 /* A finger needs 40px targets everywhere, not only in the bar. Last in the
    file, so it wins over each part's own size. */
 @media (pointer: coarse) {
@@ -2952,6 +3209,11 @@ label.swatch:focus-within {
 
   .history-row {
     min-height: 40px;
+  }
+
+  .machine-row input,
+  .machine-row select {
+    height: 40px;
   }
 
   .table-editor-scroll {

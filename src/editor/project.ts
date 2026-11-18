@@ -7,6 +7,8 @@ import {
   presetAvailable,
   resolveParams,
 } from '../core/index.ts'
+import { MACHINE_TYPE, cleanMachine, compileMachine, defaultMachine } from './machine.ts'
+import type { Machine } from './machine.ts'
 import {
   FRAME_TYPE,
   MAX_COORD,
@@ -93,6 +95,8 @@ export interface ComponentData {
   readonly text?: string
   /** On a frame: its width and height. */
   readonly size?: Point
+  /** On a state machine: the machine it runs. */
+  readonly machine?: Machine
 }
 
 export interface CircuitData {
@@ -148,6 +152,7 @@ function docToData(doc: CircuitDoc): Pick<CircuitData, 'nextId' | 'components' |
       ...(component.sub ? { circuit: component.sub.circuit } : {}),
       ...(component.text !== undefined ? { text: component.text } : {}),
       ...(component.size ? { size: component.size } : {}),
+      ...(component.machine ? { machine: component.machine } : {}),
     })),
     junctions: Object.values(doc.junctions),
     wires: Object.values(doc.wires),
@@ -256,6 +261,12 @@ function componentOf(data: ComponentData): DocComponent | undefined {
     const text = cleanText(data.text) ?? DEFAULT_FRAME
     const size = cleanFrameSize(pointOf(data.size) ?? FRAME_SIZE)
     return { id: data.id, type: FRAME_TYPE, params: {}, delay: 1, pos, rotation: 0, text, size }
+  }
+  if (data.type === MACHINE_TYPE) {
+    // The parameters are always made again from the machine, so the two agree.
+    const machine = cleanMachine(data.machine) ?? defaultMachine()
+    const params = resolveParams(builtinComponents.get(MACHINE_TYPE), compileMachine(machine))
+    return { id: data.id, type: MACHINE_TYPE, params, delay, pos, rotation, ...named, machine }
   }
   if (!builtinComponents.has(data.type)) return undefined
   try {

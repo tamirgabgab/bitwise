@@ -18,3 +18,9 @@ export interface CanvasRuntime {
 
 /** Set while a canvas is mounted. */
 export const canvasRuntime: { current: CanvasRuntime | null } = { current: null }
+
+/** What the canvas may ask of the rest of the app. Set by the app. */
+export const canvasHooks: {
+  /** Opens the machine editor on a state machine part. */
+  editMachine: ((part: string) => void) | null
+} = { editMachine: null }

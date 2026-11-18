@@ -109,6 +109,7 @@ export function describeEdit(before: CircuitDoc, after: CircuitDoc, nameOf: Part
   if (edited.length === 1 && moved.length === 0) {
     const { before: a, after: b } = edited[0]
     if (a.size !== b.size) return `Resize ${nameOf(b)}`
+    if (a.machine !== b.machine) return `Edit the machine of ${nameOf(b)}`
     if (a.text !== b.text) return b.type === FRAME_TYPE ? `Rename ${nameOf(b)}` : 'Edit text'
     if (a.label !== b.label) return `Rename ${nameOf(b)}`
     if (a.key !== b.key) return `Change the key of ${nameOf(b)}`

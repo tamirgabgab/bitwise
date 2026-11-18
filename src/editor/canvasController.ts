@@ -20,7 +20,7 @@ import { defaultParamsOf, renderScene } from './render.ts'
 import type { Scene } from './render.ts'
 import { routeWire } from './routing.ts'
 import type { RouteEnd } from './routing.ts'
-import { canvasRuntime } from './runtime.ts'
+import { canvasHooks, canvasRuntime } from './runtime.ts'
 import {
   breakpointMarks,
   criticalMarks,
@@ -852,13 +852,17 @@ export class CanvasController {
     if (toggleWatch(terminal)) useSim.getState().setScopeOpen(true)
   }
 
-  /** A double click on a part that stands for a named circuit opens it. */
+  /**
+   * A double click on a part that stands for a named circuit opens it; on a
+   * state machine it opens the machine editor.
+   */
   private readonly onDoubleClick = (event: MouseEvent): void => {
     const state = useEditor.getState()
     const hit = hitTest(state.doc, this.toWorld(event))
     if (hit?.kind !== 'component') return
-    const circuit = state.doc.components[hit.id]?.sub?.circuit
-    if (circuit !== undefined) state.selectCircuit(circuit)
+    const part = state.doc.components[hit.id]
+    if (part?.sub) state.selectCircuit(part.sub.circuit)
+    else if (part?.machine) canvasHooks.editMachine?.(part.id)
   }
 
   private readonly onPointerLeave = (): void => {
