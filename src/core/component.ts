@@ -68,6 +68,11 @@ export interface ComponentDef<S = unknown> {
    * Only parts that keep a value have it.
    */
   stored?(state: S): Signal
+  /**
+   * Every word a memory with an address holds, out of its state. Only a
+   * RAM has it.
+   */
+  memory?(state: S): readonly Signal[]
 }
 
 /** Fills in defaults and rejects unknown, fractional or out-of-range values. */

@@ -19,6 +19,17 @@ export { branchWidths } from './components/bus.ts'
 export { MAX_BITS } from './components/convert.ts'
 export { MAX_WAYS } from './components/select.ts'
 export { TABLE_CELLS, tableCell } from './components/table.ts'
+export {
+  MAX_ADDRESS,
+  MAX_WORDS,
+  MAX_WORD_WIDTH,
+  addressOf,
+  memoryCell,
+  packWord,
+  unpackWord,
+  wordCount,
+} from './components/memory.ts'
+export type { RamState } from './components/memory.ts'
 export type { RegisterState } from './components/register.ts'
 export { builtinComponents, createBuiltinRegistry } from './components/index.ts'
 export { MAX_DISPLAY_DIGITS, numberValue } from './components/output.ts'

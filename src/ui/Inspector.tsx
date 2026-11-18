@@ -47,6 +47,7 @@ import {
 import { partHint, partName } from './parts.ts'
 import { pinName, portLabel } from './probeText.ts'
 import { TableEditor } from './TableEditor.tsx'
+import { MemoryEditor } from './MemoryEditor.tsx'
 import { TruthTablePanel } from './TruthTablePanel.tsx'
 
 interface Field {
@@ -111,6 +112,12 @@ const FIELDS: readonly Field[] = [
   {
     param: 'bits',
     label: 'Bits',
+    range: (_radix, limits) => [limits.min, limits.max],
+    show: String,
+  },
+  {
+    param: 'address',
+    label: 'Address digits',
     range: (_radix, limits) => [limits.min, limits.max],
     show: String,
   },
@@ -794,6 +801,7 @@ export function Inspector() {
         </div>
       )}
       {component.type === 'table' && <TableEditor component={component} />}
+      {(component.type === 'rom' || component.type === 'ram') && <MemoryEditor component={component} />}
       <PartValues id={component.id} />
       <TruthTablePanel part={component} />
       <ConeCheck />

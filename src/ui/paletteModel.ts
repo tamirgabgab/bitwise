@@ -24,7 +24,7 @@ const FIXED_SECTIONS: readonly PaletteSection[] = [
   {
     id: 'large',
     title: 'Larger parts',
-    types: ['mux', 'demux', 'decoder', 'adder', 'compare', 'register', 'counter'],
+    types: ['mux', 'demux', 'decoder', 'adder', 'compare', 'register', 'counter', 'rom', 'ram'],
   },
   { id: 'notes', title: 'Notes', types: ['text', 'frame'] },
 ]

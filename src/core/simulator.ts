@@ -410,6 +410,12 @@ export class Simulator {
     return instance.def.stored?.(instance.state)
   }
 
+  /** Every word a memory with an address holds, or undefined for any other part. */
+  getMemory(id: ComponentId): readonly Signal[] | undefined {
+    const instance = this.instance(id)
+    return instance.def.memory?.(instance.state)
+  }
+
   getComponent(id: ComponentId): ComponentInfo {
     const instance = this.instance(id)
     return {

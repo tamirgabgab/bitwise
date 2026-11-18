@@ -38,6 +38,8 @@ const NAMES: Readonly<Record<string, string>> = {
   compare: 'Comparator',
   register: 'Register',
   counter: 'Counter',
+  rom: 'ROM',
+  ram: 'RAM',
   text: 'Text',
   frame: 'Frame',
   net: 'Net label',
@@ -145,6 +147,14 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   counter: [
     'Goes one up each time the clock rises. Load takes D instead, R clears it',
     'Goes one up in base n each time the clock rises past the middle. Load takes D instead, R clears it',
+  ],
+  rom: [
+    'Gives the word kept at the address on A. The words are filled in the inspector',
+    'Gives the word kept at the address on A, in base n. The words are filled in the inspector',
+  ],
+  ram: [
+    'Gives the word at the address on A, and writes D there when the clock rises while WE is 1',
+    'Gives the word at the address on A, and writes D there when the clock rises past the middle while WE is at the top value',
   ],
   text: [
     'Writing on the canvas. It is not part of the circuit',

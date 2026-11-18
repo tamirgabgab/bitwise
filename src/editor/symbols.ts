@@ -919,6 +919,23 @@ function largeSymbol(type: string, params: Readonly<Record<string, number>>): Co
         ],
         [{ name: 'reset', text: 'R' }],
       )
+    case 'rom':
+      return blockSymbol(
+        'ROM',
+        [{ name: 'a', text: 'A', bus: (params.address ?? 1) > 1 }],
+        [{ name: 'q', text: 'Q', bus }],
+      )
+    case 'ram':
+      return blockSymbol(
+        'RAM',
+        [
+          { name: 'a', text: 'A', bus: (params.address ?? 1) > 1 },
+          { name: 'd', text: 'D', bus },
+          { name: 'clk', text: '', clock: true },
+        ],
+        [{ name: 'q', text: 'Q', bus }],
+        [{ name: 'we', text: 'WE' }],
+      )
     default:
       return undefined
   }

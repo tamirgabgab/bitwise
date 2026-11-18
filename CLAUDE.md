@@ -163,6 +163,13 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - Dragging a selected wire moves the straight stretch under the pointer
   (`runAt` in `wireLayout.ts`): `bendWire` puts a junction at each end of
   it and moves them, so the file format has no bends of its own.
+- ROM and RAM (`components/memory.ts`) hold up to `MAX_WORDS` words of up
+  to `MAX_WORD_WIDTH` digits, in the parameters `m0` to `m255`, written for
+  radix 16 like a table gate. The address pin is `address` digits wide; an
+  address past the words reads X. A RAM writes `d` on the rising edge of
+  `clk` while `we` is on (unattached, off), starts from the same words and
+  goes back to them on a restart; `memory` in its `ComponentDef` gives the
+  inspector every word (`MemoryEditor.tsx`).
 - A table gate (`components/table.ts`, type `table`) keeps its answers in
   the parameters `c0` to `c255`, laid out for radix 16 (`tableCell`), so it
   keeps them when the radix changes; one it has no room for reads as X. The

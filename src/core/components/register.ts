@@ -21,22 +21,22 @@ export interface RegisterState {
 }
 
 /** True, false, or undefined when the input is unknown. */
-type Flag = boolean | undefined
+export type Flag = boolean | undefined
 
 /** A control input: on at the top value. `floating` says what unattached means. */
-function flag(digit: Digit, radix: number, floating: boolean): Flag {
+export function flag(digit: Digit, radix: number, floating: boolean): Flag {
   if (digit === Z) return floating
   if (digit < 0 || digit >= radix) return undefined
   return digit === radix - 1
 }
 
 /** A data bus as it is stored: a digit that is not a real value becomes X. */
-function taken(signal: Signal, radix: number): Signal {
+export function taken(signal: Signal, radix: number): Signal {
   return signal.map((digit) => (digit < 0 || digit >= radix ? X : digit))
 }
 
 /** Where two candidates for the stored value agree, that digit; elsewhere X. */
-function either(a: Signal, b: Signal): Signal {
+export function either(a: Signal, b: Signal): Signal {
   return a.map((digit, position) => (digit === b[position] ? digit : X))
 }
 

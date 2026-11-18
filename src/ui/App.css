@@ -1125,6 +1125,111 @@ kbd {
   font-weight: 600;
 }
 
+/* ---- The words of a ROM or RAM ---- */
+
+.memory-count {
+  margin-left: 4px;
+  font-weight: 400;
+  font-variant-numeric: tabular-nums;
+}
+
+.memory-scroll {
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+}
+
+.memory-editor table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.memory-editor th {
+  padding: 2px 6px;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.memory-editor thead th {
+  position: sticky;
+  top: 0;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+.memory-editor td {
+  padding: 1px 6px;
+}
+
+.memory-word {
+  width: auto;
+  height: 24px;
+  padding: 0 4px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-weight: 600;
+}
+
+.memory-word:hover,
+.memory-word:focus {
+  border-color: var(--border);
+  background: var(--canvas-bg);
+}
+
+.memory-now {
+  color: var(--text-muted);
+}
+
+/* The word the address points at right now. */
+.memory-editor tr.live {
+  background: var(--accent-soft);
+}
+
+.memory-fill {
+  margin-top: 8px;
+}
+
+.memory-paste {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.memory-paste label {
+  color: var(--text-muted);
+}
+
+.memory-paste textarea {
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--canvas-bg);
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  resize: vertical;
+}
+
+.memory-paste .note {
+  margin: 0;
+}
+
+.memory-paste-actions {
+  display: flex;
+  gap: 8px;
+}
+
 /* The row the inputs are on right now. */
 .truth-table tr.live td {
   background: var(--accent-soft);
@@ -2855,6 +2960,10 @@ label.swatch:focus-within {
 
   .versions-save input,
   .version {
+    min-height: 40px;
+  }
+
+  .memory-word {
     min-height: 40px;
   }
 }

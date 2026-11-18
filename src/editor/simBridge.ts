@@ -68,6 +68,8 @@ export interface PartReading {
   readonly pins: readonly PinReading[]
   /** The value a latch, flip-flop, register or counter keeps; undefined for other parts. */
   readonly stored: Signal | undefined
+  /** Every word a RAM holds; undefined for other parts. */
+  readonly memory?: readonly Signal[]
 }
 
 function pinKey(pin: PinRef): string {
@@ -235,7 +237,8 @@ export class SimBridge {
         signal: this.sim.readPin({ component, port: port.name }),
       }),
     )
-    return { pins, stored: this.sim.getStored(component) }
+    const memory = this.sim.getMemory(component)
+    return { pins, stored: this.sim.getStored(component), ...(memory ? { memory } : {}) }
   }
 
   /**
