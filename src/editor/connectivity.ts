@@ -1,4 +1,4 @@
-import { terminalKey } from './document.ts'
+import { NET_PIN, NET_TYPE, terminalKey } from './document.ts'
 import type { CircuitDoc } from './document.ts'
 
 /** A pin, named by the document's ids. */
@@ -10,9 +10,12 @@ export interface DocPin {
 /**
  * Which electrical node every wired terminal belongs to. The keys are
  * `terminalKey`s; two terminals are wired together, directly or through
- * junctions and other wires, exactly when they map to the same value.
+ * junctions and other wires, exactly when they map to the same value. Net
+ * labels with the same name are one node, as if a wire ran between them,
+ * unless `byName` is false: then only what is drawn joins, as the wire
+ * layout needs, so it never draws two tagged groups touching.
  */
-export function terminalNets(doc: CircuitDoc): Map<string, string> {
+export function terminalNets(doc: CircuitDoc, byName = true): Map<string, string> {
   const parent = new Map<string, string>()
   const find = (key: string): string => {
     let root = key
@@ -23,10 +26,20 @@ export function terminalNets(doc: CircuitDoc): Map<string, string> {
     return root
   }
 
-  for (const wire of Object.values(doc.wires)) {
-    const a = find(terminalKey(wire.from))
-    const b = find(terminalKey(wire.to))
+  const union = (x: string, y: string): void => {
+    const a = find(x)
+    const b = find(y)
     if (a !== b) parent.set(a, b)
+  }
+  for (const wire of Object.values(doc.wires)) union(terminalKey(wire.from), terminalKey(wire.to))
+
+  const named = new Map<string, string>()
+  for (const component of byName ? Object.values(doc.components) : []) {
+    if (component.type !== NET_TYPE || !component.label) continue
+    const pin = terminalKey({ kind: 'pin', component: component.id, port: NET_PIN })
+    const first = named.get(component.label)
+    if (first === undefined) named.set(component.label, pin)
+    else union(pin, first)
   }
 
   const nets = new Map<string, string>()

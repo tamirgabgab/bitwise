@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { builtinComponents } from '../core/index.ts'
-import { isAnnotation } from '../editor/index.ts'
+import { NET_TYPE, isAnnotation } from '../editor/index.ts'
 import {
   RECENT_LIMIT,
   matchRank,
@@ -32,7 +32,7 @@ describe('paletteSections', () => {
     const types = paletteSections(CLASSIC).flatMap((section) => section.types)
     expect(new Set(types).size).toBe(types.length)
     for (const type of types) {
-      if (!isAnnotation(type)) expect(builtinComponents.has(type)).toBe(true)
+      if (!isAnnotation(type) && type !== NET_TYPE) expect(builtinComponents.has(type)).toBe(true)
     }
   })
 })

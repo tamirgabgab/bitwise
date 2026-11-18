@@ -1,5 +1,5 @@
 import { builtinComponents } from '../core/index.ts'
-import { SUB_TYPE, terminalKey } from './document.ts'
+import { NET_PIN, NET_TYPE, SUB_TYPE, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent } from './document.ts'
 
 /*
@@ -78,6 +78,13 @@ export function flatten(root: CircuitDoc, library: Library = {}): Netlist {
     for (const component of Object.values(doc.components)) {
       if (component.type === SUB_TYPE) {
         walkInto(component, prefix, stack)
+        continue
+      }
+      // Net labels of one name are one node, within this drawing only.
+      if (component.type === NET_TYPE) {
+        if (component.label) {
+          union(pinNode(prefix, component.id, NET_PIN), `${prefix}net:${component.label}`)
+        }
         continue
       }
       // The boundary of a named circuit: a node, not a part.

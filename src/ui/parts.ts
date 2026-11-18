@@ -39,6 +39,7 @@ const NAMES: Readonly<Record<string, string>> = {
   counter: 'Counter',
   text: 'Text',
   frame: 'Frame',
+  net: 'Net label',
 }
 
 /** What each part does, in one line. Binary first, then the general rule. */
@@ -151,6 +152,10 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   frame: [
     'A titled box around part of the drawing. What lies inside moves with it',
     'A titled box around part of the drawing. What lies inside moves with it',
+  ],
+  net: [
+    'Labels with the same name are connected, with no wire between them',
+    'Labels with the same name are connected, with no wire between them',
   ],
 }
 

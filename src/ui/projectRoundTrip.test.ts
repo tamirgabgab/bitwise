@@ -19,7 +19,7 @@ describe('a project through the file format', () => {
     }
   })
 
-  it('reads frames back as they were written', () => {
+  it('reads frames and net labels back as they were written', () => {
     const data = EXAMPLES[0].build()
     const [first, ...rest] = data.circuits
     const frame = {
@@ -32,15 +32,26 @@ describe('a project through the file format', () => {
       text: 'Inputs',
       size: { x: 12, y: 9 },
     }
+    const label = {
+      id: 'c901',
+      type: 'net',
+      params: {},
+      delay: 1,
+      pos: { x: -8, y: 4 },
+      rotation: 2,
+      label: 'CARRY',
+    }
     const withExtras = {
       ...data,
-      circuits: [{ ...first, nextId: 901, components: [...first.components, frame] }, ...rest],
+      circuits: [{ ...first, nextId: 902, components: [...first.components, frame, label] }, ...rest],
     }
     const text = serializeProject(withExtras)
     expect(parseProject(text)).toEqual(withExtras)
     const loaded = fromProjectData(parseProject(text))
     expect(toProjectData(loaded)).toEqual(toProjectData(fromProjectData(withExtras)))
-    expect(loaded.circuits[first.id].doc.components.c900).toMatchObject({ text: 'Inputs', size: { x: 12, y: 9 } })
+    const parts = loaded.circuits[first.id].doc.components
+    expect(parts.c900).toMatchObject({ text: 'Inputs', size: { x: 12, y: 9 } })
+    expect(parts.c901).toMatchObject({ type: 'net', label: 'CARRY', rotation: 2 })
   })
 
   it('gives a file without colors the colors a new project starts with', () => {

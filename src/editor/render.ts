@@ -8,7 +8,7 @@ import {
   resolveParams,
 } from '../core/index.ts'
 import type { Digit, Signal } from '../core/index.ts'
-import { FRAME_TYPE, junctionDegrees, keyName, terminalKey } from './document.ts'
+import { FRAME_TYPE, NET_TYPE, junctionDegrees, keyName, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues, WireValue } from './liveValues.ts'
@@ -579,7 +579,8 @@ export function renderScene(
       theme,
       style,
       live.faceSignal(component.id) ?? restingFace(component.type, component.params),
-      component.label,
+      // A net label carries its name inside.
+      component.type === NET_TYPE ? undefined : component.label,
       symbol.readout && {
         digits: symbol.readout.pins.map(
           (port) => live.at({ kind: 'pin', component: component.id, port }).digit,

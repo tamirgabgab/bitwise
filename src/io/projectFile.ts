@@ -29,6 +29,7 @@ const CIRCUIT_PART = 'circuit'
 /** The type of a part that is only writing on the canvas. */
 const TEXT_PART = 'text'
 const FRAME_PART = 'frame'
+const NET_PART = 'net'
 
 export interface FilePoint {
   readonly x: number
@@ -260,6 +261,10 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
       fail(`${what} is a text label with nothing written on it.`)
     }
     return { id, type: TEXT_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text }
+  }
+  if (value.type === NET_PART) {
+    if (label === undefined) fail(`${what} is a net label with no name.`)
+    return { id, type: NET_PART, params: {}, delay: 1, pos, rotation, label }
   }
   if (value.type === FRAME_PART) {
     if (typeof value.text !== 'string' || value.text.trim() === '') fail(`${what} is a frame with no title.`)

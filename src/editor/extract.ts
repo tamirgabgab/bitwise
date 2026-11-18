@@ -4,6 +4,7 @@ import {
   addSubcircuit,
   addWire,
   copyItems,
+  NET_TYPE,
   deleteItems,
   emptyDoc,
   pasteFragment,
@@ -24,6 +25,9 @@ import { symbolOf } from './symbols.ts'
  * marks the spot; outside, the wire now ends on the pin of the new part.
  */
 
+/** The parts that stay in the drawing when a selection becomes a circuit. */
+const STAYS: readonly string[] = ['input', 'output', NET_TYPE]
+
 export interface Extraction {
   /** The drawing the selection came from, with the new part in it. */
   readonly doc: CircuitDoc
@@ -35,13 +39,15 @@ export interface Extraction {
 
 /**
  * The parts of a selection that can move into a circuit of their own. The
- * switches and outputs of a drawing are its pins, so they stay behind.
+ * switches and outputs of a drawing are its pins, so they stay behind. So do
+ * net labels: a name joins only within one drawing, so each wire to a label
+ * becomes a pin instead of a link that would be cut without a sign.
  */
 export function extractable(doc: CircuitDoc, ids: Iterable<string>): string[] {
   const kept: string[] = []
   for (const id of new Set(ids)) {
     const component = doc.components[id]
-    if (component && component.type !== 'input' && component.type !== 'output') kept.push(id)
+    if (component && !STAYS.includes(component.type)) kept.push(id)
   }
   return kept
 }
@@ -151,7 +157,7 @@ export function extractCircuit(
       } else if (
         crossing.label === undefined &&
         component.label &&
-        (component.type === 'input' || component.type === 'output')
+        STAYS.includes(component.type)
       ) {
         crossing.label = component.label
       }

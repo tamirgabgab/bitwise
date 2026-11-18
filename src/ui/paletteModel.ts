@@ -20,6 +20,7 @@ const FIXED_SECTIONS: readonly PaletteSection[] = [
   { id: 'sequential', title: 'Sequential', types: ['clock', 'cycle', 'sr', 'dff', 'tff', 'jkff'] },
   { id: 'bits', title: 'Digits and bits', types: ['tobits', 'frombits'] },
   { id: 'buses', title: 'Buses', types: ['split', 'merge'] },
+  { id: 'wiring', title: 'Wiring', types: ['net'] },
   {
     id: 'large',
     title: 'Larger parts',

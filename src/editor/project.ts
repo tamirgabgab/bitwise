@@ -10,9 +10,11 @@ import {
 import {
   FRAME_TYPE,
   MAX_LABEL,
+  NET_TYPE,
   SUB_TYPE,
   TEXT_TYPE,
   cleanFrameSize,
+  cleanNetName,
   cleanText,
   deleteItems,
   isSwitchKey,
@@ -216,6 +218,11 @@ function componentOf(data: ComponentData): DocComponent | undefined {
     const text = cleanText(data.text)
     if (text === undefined) return undefined
     return { id: data.id, type: TEXT_TYPE, params: {}, delay: 1, pos, rotation: 0, text }
+  }
+  if (data.type === NET_TYPE) {
+    const name = cleanNetName(data.label)
+    if (name === undefined) return undefined
+    return { id: data.id, type: NET_TYPE, params: {}, delay: 1, pos, rotation, label: name }
   }
   if (data.type === FRAME_TYPE) {
     const text = cleanText(data.text) ?? DEFAULT_FRAME

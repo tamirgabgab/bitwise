@@ -70,6 +70,19 @@ export const FRAME_SIZE = { x: 16, y: 10 } as const
 /** Height of the band along the top of a frame that holds its title. */
 export const FRAME_TITLE = 1.6
 
+/**
+ * The type of a net label: a tag with one pin and a name. Tags with the
+ * same name in one circuit are one node, with no wire drawn between them.
+ * The name is the part's `label`.
+ */
+export const NET_TYPE = 'net'
+
+/** The one pin of a net label. */
+export const NET_PIN = 'net'
+
+/** Height of the name written on a net label. */
+const NET_SIZE = 0.72
+
 /** Height of the writing of a text label, in grid units. */
 const TEXT_SIZE = 0.95
 
@@ -1071,6 +1084,37 @@ function frameSymbol(width: number, height: number): ComponentSymbol {
 
 const frames = new Map<string, ComponentSymbol>()
 
+/** A net label: a short lead from its pin to a flag that carries its name. */
+function netSymbol(name: string): ComponentSymbol {
+  const body = Math.max(2, Math.ceil(name.length * NET_SIZE * 0.62 + 0.8))
+  const start = 1
+  const end = start + body
+  const tip = end + 0.7
+  return {
+    pins: [{ name: NET_PIN, direction: 'in', pos: { x: 0, y: 0 }, dir: LEFT }],
+    notes: [{ text: name, pos: { x: (start + end) / 2, y: 0 }, size: NET_SIZE }],
+    bounds: { x0: 0, y0: -0.8, x1: tip, y1: 0.8 },
+    draw(ctx) {
+      ctx.beginPath()
+      ctx.moveTo(0, 0)
+      ctx.lineTo(start, 0)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.moveTo(start, -0.7)
+      ctx.lineTo(end, -0.7)
+      ctx.lineTo(tip, 0)
+      ctx.lineTo(end, 0.7)
+      ctx.lineTo(start, 0.7)
+      ctx.closePath()
+      ctx.fill()
+      ctx.stroke()
+    },
+  }
+}
+
+const nets = new Map<string, ComponentSymbol>()
+
 const UNKNOWN_CIRCUIT: SubRef = { circuit: '', name: '?', inputs: [], outputs: [] }
 const chips = new WeakMap<SubRef, ComponentSymbol>()
 
@@ -1081,7 +1125,18 @@ export function symbolOf(part: {
   readonly sub?: SubRef
   readonly text?: string
   readonly size?: Point
+  readonly label?: string
 }): ComponentSymbol {
+  if (part.type === NET_TYPE) {
+    // Only a palette icon or a ghost has no name yet; a placed label always has one.
+    const name = part.label ?? 'N1'
+    let symbol = nets.get(name)
+    if (!symbol) {
+      symbol = netSymbol(name)
+      nets.set(name, symbol)
+    }
+    return symbol
+  }
   if (part.type === FRAME_TYPE) {
     const { x, y } = part.size ?? FRAME_SIZE
     const key = `${x}x${y}`

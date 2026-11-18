@@ -15,6 +15,7 @@ export {
   MAX_TEXT,
   SUB_TYPE,
   FRAME_TYPE,
+  NET_TYPE,
   TEXT_TYPE,
   isAnnotation,
   isSwitchKey,

@@ -10,10 +10,12 @@ import { alignItems, distributeItems } from './arrange.ts'
 import type { AlignEdge, Axis } from './arrange.ts'
 import {
   FRAME_TYPE,
+  NET_TYPE,
   SUB_TYPE,
   TEXT_TYPE,
   addComponent,
   addFrame,
+  addNetLabel,
   addSubcircuit,
   addText,
   bendWire,
@@ -22,6 +24,7 @@ import {
   deleteItems,
   duplicateItems,
   frameAround,
+  freeNetName,
   moveItems,
   pasteFragment,
   resizeFrame,
@@ -399,7 +402,9 @@ export const useEditor = create<EditorState>()((set, get) => {
           ? addText(doc, spot)
           : type === FRAME_TYPE
             ? addFrame(doc, spot)
-            : addComponent(doc, type, spot, {
+            : type === NET_TYPE
+              ? addNetLabel(doc, spot, freeNetName(doc))
+              : addComponent(doc, type, spot, {
               params: placementParams(type, get().settings.radix),
             })
       put(added)

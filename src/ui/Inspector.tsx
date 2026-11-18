@@ -6,6 +6,7 @@ import {
   MAX_TEXT,
   SUB_TYPE,
   FRAME_TYPE,
+  NET_TYPE,
   TEXT_TYPE,
   breakpointOn,
   describeNode,
@@ -158,6 +159,12 @@ function NameField({ id, type, label, writing = false, caption }: NameFieldProps
     else state.setLabel(id, text)
   }
   const commit = (text: string): void => {
+    // A net label keeps its name: a blank one is refused, so show the old one.
+    if (type === NET_TYPE && text.trim() === '') {
+      setDraft(label)
+      latest.current = label
+      return
+    }
     latest.current = text
     save(text)
   }
@@ -599,6 +606,31 @@ export function Inspector() {
           Not part of the circuit. Whatever lies wholly inside moves with it. Drag its lower right
           corner to resize it.
         </p>
+      </aside>
+    )
+  }
+
+  if (component.type === NET_TYPE) {
+    const name = component.label ?? ''
+    const others = Object.values(doc.components).filter(
+      (part) => part.type === NET_TYPE && part.id !== component.id && part.label === name,
+    ).length
+    return (
+      <aside className="inspector" aria-label="Net label settings">
+        <h2>Net label</h2>
+        <NameField
+          key={`${active}:${component.id}:${name}`}
+          id={component.id}
+          type={component.type}
+          label={name}
+          caption="Net name"
+        />
+        <p className="note">
+          {others === 0
+            ? `No other label is named ${name} yet. Give one the same name to connect them.`
+            : `Connected to ${count(others, 'other label')} named ${name}, as if a wire ran between them.`}
+        </p>
+        <ConeCheck />
       </aside>
     )
   }

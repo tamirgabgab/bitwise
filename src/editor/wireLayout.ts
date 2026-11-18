@@ -171,7 +171,8 @@ function layoutOf(doc: CircuitDoc): Layout {
   const cached = cache.get(doc)
   if (cached) return cached
 
-  const nets = terminalNets(doc)
+  // Only drawn connections: wires of two label groups must not touch.
+  const nets = terminalNets(doc, false)
   const cells = partCells(doc)
   const placed: { readonly net: string | undefined; readonly path: Path }[] = []
   // What the wires placed so far do at each grid point, net by net.

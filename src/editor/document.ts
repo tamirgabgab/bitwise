@@ -2,10 +2,20 @@ import { builtinComponents, resolveParams } from '../core/index.ts'
 import { add, placeRect, rectContainsPoint, rectContainsRect, rotatePoint, samePoint } from './geometry.ts'
 import type { Point, Rect, Rotation } from './geometry.ts'
 import type { RouteEnd } from './routing.ts'
-import { DEFAULT_FRAME, DEFAULT_TEXT, FRAME_SIZE, FRAME_TYPE, SUB_TYPE, TEXT_TYPE, symbolOf } from './symbols.ts'
+import {
+  DEFAULT_FRAME,
+  DEFAULT_TEXT,
+  FRAME_SIZE,
+  FRAME_TYPE,
+  NET_PIN,
+  NET_TYPE,
+  SUB_TYPE,
+  TEXT_TYPE,
+  symbolOf,
+} from './symbols.ts'
 import type { SubRef } from './symbols.ts'
 
-export { FRAME_TYPE, SUB_TYPE, TEXT_TYPE }
+export { FRAME_TYPE, NET_PIN, NET_TYPE, SUB_TYPE, TEXT_TYPE }
 export type { SubPin, SubRef } from './symbols.ts'
 
 /*
@@ -243,6 +253,42 @@ export function addText(
   }
 }
 
+/** A net name made fit for a label, or undefined when it is blank. */
+export function cleanNetName(name: unknown): string | undefined {
+  if (typeof name !== 'string') return undefined
+  const clean = name.trim().slice(0, MAX_LABEL)
+  return clean === '' ? undefined : clean
+}
+
+/** The first name `N1`, `N2`, ... that no net label of `doc` carries yet. */
+export function freeNetName(doc: CircuitDoc): string {
+  const taken = new Set<string>()
+  for (const component of Object.values(doc.components)) {
+    if (component.type === NET_TYPE && component.label) taken.add(component.label)
+  }
+  let n = 1
+  while (taken.has(`N${n}`)) n++
+  return `N${n}`
+}
+
+/** Adds a net label, its pin at `pos`. */
+export function addNetLabel(doc: CircuitDoc, pos: Point, name: string): { doc: CircuitDoc; id: string } {
+  const id = `c${doc.nextId}`
+  const component: DocComponent = {
+    id,
+    type: NET_TYPE,
+    params: {},
+    delay: 1,
+    pos,
+    rotation: 0,
+    label: cleanNetName(name) ?? freeNetName(doc),
+  }
+  return {
+    doc: { ...doc, components: { ...doc.components, [id]: component }, nextId: doc.nextId + 1 },
+    id,
+  }
+}
+
 /** A frame size kept within `MIN_FRAME` and `MAX_FRAME`, in whole grid units. */
 export function cleanFrameSize(size: Point): Point {
   const fit = (value: number): number =>
@@ -358,6 +404,8 @@ export function setComponentLabel(doc: CircuitDoc, id: string, label: string): C
   const component = doc.components[id]
   if (!component || isAnnotation(component.type)) return doc
   const text = label.trim().slice(0, MAX_LABEL)
+  // A net label without a name would join nothing: a blank one is ignored.
+  if (component.type === NET_TYPE && text === '') return doc
   if (text === (component.label ?? '')) return doc
   const next: DocComponent = { ...component, label: text }
   if (text === '') delete (next as { label?: string }).label
