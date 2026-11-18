@@ -2,10 +2,15 @@ import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent, PointerEvent as ReactPointerEvent } from 'react'
 import {
   DEFAULT_SCOPE_VIEW,
+  NO_MARKERS,
   SCOPE_NAMES,
   SCOPE_ZOOMS,
   currentScope,
   makeValueStyle,
+  markerAt,
+  markerText,
+  markersBefore,
+  placeMarker,
   readCanvasTheme,
   renderScope,
   scopeHeight,
@@ -19,7 +24,7 @@ import {
   useEditor,
   useSim,
 } from '../editor/index.ts'
-import type { CanvasTheme, ScopeView, ValueStyle } from '../editor/index.ts'
+import type { CanvasTheme, ScopeMarkers, ScopeView, ValueStyle } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon, PauseIcon, PlayIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { clampPanelHeight } from './panelSize.ts'
@@ -91,10 +96,16 @@ export function TimingPanel() {
   const spanRef = useRef<HTMLSpanElement>(null)
   const cursorRef = useRef<number | null>(null)
   const redrawRef = useRef<() => void>(() => {})
+  const [markers, setMarkers] = useState<ScopeMarkers>(NO_MARKERS)
+  /** The marker being dragged, if one is. */
+  const dragRef = useRef<'a' | 'b' | null>(null)
 
   // A restart takes the clock back past a frozen end: follow the run again.
   const restarted = useSim((state) => end !== null && state.time < end)
   if (restarted) setEnd(null)
+  // ...and past markers put down later than where it now is.
+  const behind = useSim((state) => markersBefore(markers, state.time) !== markers)
+  if (behind) setMarkers(markersBefore(markers, useSim.getState().time))
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -121,7 +132,7 @@ export function TimingPanel() {
         const theme = readCanvasTheme(canvas)
         look = { theme, style: makeValueStyle(settings, theme) }
       }
-      const view: ScopeView = { tickWidth, end, cursor: cursorRef.current }
+      const view: ScopeView = { tickWidth, end, cursor: cursorRef.current, markers }
       renderScope(ctx, width, height, ratio, look.theme, scene, view, look.style)
       if (spanRef.current) {
         const shown = scopeTicks(width, tickWidth)
@@ -164,7 +175,7 @@ export function TimingPanel() {
       document.fonts.removeEventListener('loadingdone', request)
       cancelAnimationFrame(frame)
     }
-  }, [open, rows, tickWidth, end, settings])
+  }, [open, rows, tickWidth, end, settings, markers])
 
   // Ctrl and the wheel zoom; the wheel sideways, or with Shift, moves through time.
   useEffect(() => {
@@ -203,15 +214,43 @@ export function TimingPanel() {
   const onPointerMove = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
     const { x, y } = pointAt(event)
     const canvas = event.currentTarget
-    const removable = addedRowAt(x, y) !== null
-    canvas.style.cursor = removable ? 'pointer' : ''
-    canvas.title = removable ? 'Click to take this wire out of the diagram' : ''
     const view: ScopeView = { tickWidth, end, cursor: null }
-    const tick = scopeTickAt(x, useSim.getState().time, canvas.clientWidth, view)
+    const time = useSim.getState().time
+    const tick = scopeTickAt(x, time, canvas.clientWidth, view)
+    const dragging = dragRef.current
+    if (dragging !== null && tick !== null) {
+      if (markers[dragging] !== tick) setMarkers({ ...markers, [dragging]: tick })
+    }
+    const removable = addedRowAt(x, y) !== null
+    const onMarker = dragging !== null || markerAt(x, markers, time, canvas.clientWidth, view) !== null
+    canvas.style.cursor = removable ? 'pointer' : onMarker ? 'ew-resize' : ''
+    canvas.title = removable
+      ? 'Click to take this wire out of the diagram'
+      : x >= SCOPE_NAMES
+        ? 'Click to put down marker A, then B. Drag a marker to move it'
+        : ''
     if (tick !== cursorRef.current) {
       cursorRef.current = tick
       redrawRef.current()
     }
+  }
+  const onPointerDown = (event: ReactPointerEvent<HTMLCanvasElement>): void => {
+    const { x } = pointAt(event)
+    if (event.button !== 0 || x < SCOPE_NAMES) return
+    const canvas = event.currentTarget
+    const view: ScopeView = { tickWidth, end, cursor: null }
+    const time = useSim.getState().time
+    const grabbed = markerAt(x, markers, time, canvas.clientWidth, view)
+    if (grabbed !== null) {
+      dragRef.current = grabbed
+      canvas.setPointerCapture(event.pointerId)
+      return
+    }
+    const tick = scopeTickAt(x, time, canvas.clientWidth, view)
+    if (tick !== null) setMarkers(placeMarker(markers, tick))
+  }
+  const onPointerUp = (): void => {
+    dragRef.current = null
   }
   const onPointerLeave = (): void => {
     cursorRef.current = null
@@ -234,6 +273,20 @@ export function TimingPanel() {
       <header className="timing-head">
         <h2>Timing</h2>
         <span ref={spanRef} className="timing-span" />
+        {markerText(markers) !== '' && (
+          <>
+            <output className="timing-markers">{markerText(markers)}</output>
+            <button
+              type="button"
+              className="tool"
+              aria-label="Take the markers away"
+              title="Take the markers away"
+              onClick={() => setMarkers(NO_MARKERS)}
+            >
+              <CloseIcon />
+            </button>
+          </>
+        )}
         <button
           type="button"
           className="tool"
@@ -290,6 +343,9 @@ export function TimingPanel() {
             role="img"
             aria-label={`Values of ${rows} signal${rows === 1 ? '' : 's'} over the last ticks`}
             onPointerMove={onPointerMove}
+            onPointerDown={onPointerDown}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
             onPointerLeave={onPointerLeave}
             onClick={onClick}
           />

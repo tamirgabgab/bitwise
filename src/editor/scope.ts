@@ -1,5 +1,6 @@
 import type { Digit } from '../core/index.ts'
-import type { CircuitDoc, DocComponent, Terminal } from './document.ts'
+import { formatAt } from './busFormat.ts'
+import type { BusFormat, CircuitDoc, DocComponent, Terminal } from './document.ts'
 import { interfaceOf } from './subcircuit.ts'
 
 /*
@@ -16,6 +17,8 @@ export interface ScopeSignal {
   readonly kind: 'clock' | 'input' | 'output' | 'wire'
   /** The pin to read for this row. */
   readonly pin: Terminal
+  /** How the row writes a bus, from the wires at its pin. */
+  readonly format?: BusFormat
 }
 
 function idNumber(id: string): number {
@@ -48,7 +51,10 @@ export function scopeSignals(doc: CircuitDoc): readonly ScopeSignal[] {
       component: string,
       port: string,
       name: string,
-    ): ScopeSignal => ({ key: component, name, kind, pin: { kind: 'pin', component, port } })
+    ): ScopeSignal => {
+      const pin: Terminal = { kind: 'pin', component, port }
+      return { key: component, name, kind, pin, format: formatAt(doc, pin) }
+    }
     signals = [
       ...clocks.map((clock, index) =>
         row('clock', clock.id, 'out', clocks.length === 1 ? 'Clock' : `Clock ${index + 1}`),

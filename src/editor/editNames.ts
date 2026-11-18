@@ -80,6 +80,14 @@ export function describeEdit(before: CircuitDoc, after: CircuitDoc, nameOf: Part
     return `Delete ${removedItems} items`
   }
 
+  if (
+    wires.changed.length > 0 &&
+    wires.added.length + wires.removed.length + components.changed.length + movedJunctions === 0 &&
+    wires.changed.every(({ before: a, after: b }) => a.from === b.from && a.to === b.to)
+  ) {
+    return 'Change how a bus is written'
+  }
+
   if (components.removed.length === 0 && components.changed.length === 0) {
     // Only wires and junctions changed. A new wire may cut others in two,
     // and each cut leaves a junction: one wire more than the junctions added.

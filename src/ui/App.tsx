@@ -7,6 +7,7 @@ import { DialogHost } from './DialogHost.tsx'
 import { Inspector } from './Inspector.tsx'
 import { Palette } from './Palette.tsx'
 import { SettingsPanel } from './SettingsPanel.tsx'
+import { ProblemsPanel } from './ProblemsPanel.tsx'
 import { ProjectsDialog } from './ProjectsDialog.tsx'
 import { ShortcutsSheet } from './ShortcutsSheet.tsx'
 import { BaseCalculator } from './BaseCalculator.tsx'
@@ -42,6 +43,7 @@ export function App() {
         {settingsOpen && <SettingsPanel onClose={closeSettings} />}
       </div>
       <StepsPanel />
+      <ProblemsPanel />
       <TimingPanel />
       <StatusBar />
       <ToastHost />

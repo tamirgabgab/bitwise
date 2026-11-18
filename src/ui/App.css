@@ -1501,6 +1501,12 @@ label.swatch:focus-within {
   font-variant-numeric: tabular-nums;
 }
 
+.timing-markers {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 .timing-body {
   min-height: 0;
   overflow-y: auto;
@@ -1591,6 +1597,24 @@ label.swatch:focus-within {
   font-weight: 600;
   text-decoration: underline dashed 2px;
   text-underline-offset: 3px;
+}
+
+.status-button {
+  padding: 0 4px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline dotted 1px;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.status-button:hover,
+.status-button[aria-pressed='true'] {
+  color: var(--text);
+  background: var(--hover);
 }
 
 .statusbar .stopped {
@@ -1834,6 +1858,74 @@ label.swatch:focus-within {
 .steps .button:disabled {
   color: var(--text-faint);
   cursor: default;
+}
+
+/* ---- Problems: a strip under the canvas ---- */
+
+.problems {
+  display: flex;
+  flex-direction: column;
+  max-height: 180px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+}
+
+.problems-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px 4px 12px;
+}
+
+.problems-head h2 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+}
+
+.problems-count {
+  flex: 1;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.problems-empty {
+  margin: 0;
+  padding: 0 12px 8px;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.problems-list {
+  margin: 0;
+  padding: 0 0 4px;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.problems-row {
+  display: flex;
+  gap: 10px;
+  width: 100%;
+  padding: 3px 12px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  font-size: var(--text-sm);
+  text-align: left;
+  cursor: pointer;
+}
+
+.problems-row:hover,
+.problems-row:focus-visible {
+  background: var(--hover);
+}
+
+.problems-kind {
+  flex: none;
+  width: 64px;
+  color: var(--text-muted);
 }
 
 /* ---- Command search ---- */
@@ -2371,6 +2463,71 @@ label.swatch:focus-within {
   flex: 1;
 }
 
+
+/* ---- The meter board: big readouts pinned to the corner of the canvas ---- */
+
+.meters {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(100% - 20px);
+  overflow-y: auto;
+}
+
+.meter {
+  min-width: 132px;
+  max-width: 220px;
+  padding: 6px 8px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  box-shadow: var(--shadow-float);
+}
+
+.meter-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.meter-name {
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.meter-close {
+  width: 20px;
+  height: 20px;
+}
+
+.meter-value {
+  display: block;
+  overflow-wrap: anywhere;
+  font-family: var(--font-mono);
+  font-size: var(--text-xl);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+/* In conflict: the ink, underlined thick and dashed, as on the canvas. */
+.meter[data-conflict] .meter-value {
+  text-decoration: underline dashed 2px;
+  text-underline-offset: 3px;
+}
+
+.meter-note {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
 @media (max-width: 640px) {
   .legend {
     display: none;
@@ -2380,6 +2537,16 @@ label.swatch:focus-within {
 /* A finger needs 40px targets everywhere, not only in the bar. Last in the
    file, so it wins over each part's own size. */
 @media (pointer: coarse) {
+  .problems-row,
+  .status-button,
+  .meter-close {
+    min-height: 40px;
+  }
+
+  .meter-close {
+    min-width: 40px;
+  }
+
   /* The menus hang below the taller bar. */
   .menu {
     top: 56px;

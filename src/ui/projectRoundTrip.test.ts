@@ -54,6 +54,22 @@ describe('a project through the file format', () => {
     expect(parts.c901).toMatchObject({ type: 'net', label: 'CARRY', rotation: 2 })
   })
 
+  it('reads the format of a bus back, and refuses one it does not know', () => {
+    const data = EXAMPLES[0].build()
+    const [first, ...rest] = data.circuits
+    const [wire, ...others] = first.wires
+    const withFormat = {
+      ...data,
+      circuits: [{ ...first, wires: [{ ...wire, format: 'hex' as const }, ...others] }, ...rest],
+    }
+    const text = serializeProject(withFormat)
+    expect(parseProject(text)).toEqual(withFormat)
+    const loaded = fromProjectData(parseProject(text))
+    expect(loaded.circuits[first.id].doc.wires[wire.id].format).toBe('hex')
+    expect(toProjectData(loaded)).toEqual(toProjectData(fromProjectData(withFormat)))
+    expect(() => parseProject(text.replace('"hex"', '"octal"'))).toThrow(/written in a way/)
+  })
+
   it('gives a file without colors the colors a new project starts with', () => {
     const data = EXAMPLES[0].build()
     const text = serializeProject({ ...data, settings: { ...data.settings, palette: [] } })

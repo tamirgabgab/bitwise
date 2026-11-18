@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { CanvasController, useEditor } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
+import { MeterBoard } from './MeterBoard.tsx'
 import { Minimap } from './Minimap.tsx'
 import { ProbeBubble } from './ProbeBubble.tsx'
 import { ValueLegend } from './ValueLegend.tsx'
@@ -45,6 +46,7 @@ export function CanvasView() {
       )}
       <ValueLegend />
       <Minimap />
+      <MeterBoard />
       <ProbeBubble />
     </div>
   )

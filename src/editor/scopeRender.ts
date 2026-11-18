@@ -1,4 +1,5 @@
 import { X, Z } from '../core/index.ts'
+import { busTextOf } from './busFormat.ts'
 import type { Recorder, ScopeSignal } from './scope.ts'
 import type { CanvasTheme } from './theme.ts'
 import type { ValueStyle } from './valueStyle.ts'
@@ -23,6 +24,74 @@ export interface ScopeView {
   readonly end: number | null
   /** The tick under the pointer, if it is over the traces. */
   readonly cursor: number | null
+  /** The two markers that measure between them, when placed. */
+  readonly markers?: ScopeMarkers
+}
+
+/**
+ * Markers A and B: two ticks the user put down on the diagram to measure
+ * the time between them, such as a delay or a period. Null when not placed.
+ */
+export interface ScopeMarkers {
+  readonly a: number | null
+  readonly b: number | null
+}
+
+export const NO_MARKERS: ScopeMarkers = { a: null, b: null }
+
+/**
+ * Puts a marker down at `tick`: A first, then B, and after that the nearer
+ * of the two moves there.
+ */
+export function placeMarker(markers: ScopeMarkers, tick: number): ScopeMarkers {
+  if (markers.a === null) return { ...markers, a: tick }
+  if (markers.b === null) return { ...markers, b: tick }
+  return Math.abs(tick - markers.a) <= Math.abs(tick - markers.b)
+    ? { ...markers, a: tick }
+    : { ...markers, b: tick }
+}
+
+/** How near the pointer has to be to a marker to pick it up, in pixels. */
+const MARKER_REACH = 5
+
+/** The marker drawn within reach of a point `x` pixels from the left, if any. */
+export function markerAt(
+  x: number,
+  markers: ScopeMarkers,
+  time: number,
+  width: number,
+  view: ScopeView,
+): 'a' | 'b' | null {
+  const from = scopeStart(time, width, view)
+  let best: 'a' | 'b' | null = null
+  let nearest = MARKER_REACH + 1
+  for (const which of ['a', 'b'] as const) {
+    const tick = markers[which]
+    if (tick === null) continue
+    const off = Math.abs(SCOPE_NAMES + (tick - from) * view.tickWidth - x)
+    if (off <= MARKER_REACH && off < nearest) {
+      best = which
+      nearest = off
+    }
+  }
+  return best
+}
+
+/** What the markers measure, as the header of the diagram says it. */
+export function markerText(markers: ScopeMarkers): string {
+  const { a, b } = markers
+  if (a === null && b === null) return ''
+  if (a === null || b === null) return `${a === null ? 'B' : 'A'} at ${a ?? b}`
+  const span = Math.abs(b - a)
+  return `A ${a}, B ${b}: ${span} tick${span === 1 ? '' : 's'} apart`
+}
+
+/** The markers that still lie in the past of a simulator back at `time`. */
+export function markersBefore(markers: ScopeMarkers, time: number): ScopeMarkers {
+  const keep = (tick: number | null): number | null => (tick !== null && tick <= time ? tick : null)
+  const a = keep(markers.a)
+  const b = keep(markers.b)
+  return a === markers.a && b === markers.b ? markers : { a, b }
 }
 
 /** The zoom steps of the diagram, in pixels per tick. */
@@ -229,11 +298,12 @@ export function renderScope(
         ctx.lineTo(x0 + 1 + slant, low - 2)
         ctx.closePath()
         ctx.stroke()
-        if (x1 - x0 >= span.digit.length * 7 + 12) {
+        const text = busTextOf(span.digit, radix, signal.format)
+        if (x1 - x0 >= text.length * 7 + 12) {
           ctx.font = `600 10px ${VALUE_FONT}`
           ctx.textAlign = 'center'
           ctx.fillStyle = theme.ink
-          ctx.fillText(span.digit, (x0 + x1) / 2, middle + 1)
+          ctx.fillText(text, (x0 + x1) / 2, middle + 1)
         }
         previous = undefined
         continue
@@ -296,12 +366,24 @@ export function renderScope(
   ctx.lineTo(SCOPE_NAMES - 0.5, height)
   ctx.stroke()
 
+  const markers = view.markers ?? NO_MARKERS
+  for (const [which, tick] of [
+    ['A', markers.a],
+    ['B', markers.b],
+  ] as const) {
+    if (tick === null || tick < from || tick > to) continue
+    drawCursor(ctx, x(tick), tick, height, theme, scene, rowHeight, style, which)
+  }
   if (view.cursor !== null && view.cursor >= from && view.cursor <= to) {
     drawCursor(ctx, x(view.cursor), view.cursor, height, theme, scene, rowHeight, style)
   }
 }
 
-/** A line down the rows at one tick, with that tick and what each row held then. */
+/**
+ * A line down the rows at one tick, with that tick and what each row held
+ * then. The cursor is amber and names its tick; a marker is a dashed line in
+ * the ink and names itself, A or B.
+ */
 function drawCursor(
   ctx: CanvasRenderingContext2D,
   at: number,
@@ -311,21 +393,25 @@ function drawCursor(
   scene: ScopeScene,
   rowHeight: number,
   style: ValueStyle,
+  marker?: 'A' | 'B',
 ): void {
   const line = Math.round(at) + 0.5
-  ctx.strokeStyle = theme.accent
+  const color = marker ? theme.ink : theme.accent
+  ctx.strokeStyle = color
   ctx.lineWidth = 1
+  if (marker) ctx.setLineDash([4, 3])
   ctx.beginPath()
   ctx.moveTo(line, AXIS)
   ctx.lineTo(line, height)
   ctx.stroke()
+  ctx.setLineDash([])
 
   // The tick, on a chip over the axis.
   ctx.font = `600 10px ${VALUE_FONT}`
   ctx.textAlign = 'center'
-  const label = String(tick)
+  const label = marker ?? String(tick)
   const chip = ctx.measureText(label).width + 10
-  ctx.fillStyle = theme.accent
+  ctx.fillStyle = color
   ctx.fillRect(line - chip / 2, 2, chip, AXIS - 6)
   ctx.beginPath()
   ctx.moveTo(line - 4, AXIS - 4)
@@ -341,12 +427,13 @@ function drawCursor(
     const value = scene.recorder.valueAt(signal.key, tick)
     if (value === undefined) return
     // A bus is kept as its digits written out already.
-    const text = typeof value === 'string' ? value : style.text(value)
+    const text =
+      typeof value === 'string' ? busTextOf(value, scene.radix, signal.format) : style.text(value)
     const top = AXIS + index * rowHeight
     const width = ctx.measureText(text).width + 8
     ctx.fillStyle = theme.background
     ctx.fillRect(line + 3, top + rowHeight / 2 - 7, width, 14)
-    ctx.strokeStyle = theme.accent
+    ctx.strokeStyle = color
     ctx.lineWidth = 1
     ctx.strokeRect(line + 3.5, top + rowHeight / 2 - 6.5, width - 1, 13)
     ctx.fillStyle = theme.ink

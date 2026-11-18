@@ -1,4 +1,6 @@
-import { SUB_TYPE, isAnnotation, useEditor, useSim, valueText } from '../editor/index.ts'
+import { SUB_TYPE, drawingProblems, isAnnotation, useEditor, useSim, valueText } from '../editor/index.ts'
+import { useChrome } from './chrome.ts'
+import { problemName } from './parts.ts'
 import { useStorage } from './persistence.ts'
 
 function plural(count: number, noun: string): string {
@@ -32,6 +34,8 @@ export function StatusBar() {
   const criticalShown = useSim((state) => state.criticalShown)
   const breakHit = useSim((state) => state.breakHit)
   const settings = useEditor((state) => state.settings)
+  const problems = useEditor((state) => drawingProblems(state.doc, problemName).length)
+  const problemsOpen = useChrome((state) => state.problemsOpen)
   const wireSelected = useEditor((state) => {
     if (state.selection.size !== 1) return false
     const [id] = state.selection
@@ -65,6 +69,17 @@ export function StatusBar() {
         {hint}
       </span>
       <span className="counts">
+        {(problems > 0 || problemsOpen) && (
+          <button
+            type="button"
+            className="status-button"
+            aria-pressed={problemsOpen}
+            title={problemsOpen ? 'Hide the problems' : 'Show the problems of this circuit'}
+            onClick={() => useChrome.getState().setProblemsOpen(!problemsOpen)}
+          >
+            {problems === 0 ? 'No problems' : plural(problems, 'problem')}
+          </button>
+        )}
         {conflicts > 0 && (
           <span className="conflict" title="Two outputs drive the same wire to different values">
             {plural(conflicts, 'wire')} in conflict

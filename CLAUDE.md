@@ -198,6 +198,19 @@ Run lint, test and build before calling a change done. CI runs the same three.
   layout asks `terminalNets(doc, false)`, so two tagged groups are never
   drawn touching. `extract.ts` leaves labels behind, and the new pin takes
   the label's name.
+- How a bus is written (`busFormat.ts`): digits, decimal, balanced with a
+  sign, or hex. The choice is `format` on the wires of the net, saved with
+  the drawing; any wire of a net gives it to the whole net, and new wires
+  cut from one keep it. The canvas, the inspector, the meter board and the
+  timing diagram all write a bus through it.
+- The meter board (`MeterBoard.tsx`) and the timing diagram's markers A and
+  B live only for the session: the board in `session.ts` next to the
+  watched wires, the markers in `TimingPanel`.
+- `problems.ts` lists what is likely a mistake: unattached inputs (not
+  `cin`, `en`, `load`, `set` or `reset`), wires nothing drives, loops with
+  no memory part, parts that drive nothing, and from the running circuit
+  conflicts and mixed widths. The status bar counts the ones read off the
+  drawing; the strip under the canvas lists them all.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
   live only for the session. Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.

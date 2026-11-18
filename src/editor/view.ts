@@ -83,6 +83,12 @@ export function keepInSight(
   return dx === 0 && dy === 0 ? view : { ...view, panX: view.panX + dx, panY: view.panY + dy }
 }
 
+/** The same view moved so that the grid point `p` is in the middle of a canvas this size. */
+export function centerOn(view: View, p: Point, width: number, height: number): View {
+  const at = worldToScreen(view, p)
+  return { ...view, panX: view.panX + width / 2 - at.x, panY: view.panY + height / 2 - at.y }
+}
+
 /** The most a single wheel event may zoom, as pixels of scroll. About 16%. */
 const MAX_WHEEL_STEP = 100
 

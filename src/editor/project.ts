@@ -238,6 +238,9 @@ function componentOf(data: ComponentData): DocComponent | undefined {
   }
 }
 
+/** The ways a bus can be written other than as its digits. */
+const WIRE_FORMATS = ['decimal', 'balanced', 'hex'] as const
+
 /** Reads one drawing. Anything that makes no sense is left out. */
 function docFromData(data: CircuitData): CircuitDoc {
   const components: Record<string, DocComponent> = {}
@@ -266,7 +269,8 @@ function docFromData(data: CircuitData): CircuitDoc {
     const from = terminalOf(item.from)
     const to = terminalOf(item.to)
     if (!from || !to || item.id in components || item.id in junctions) continue
-    wires[item.id] = { id: item.id, from, to }
+    const format = WIRE_FORMATS.find((name) => name === item.format)
+    wires[item.id] = format ? { id: item.id, from, to, format } : { id: item.id, from, to }
     count(item.id)
   }
   const nextId = Number.isInteger(data.nextId) ? Math.max(data.nextId, highest + 1) : highest + 1

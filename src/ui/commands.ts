@@ -119,6 +119,14 @@ export function listCommands(): Command[] {
       run: editor.redo,
     },
     {
+      id: 'view.problems',
+      group: 'View',
+      title: chrome.problemsOpen ? 'Hide the problems' : 'Show the problems',
+      detail: 'Floating inputs, conflicts, loops and parts that drive nothing',
+      keywords: 'errors warnings check lint issues floating conflict loop unused',
+      run: () => chrome.setProblemsOpen(!chrome.problemsOpen),
+    },
+    {
       id: 'edit.history',
       group: 'Edit',
       title: 'Show the edit history',

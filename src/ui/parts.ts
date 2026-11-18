@@ -1,4 +1,5 @@
 import { builtinComponents, gateTable } from '../core/index.ts'
+import type { DocComponent } from '../editor/index.ts'
 
 /** What a part is called in the palette and the inspector. */
 const NAMES: Readonly<Record<string, string>> = {
@@ -174,4 +175,10 @@ export function hasGateTable(type: string): boolean {
   // A table gate answers X until it is filled in: its table is in the inspector.
   if (type === 'table') return false
   return builtinComponents.has(type) && gateTable(builtinComponents.get(type), 2) !== undefined
+}
+
+/** What a part is called in a problem: the name of its kind, and its label if it has one. */
+export function problemName(part: DocComponent): string {
+  const kind = part.sub?.name ?? partName(part.type)
+  return part.label ? `${kind} ${part.label}` : kind
 }

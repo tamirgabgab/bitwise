@@ -52,6 +52,8 @@ export interface SimState {
   readonly breakHit: BreakHit | null
   /** How many rows the timing diagram of the open circuit has. */
   readonly scopeRows: number
+  /** How many wires of the open circuit are pinned to the meter board. */
+  readonly meters: number
 
   setRunning(running: boolean): void
   setSpeed(speed: SimSpeed): void
@@ -79,6 +81,7 @@ export const useSim = create<SimState>()((set) => ({
   breakpoints: {},
   breakHit: null,
   scopeRows: 0,
+  meters: 0,
 
   setRunning(running) {
     set(running ? { running, breakHit: null } : { running })

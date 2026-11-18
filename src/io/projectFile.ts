@@ -68,7 +68,11 @@ export interface FileWire {
   readonly id: string
   readonly from: FileTerminal
   readonly to: FileTerminal
+  /** How a bus on the wire is written, when not as its digits. */
+  readonly format?: 'decimal' | 'balanced' | 'hex'
 }
+
+const WIRE_FORMATS: readonly string[] = ['decimal', 'balanced', 'hex']
 
 export interface FileView {
   readonly panX: number
@@ -349,10 +353,14 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
     if (!isObject(item)) fail(`${where}: a wire is not an object.`)
     const wireId = idOf(item.id, `${where}: a wire`)
     const what = `${where}: wire ${wireId}`
+    if (item.format !== undefined && !WIRE_FORMATS.includes(item.format as string)) {
+      fail(`${what} is written in a way this app does not know.`)
+    }
     return {
       id: wireId,
       from: terminalOf(item.from, what, parts, junctionIds),
       to: terminalOf(item.to, what, parts, junctionIds),
+      ...(item.format === undefined ? {} : { format: item.format as FileWire['format'] }),
     }
   })
   for (const wire of wires) claim(wire.id)

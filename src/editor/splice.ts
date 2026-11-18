@@ -124,9 +124,9 @@ export function applySplice(doc: CircuitDoc, id: string, splice: Splice): Circui
   const wires = { ...doc.wires }
   delete wires[wire.id]
   const cut: CircuitDoc = { ...doc, wires }
-  const first = addWire(cut, feed, { kind: 'pin', component: id, port: splice.input })
+  const first = addWire(cut, feed, { kind: 'pin', component: id, port: splice.input }, wire.format)
   if (!first) return undefined
-  return addWire(first.doc, { kind: 'pin', component: id, port: splice.output }, rest)?.doc
+  return addWire(first.doc, { kind: 'pin', component: id, port: splice.output }, rest, wire.format)?.doc
 }
 
 /**

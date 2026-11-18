@@ -106,10 +106,18 @@ export type Terminal =
  * A connection between two terminals. Its path is worked out from the whole
  * drawing (see `wireLayout.ts`) and never stored.
  */
+/**
+ * How the value of a bus is written: its digits in the radix, the number
+ * in decimal, the balanced value with a sign, or hexadecimal.
+ */
+export type BusFormat = 'digits' | 'decimal' | 'balanced' | 'hex'
+
 export interface DocWire {
   readonly id: string
   readonly from: Terminal
   readonly to: Terminal
+  /** How a bus on this wire is written, when not as its digits (`busFormat.ts`). */
+  readonly format?: Exclude<BusFormat, 'digits'>
 }
 
 export interface CircuitDoc {
@@ -474,10 +482,16 @@ export function addJunction(doc: CircuitDoc, pos: Point): { doc: CircuitDoc; id:
   }
 }
 
-function insertWire(doc: CircuitDoc, from: Terminal, to: Terminal): { doc: CircuitDoc; id: string } {
+function insertWire(
+  doc: CircuitDoc,
+  from: Terminal,
+  to: Terminal,
+  format?: DocWire['format'],
+): { doc: CircuitDoc; id: string } {
   const id = `w${doc.nextId}`
+  const wire: DocWire = format ? { id, from, to, format } : { id, from, to }
   return {
-    doc: { ...doc, wires: { ...doc.wires, [id]: { id, from, to } }, nextId: doc.nextId + 1 },
+    doc: { ...doc, wires: { ...doc.wires, [id]: wire }, nextId: doc.nextId + 1 },
     id,
   }
 }
@@ -491,6 +505,7 @@ export function addWire(
   doc: CircuitDoc,
   from: Terminal,
   to: Terminal,
+  format?: DocWire['format'],
 ): { doc: CircuitDoc; id: string } | undefined {
   if (sameTerminal(from, to)) return undefined
   if (!terminalEnd(doc, from) || !terminalEnd(doc, to)) return undefined
@@ -501,7 +516,7 @@ export function addWire(
     const wireTo = terminalKey(wire.to)
     if ((wireFrom === a && wireTo === b) || (wireFrom === b && wireTo === a)) return undefined
   }
-  return insertWire(doc, from, to)
+  return insertWire(doc, from, to, format)
 }
 
 /**
@@ -526,8 +541,8 @@ function splitWire(
   const wires = { ...added.doc.wires }
   delete wires[wireId]
   let next: CircuitDoc = { ...added.doc, wires }
-  next = insertWire(next, wire.from, terminal).doc
-  const after = insertWire(next, terminal, wire.to)
+  next = insertWire(next, wire.from, terminal, wire.format).doc
+  const after = insertWire(next, terminal, wire.to, wire.format)
   return { doc: after.doc, terminal, after: after.id }
 }
 
@@ -716,7 +731,7 @@ export function pasteFragment(
     const to = rename(wire.to)
     if (!from || !to) continue
     const id = `w${nextId++}`
-    wires[id] = { id, from, to }
+    wires[id] = wire.format ? { id, from, to, format: wire.format } : { id, from, to }
   }
   return { doc: { components, junctions, wires, nextId }, ids: [...renamed.values()] }
 }

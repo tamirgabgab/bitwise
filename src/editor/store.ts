@@ -35,7 +35,8 @@ import {
   setComponentParams,
   setComponentText,
 } from './document.ts'
-import type { CircuitDoc, Fragment, WireEnd } from './document.ts'
+import type { BusFormat, CircuitDoc, Fragment, Terminal, WireEnd } from './document.ts'
+import { setBusFormat } from './busFormat.ts'
 import { extractCircuit } from './extract.ts'
 import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
 import { placementParams } from './placement.ts'
@@ -180,6 +181,8 @@ export interface EditorState {
   setLabel(id: string, label: string): void
   /** Changes what a text label says, or the title of a frame. */
   setText(id: string, text: string): void
+  /** Writes the bus at `terminal` in `format`, on every wire of its net. */
+  setBusFormat(terminal: Terminal, format: BusFormat): void
   /** Puts a frame around the selection and selects it. */
   frameSelection(): void
   /** Changes the size of a frame. */
@@ -494,6 +497,10 @@ export const useEditor = create<EditorState>()((set, get) => {
 
     setText(id, text) {
       commit(setComponentText(get().doc, id, text))
+    },
+
+    setBusFormat(terminal, format) {
+      commit(setBusFormat(get().doc, terminal, format))
     },
 
     setKey(id, code) {

@@ -48,6 +48,11 @@ export {
   readPart,
   isWatched,
   toggleWatch,
+  currentProblems,
+  isMetered,
+  meterReadings,
+  toggleMeter,
+  unpinMeter,
   unwatchRow,
   restartSimulation,
   setBreakpoint,
@@ -57,13 +62,20 @@ export {
   stepToClockEdge,
   switchValue,
 } from './session.ts'
-export type { NodeInfo, ProbedPin } from './session.ts'
+export type { MeterReading, NodeInfo, ProbedPin } from './session.ts'
+export { busFormatName, busFormatsFor, formatAt } from './busFormat.ts'
+export type { BusFormat } from './document.ts'
 export type { PartReading, PinReading } from './simBridge.ts'
 export type { BreakHit, BreakWhen } from './simStore.ts'
 export type { ScopeSignal, Span } from './scope.ts'
 export {
   DEFAULT_SCOPE_VIEW,
+  NO_MARKERS,
   SCOPE_NAMES,
+  markerAt,
+  markerText,
+  markersBefore,
+  placeMarker,
   SCOPE_ZOOMS,
   renderScope,
   scopeHeight,
@@ -74,7 +86,7 @@ export {
   scopePan,
   scopeZoom,
 } from './scopeRender.ts'
-export type { ScopeView } from './scopeRender.ts'
+export type { ScopeMarkers, ScopeView } from './scopeRender.ts'
 export { MAX_CIRCUIT_NAME, canPlace, interfaceOf, usersOf } from './subcircuit.ts'
 export { SIM_SPEEDS } from './simRunner.ts'
 export type { SimSpeed } from './simRunner.ts'
@@ -92,4 +104,6 @@ export {
 export type { ValueStyle } from './valueStyle.ts'
 export { readCanvasTheme } from './theme.ts'
 export type { CanvasTheme } from './theme.ts'
-export { MAX_ZOOM, MIN_ZOOM } from './view.ts'
+export { MAX_ZOOM, MIN_ZOOM, centerOn } from './view.ts'
+export { drawingProblems } from './problems.ts'
+export type { Problem, ProblemKind } from './problems.ts'

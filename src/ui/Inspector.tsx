@@ -9,9 +9,13 @@ import {
   NET_TYPE,
   TEXT_TYPE,
   breakpointOn,
+  busFormatName,
+  busFormatsFor,
   describeNode,
+  formatAt,
   extractable,
   isSwitchKey,
+  isMetered,
   isWatched,
   keyName,
   readPart,
@@ -20,12 +24,13 @@ import {
   signalText,
   switchValue,
   takesKey,
+  toggleMeter,
   toggleWatch,
   useEditor,
   useSim,
   valueText,
 } from '../editor/index.ts'
-import type { AlignEdge, BreakWhen, ProjectSettings, Terminal } from '../editor/index.ts'
+import type { AlignEdge, BreakWhen, BusFormat, ProjectSettings, Terminal } from '../editor/index.ts'
 import {
   AlignBottomIcon,
   AlignCenterXIcon,
@@ -336,8 +341,12 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   // The reading follows the simulator, and the choice follows the breakpoints.
   useSim((state) => state.revision)
   useSim((state) => state.breakpoints)
+  useSim((state) => state.meters)
+  const doc = useEditor((state) => state.doc)
   const fieldId = useId()
+  const formatId = useId()
   const info = describeNode(terminal)
+  const format = formatAt(doc, terminal)
   const when = breakpointOn(terminal)
   // A bus has too many values to list: it can only wait for a change.
   const values =
@@ -347,10 +356,30 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
     <aside className="inspector" aria-label="Wire">
       <h2>Wire</h2>
       <p className="wire-reading">
-        <span className="wire-value">{signalText(info.signal, settings)}</span>
+        <span className="wire-value">{signalText(info.signal, settings, format)}</span>
         <span>{info.conflict ? `${info.name}, in conflict` : info.name}</span>
       </p>
-      {info.signal.length > 1 && <p className="note">A bus of {info.signal.length} digits.</p>}
+      {info.signal.length > 1 && (
+        <>
+          <p className="note">A bus of {info.signal.length} digits.</p>
+          <div className="field">
+            <label htmlFor={formatId}>Write it as</label>
+            <select
+              id={formatId}
+              value={format}
+              onChange={(event) =>
+                useEditor.getState().setBusFormat(terminal, event.target.value as BusFormat)
+              }
+            >
+              {busFormatsFor(settings.radix).map((choice) => (
+                <option key={choice} value={choice}>
+                  {busFormatName(choice, settings.radix)}
+                </option>
+              ))}
+            </select>
+          </div>
+        </>
+      )}
       {info.mixed && (
         <p className="note">
           Pins of different widths are wired together here. Make the widths the same, or use a
@@ -406,6 +435,14 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
           }}
         />
         Show in the timing diagram
+      </label>
+      <label className="check">
+        <input
+          type="checkbox"
+          checked={isMetered(terminal)}
+          onChange={() => toggleMeter(terminal)}
+        />
+        Pin to the meter board
       </label>
       <ConeCheck />
     </aside>

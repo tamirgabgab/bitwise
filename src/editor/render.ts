@@ -9,7 +9,8 @@ import {
 } from '../core/index.ts'
 import type { Digit, Signal } from '../core/index.ts'
 import { FRAME_TYPE, NET_TYPE, junctionDegrees, keyName, terminalKey } from './document.ts'
-import type { CircuitDoc, DocComponent, SubRef } from './document.ts'
+import type { BusFormat, CircuitDoc, DocComponent, SubRef } from './document.ts'
+import { formatAt } from './busFormat.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues, WireValue } from './liveValues.ts'
 import { DEFAULT_FRAME, FRAME_SIZE, FRAME_TITLE, symbolOf } from './symbols.ts'
@@ -462,7 +463,10 @@ export function renderScene(
 
   const wiredPins = new Set<string>()
   // Where each bus gets its value written: beside its longest straight run.
-  const busLabels = new Map<WireValue, { at: Point; length: number; level: boolean }>()
+  const busLabels = new Map<
+    WireValue,
+    { at: Point; length: number; level: boolean; format: BusFormat }
+  >()
   for (const wire of Object.values(doc.wires)) {
     wiredPins.add(terminalKey(wire.from))
     wiredPins.add(terminalKey(wire.to))
@@ -498,6 +502,7 @@ export function renderScene(
           at: { x: (from.x + to.x) / 2, y: (from.y + to.y) / 2 },
           length,
           level: from.y === to.y,
+          format: formatAt(doc, wire.from),
         })
       }
     }
@@ -621,7 +626,7 @@ export function renderScene(
   }
 
   for (const [value, label] of busLabels) {
-    const text = style.label(value.signal)
+    const text = style.label(value.signal, label.format)
     const at = label.level
       ? { x: label.at.x, y: label.at.y - 0.62 }
       : { x: label.at.x + 0.5 + text.length * 0.19, y: label.at.y }

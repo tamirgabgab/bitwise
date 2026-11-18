@@ -2,7 +2,12 @@ import { describe, expect, it } from 'vitest'
 import { Recorder } from './scope.ts'
 import {
   DEFAULT_SCOPE_VIEW,
+  NO_MARKERS,
   SCOPE_NAMES,
+  markerAt,
+  markerText,
+  markersBefore,
+  placeMarker,
   SCOPE_ZOOMS,
   scopeHeight,
   scopeRowAt,
@@ -79,5 +84,40 @@ describe('scopePan', () => {
     // Not before the first screenful of the record.
     expect(scopePan(85, 1000, 80, -1)).toBe(80)
     expect(scopePan(null, 50, 80, -1)).toBeNull()
+  })
+})
+
+describe('markers A and B', () => {
+  it('go down A first, then B, then the nearer one moves', () => {
+    let markers = placeMarker(NO_MARKERS, 10)
+    expect(markers).toEqual({ a: 10, b: null })
+    markers = placeMarker(markers, 40)
+    expect(markers).toEqual({ a: 10, b: 40 })
+    expect(placeMarker(markers, 35)).toEqual({ a: 10, b: 35 })
+    expect(placeMarker(markers, 12)).toEqual({ a: 12, b: 40 })
+  })
+
+  it('say how far apart they are', () => {
+    expect(markerText(NO_MARKERS)).toBe('')
+    expect(markerText({ a: 10, b: null })).toBe('A at 10')
+    expect(markerText({ a: null, b: 7 })).toBe('B at 7')
+    expect(markerText({ a: 40, b: 10 })).toBe('A 40, B 10: 30 ticks apart')
+    expect(markerText({ a: 5, b: 6 })).toBe('A 5, B 6: 1 tick apart')
+  })
+
+  it('are picked up near their line', () => {
+    const view = { tickWidth: 4, end: null, cursor: null }
+    const markers = { a: 10, b: 20 }
+    // The diagram starts at tick 0 while the record is short.
+    expect(markerAt(SCOPE_NAMES + 10 * 4 + 3, markers, 50, 800, view)).toBe('a')
+    expect(markerAt(SCOPE_NAMES + 20 * 4 - 2, markers, 50, 800, view)).toBe('b')
+    expect(markerAt(SCOPE_NAMES + 15 * 4, markers, 50, 800, view)).toBeNull()
+  })
+
+  it('go when the simulator goes back before them', () => {
+    const markers = { a: 10, b: 20 }
+    expect(markersBefore(markers, 30)).toBe(markers)
+    expect(markersBefore(markers, 15)).toEqual({ a: 10, b: null })
+    expect(markersBefore(markers, 0)).toEqual(NO_MARKERS)
   })
 })

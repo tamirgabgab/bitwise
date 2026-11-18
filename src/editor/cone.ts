@@ -23,7 +23,8 @@ export interface ConeMarks {
   readonly ahead: ReadonlySet<string>
 }
 
-interface Graph {
+/** Which nets each part reads and drives, and the other way round. */
+export interface PartGraph {
   readonly netOf: (terminal: Terminal) => string
   /** The nets each part reads and drives. */
   readonly ins: ReadonlyMap<string, string[]>
@@ -39,7 +40,8 @@ function push(map: Map<string, string[]>, key: string, value: string): void {
   else map.set(key, [value])
 }
 
-function graphOf(doc: CircuitDoc): Graph {
+/** The parts of `doc` and the nets between them, by pin direction. */
+export function partGraph(doc: CircuitDoc): PartGraph {
   const nets = terminalNets(doc)
   const netOf = (terminal: Terminal): string => {
     const key = terminalKey(terminal)
@@ -66,7 +68,7 @@ function graphOf(doc: CircuitDoc): Graph {
 
 /** Walks from some nets, one way, and gives the nets and the parts it reached. */
 function walk(
-  graph: Graph,
+  graph: PartGraph,
   startNets: readonly string[],
   startParts: readonly string[],
   ahead: boolean,
@@ -95,7 +97,7 @@ function walk(
  * the selection holds neither.
  */
 export function influenceCone(doc: CircuitDoc, selection: ReadonlySet<string>): ConeMarks | undefined {
-  const graph = graphOf(doc)
+  const graph = partGraph(doc)
   const startParts: string[] = []
   const startNets: string[] = []
   for (const id of selection) {

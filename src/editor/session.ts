@@ -1,12 +1,17 @@
 import { Z, formatSignal } from '../core/index.ts'
 import type { CircuitCost, Digit, Probe, Signal } from '../core/index.ts'
+import { formatAt } from './busFormat.ts'
 import { terminalNets } from './connectivity.ts'
 import { terminalEnd, terminalKey } from './document.ts'
-import type { CircuitDoc, Terminal } from './document.ts'
+import type { BusFormat, CircuitDoc, Terminal } from './document.ts'
 import type { Point } from './geometry.ts'
 import { toProjectData } from './project.ts'
 import type { ProjectData } from './project.ts'
 import { Recorder, scopeSignals } from './scope.ts'
+import type { PartNamer } from './editNames.ts'
+import { readLiveValues } from './liveValues.ts'
+import { circuitProblems } from './problems.ts'
+import type { Problem } from './problems.ts'
 import type { ScopeSignal, ScopeValue } from './scope.ts'
 import { SimBridge } from './simBridge.ts'
 import type { NodePin, PartReading } from './simBridge.ts'
@@ -65,6 +70,8 @@ interface Engine {
   readonly breaks: Map<string, Breakpoint>
   /** The wires that have a row of their own in the timing diagram, by `terminalKey`. */
   readonly watches: Map<string, Watch>
+  /** The wires pinned to the meter board, by `terminalKey`, in the order they were pinned. */
+  readonly meters: Map<string, Watch>
   cost: CircuitCost
   /** The longest path as the canvas marks it, worked out when first shown after an edit. */
   critical: CriticalMarks | undefined
@@ -91,6 +98,7 @@ function scopeRows(engine: Pick<Engine, 'watches' | 'rows'>, doc: CircuitDoc): r
       name: watch.name,
       kind: 'wire',
       pin: watch.terminal,
+      format: formatAt(doc, watch.terminal),
     }),
   )
   const list = added.length === 0 ? scopeSignals(doc) : [...scopeSignals(doc), ...added]
@@ -155,6 +163,7 @@ function engineOf(id: string, radix: number): Engine {
     const recorder = new Recorder()
     const breaks = new Map<string, Breakpoint>()
     const watches = new Map<string, Watch>()
+    const meters = new Map<string, Watch>()
     // Only the open circuit runs, so its drawing is the one in the store.
     const runner = new SimRunner(bridge.sim, () => {
       record(made, useEditor.getState().circuits[id]?.doc)
@@ -168,6 +177,7 @@ function engineOf(id: string, radix: number): Engine {
       recorder,
       breaks,
       watches,
+      meters,
       cost: { gates: 0, depth: 0 },
       critical: undefined,
       rows: undefined,
@@ -223,6 +233,7 @@ function publishMarks(): void {
   for (const [key, point] of engine.breaks) breakpoints[key] = point.when
   useSim.setState({
     breakpoints,
+    meters: engine.meters.size,
     scopeRows: scopeRows(engine, useEditor.getState().doc).length,
     revision: useSim.getState().revision + 1,
   })
@@ -248,14 +259,14 @@ export function currentScope(): {
 /** Brings the open circuit's simulator in step with its drawing. */
 function syncActive(state: EditorState): void {
   const engine = engineOf(state.active, state.settings.radix)
-  const { bridge, runner, breaks, watches } = engine
+  const { bridge, runner, breaks, watches, meters } = engine
   bridge.sync(state.doc, state.circuits)
   engine.cost = bridge.cost()
   engine.critical = undefined
   runner.nudge()
   // A breakpoint or a followed wire goes when the terminal that said where it was goes.
   let dropped = false
-  for (const marks of [breaks, watches]) {
+  for (const marks of [breaks, watches, meters]) {
     for (const [key, mark] of marks) {
       if (terminalEnd(state.doc, mark.terminal)) continue
       marks.delete(key)
@@ -502,6 +513,64 @@ export function toggleWatch(terminal: Terminal): boolean {
   record(engine, doc)
   publishMarks()
   return existing === undefined
+}
+
+/**
+ * The problems of the open circuit as it runs now (`problems.ts`), with
+ * its parts named by `nameOf`.
+ */
+export function currentProblems(doc: CircuitDoc, nameOf: PartNamer): Problem[] {
+  return circuitProblems(doc, readLiveValues(doc, current().bridge), nameOf)
+}
+
+/** Whether the wire at `terminal` is pinned to the meter board. */
+export function isMetered(terminal: Terminal): boolean {
+  return keyOnWire(current().meters.keys(), useEditor.getState().doc, terminal) !== undefined
+}
+
+/**
+ * Pins the wire at `terminal` to the meter board of the open circuit, or
+ * takes it off. Returns true when the wire is now on the board. Like the
+ * rows of the timing diagram, the board lives only for the session.
+ */
+export function toggleMeter(terminal: Terminal): boolean {
+  const engine = current()
+  const doc = useEditor.getState().doc
+  const existing = keyOnWire(engine.meters.keys(), doc, terminal)
+  if (existing !== undefined) engine.meters.delete(existing)
+  else engine.meters.set(terminalKey(terminal), { terminal, name: describeNode(terminal).name })
+  publishMarks()
+  return existing === undefined
+}
+
+/** Takes the meter with `key` off the board. */
+export function unpinMeter(key: string): void {
+  if (current().meters.delete(key)) publishMarks()
+}
+
+/** What one meter on the board shows. */
+export interface MeterReading {
+  readonly key: string
+  readonly name: string
+  readonly signal: Signal
+  readonly conflict: boolean
+  readonly format: BusFormat
+}
+
+/** What every meter of the open circuit reads now. */
+export function meterReadings(): MeterReading[] {
+  const engine = current()
+  const doc = useEditor.getState().doc
+  return [...engine.meters].map(([key, meter]) => {
+    const probe = engine.bridge.probeTerminal(key)
+    return {
+      key,
+      name: meter.name,
+      signal: probe?.value ?? [Z],
+      conflict: probe?.conflict ?? false,
+      format: formatAt(doc, meter.terminal),
+    }
+  })
 }
 
 /** Takes away the timing diagram row with `key`, when it is a wire the user added. */

@@ -23,6 +23,8 @@ interface ChromeState {
   readonly quickAdd: { readonly at: Point | null } | null
   /** The logic settings panel beside the canvas. */
   readonly settingsOpen: boolean
+  /** The strip of problems under the canvas. Not kept from one visit to the next. */
+  readonly problemsOpen: boolean
   /** Ids of the palette sections that are folded away. */
   readonly collapsed: readonly string[]
   /** Types of the parts placed last, the latest first. */
@@ -42,6 +44,7 @@ interface ChromeState {
   endTour(): void
   closeOverlay(): void
   setSettingsOpen(open: boolean): void
+  setProblemsOpen(open: boolean): void
   toggleSection(id: string): void
   noteUsed(type: string): void
   setTimingHeight(height: number | null): void
@@ -90,6 +93,7 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   commandQuery: '',
   quickAdd: null,
   settingsOpen: false,
+  problemsOpen: false,
   ...load(),
 
   openCommands(query = '') {
@@ -123,6 +127,9 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   },
   setSettingsOpen(settingsOpen) {
     set({ settingsOpen })
+  },
+  setProblemsOpen(problemsOpen) {
+    set({ problemsOpen })
   },
   toggleSection(id) {
     const { collapsed } = get()

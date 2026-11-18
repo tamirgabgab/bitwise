@@ -1,5 +1,7 @@
 import { X, Z, digitChar } from '../core/index.ts'
 import type { Digit, Signal } from '../core/index.ts'
+import { busText } from './busFormat.ts'
+import type { BusFormat } from './document.ts'
 
 /*
  * How a value looks: its color on a wire and how it is written.
@@ -115,10 +117,13 @@ export function valueText(digit: Digit, settings: ValueSettings): string {
 
 /**
  * A whole signal as the user reads it. A plain wire is written like any
- * value; a bus is its digits in a row, the most significant first.
+ * value; a bus is its digits in a row, the most significant first, unless
+ * `format` asks for a number (`busText`).
  */
-export function signalText(signal: Signal, settings: ValueSettings): string {
+export function signalText(signal: Signal, settings: ValueSettings, format: BusFormat = 'digits'): string {
   if (signal.length === 1) return valueText(signal[0], settings)
+  const number = busText(signal, settings.radix, format)
+  if (number !== undefined) return number
   let text = ''
   for (let i = signal.length - 1; i >= 0; i--) {
     const digit = signal[i]
@@ -174,7 +179,7 @@ export interface ValueStyle {
   fill(digit: Digit): string | null
   text(digit: Digit): string
   /** How a whole signal is written: see `signalText`. */
-  label(signal: Signal): string
+  label(signal: Signal, format?: BusFormat): string
   wire(digit: Digit, conflict: boolean): WireLook
   /** A bus: heavier than a wire and in one plain color, whatever it carries. */
   bus(signal: Signal, conflict: boolean): WireLook
@@ -204,8 +209,8 @@ export function makeValueStyle(settings: ValueSettings, theme: ValueTheme): Valu
     text(digit) {
       return valueText(digit, settings)
     },
-    label(signal) {
-      return signalText(signal, settings)
+    label(signal, format) {
+      return signalText(signal, settings, format)
     },
     bus(signal, conflict) {
       if (conflict) return { color: unknown, dash: [0.3, 0.35], weight: 3 }

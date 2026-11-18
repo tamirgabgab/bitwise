@@ -4,8 +4,12 @@ import {
   criticalMarks,
   currentScope,
   describeNode,
+  isMetered,
   isWatched,
+  meterReadings,
   stepSimulation,
+  toggleMeter,
+  unpinMeter,
   toggleWatch,
   unwatchRow,
 } from './session.ts'
@@ -107,5 +111,30 @@ describe('the probe', () => {
     expect(info.here).toMatchObject({ part: 'c2', port: 'out', drives: true })
     expect(info.drivers).toContain(info.here)
     expect(describeNode(pin('c4', 'in')).here).toMatchObject({ part: 'c4', drives: false })
+  })
+})
+
+describe('the meter board', () => {
+  it('pins a wire, reads it as it runs, and takes it off', () => {
+    inverter()
+    expect(toggleMeter(pin('c2', 'out'))).toBe(true)
+    expect(isMetered(pin('c4', 'in'))).toBe(true)
+    expect(useSim.getState().meters).toBe(1)
+    for (let i = 0; i < 4; i++) stepSimulation()
+    const [meter] = meterReadings()
+    // The switch starts at 0, so the inverter gives 1.
+    expect(meter.signal).toEqual([1])
+    expect(meter.format).toBe('digits')
+    unpinMeter(meter.key)
+    expect(meterReadings()).toEqual([])
+    expect(useSim.getState().meters).toBe(0)
+  })
+
+  it('drops a wire whose part is deleted', () => {
+    inverter()
+    toggleMeter(pin('c1', 'out'))
+    editor().setSelection(['c1'])
+    editor().deleteSelection()
+    expect(meterReadings()).toEqual([])
   })
 })
