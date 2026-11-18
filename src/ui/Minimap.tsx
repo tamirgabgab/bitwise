@@ -73,7 +73,12 @@ export function Minimap() {
 
     request()
     const stop = useEditor.subscribe((state, previous) => {
-      if (state.doc !== previous.doc || state.view !== previous.view || state.theme !== previous.theme) {
+      if (
+        state.doc !== previous.doc ||
+        state.view !== previous.view ||
+        state.theme !== previous.theme ||
+        state.canvasLook !== previous.canvasLook
+      ) {
         request()
       }
     })

@@ -158,7 +158,7 @@ export function TimingPanel() {
         if (state.revision !== previous.revision) request()
       }),
       useEditor.subscribe((state, previous) => {
-        if (state.theme !== previous.theme) newTheme()
+        if (state.theme !== previous.theme || state.canvasLook !== previous.canvasLook) newTheme()
         else if (state.doc !== previous.doc) request()
       }),
     ]

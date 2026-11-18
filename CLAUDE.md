@@ -225,6 +225,15 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
   live only for the session. Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.
+- The canvas look (`canvasLook`: classic, blueprint, chalk, scope) and the
+  gate style (`gateStyle`: ANSI or IEC) are app preferences in `useEditor`,
+  next to the theme, each under its own storage key. A look is
+  `data-canvas` on the page and repaints only the canvases (`.canvas`,
+  `.minimap`, the timing diagram), never the chrome; an SVG picture keeps
+  the plain look. An IEC face is `iec` on a gate's symbol, picked by
+  `inStyle`, and shares its pins and bounds, so nothing moves.
+  `canvasLooks.test.ts` reads `index.css` and checks every look's signal
+  colors against its background.
 - Canvas colors come from CSS variables in `src/index.css`. Amber is the
   only accent color; the other hues are reserved for signal values.
 - Keyboard shortcuts match on `event.code`, so they work on any layout.

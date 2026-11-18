@@ -46,6 +46,7 @@ import type { InputValue, Step } from './steps.ts'
 import { samePoint } from './geometry.ts'
 import { docBounds } from './hitTest.ts'
 import type { Point } from './geometry.ts'
+import type { GateStyle } from './symbols.ts'
 import { DEFAULT_SETTINGS, emptyProject, fromProjectData } from './project.ts'
 import type { LoadedProject, ProjectData, ProjectSettings } from './project.ts'
 import { canPlace, cleanCircuitName, reconcileAll, subRefOf } from './subcircuit.ts'
@@ -58,6 +59,20 @@ export { DEFAULT_SETTINGS }
 export type { ProjectSettings }
 
 export type ThemeChoice = 'system' | 'light' | 'dark'
+
+/**
+ * How the canvas is painted: the plain look that follows the light or dark
+ * theme, or one of the fixed looks. Only the drawing changes, never the
+ * chrome around it.
+ */
+export type CanvasLook = 'classic' | 'blueprint' | 'chalk' | 'scope'
+
+export const CANVAS_LOOKS: readonly { readonly id: CanvasLook; readonly name: string }[] = [
+  { id: 'classic', name: 'Classic' },
+  { id: 'blueprint', name: 'Blueprint' },
+  { id: 'chalk', name: 'Chalkboard' },
+  { id: 'scope', name: 'Green scope' },
+]
 
 /** A part picked from the palette that has not been dropped yet. */
 export interface Placing {
@@ -98,6 +113,38 @@ function saveTheme(theme: ThemeChoice): void {
   }
 }
 
+const LOOK_KEY = 'cedar-logic.canvas-look'
+const GATES_KEY = 'cedar-logic.gates'
+
+/** A preference of the app kept in the browser, or `fallback` when there is none. */
+function loadChoice<T extends string>(key: string, allowed: readonly T[], fallback: T): T {
+  try {
+    const stored = globalThis.localStorage?.getItem(key)
+    if (stored && (allowed as readonly string[]).includes(stored)) return stored as T
+  } catch {
+    // Storage can be unavailable; the default is a fine fallback.
+  }
+  return fallback
+}
+
+/** Remembers a preference, forgetting it when it is the default. */
+function saveChoice(key: string, value: string, fallback: string): void {
+  try {
+    if (value === fallback) globalThis.localStorage?.removeItem(key)
+    else globalThis.localStorage?.setItem(key, value)
+  } catch {
+    // Not being able to remember a preference is harmless.
+  }
+}
+
+/** Puts the canvas look on the page, where the CSS gives the canvases its colors. */
+function applyLook(look: CanvasLook): void {
+  const root = globalThis.document?.documentElement
+  if (!root) return
+  if (look === 'classic') delete root.dataset.canvas
+  else root.dataset.canvas = look
+}
+
 /**
  * Puts the choice on the page, where the CSS picks it up. Done here and not
  * in a React effect so the colors are already in place when subscribers run.
@@ -129,6 +176,10 @@ export interface EditorState {
   readonly pasteCount: number
   readonly placing: Placing | null
   readonly theme: ThemeChoice
+  /** How the canvases are painted. An app preference, like the theme. */
+  readonly canvasLook: CanvasLook
+  /** How gates are drawn. An app preference: pins stay where they are. */
+  readonly gateStyle: GateStyle
   readonly settings: ProjectSettings
 
   /** Every circuit of the project. The open one is always current here too. */
@@ -218,6 +269,8 @@ export interface EditorState {
   fitToScreen(width: number, height: number): void
   setPlacing(placing: Placing | null): void
   setTheme(theme: ThemeChoice): void
+  setCanvasLook(look: CanvasLook): void
+  setGateStyle(style: GateStyle): void
   /**
    * Changes the radix. The kit changes with it if it does not fit the new
    * radix, and digits on wires turn on when there are more than two values.
@@ -358,6 +411,8 @@ export const useEditor = create<EditorState>()((set, get) => {
     ...projectData(emptyProject(), DEFAULT_VIEW),
     epoch: 0,
     theme: loadTheme(),
+    canvasLook: loadChoice(LOOK_KEY, ['classic', 'blueprint', 'chalk', 'scope'], 'classic'),
+    gateStyle: loadChoice(GATES_KEY, ['ansi', 'iec'], 'ansi'),
 
     setStepsOpen(stepsOpen) {
       set({ stepsOpen })
@@ -638,6 +693,17 @@ export const useEditor = create<EditorState>()((set, get) => {
       set({ theme })
     },
 
+    setCanvasLook(canvasLook) {
+      saveChoice(LOOK_KEY, canvasLook, 'classic')
+      applyLook(canvasLook)
+      set({ canvasLook })
+    },
+
+    setGateStyle(gateStyle) {
+      saveChoice(GATES_KEY, gateStyle, 'ansi')
+      set({ gateStyle })
+    },
+
     setRadix(radix) {
       const { settings } = get()
       if (!Number.isInteger(radix) || radix < MIN_RADIX || radix > MAX_RADIX) return
@@ -765,6 +831,7 @@ export const useEditor = create<EditorState>()((set, get) => {
 })
 
 applyTheme(useEditor.getState().theme)
+applyLook(useEditor.getState().canvasLook)
 
 /** Puts the editor back to an empty project. Meant for tests. */
 export function resetEditor(): void {

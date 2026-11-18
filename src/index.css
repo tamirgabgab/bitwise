@@ -93,6 +93,57 @@
   --signal-unknown: #6b9bff;
 }
 
+/* Canvas looks: a choice of the app (`canvasLook` in the store), put on the
+   page as data-canvas. They paint only the drawings (the canvas, the
+   overview map and the timing diagram), never the chrome, and they hold in
+   the light and the dark theme alike. Each keeps the meaning of the signal
+   colors: high warm, floating and unknown apart from the wires. */
+:root[data-canvas='blueprint'] :is(.canvas, .minimap, .timing-body canvas) {
+  --canvas-bg: #13406e;
+  --grid-dot: #2c5d8f;
+  --ink: #e6f0fb;
+  --part-fill: #174a7e;
+  --wire: #b9d3ee;
+  --accent: #ffc24d;
+  --accent-soft: rgba(255, 194, 77, 0.25);
+  --signal-high: #ff7b7b;
+  --signal-low: #8fb0d4;
+  --signal-hiz: #6ff0a8;
+  --signal-unknown: #5fe1ff;
+}
+
+:root[data-canvas='chalk'] :is(.canvas, .minimap, .timing-body canvas) {
+  --canvas-bg: #26332c;
+  --grid-dot: #3a4a41;
+  --ink: #eef1e8;
+  --part-fill: #2c3a33;
+  --wire: #c8d0c4;
+  --accent: #ffd166;
+  --accent-soft: rgba(255, 209, 102, 0.22);
+  --signal-high: #ff8a80;
+  --signal-low: #9aa69e;
+  --signal-hiz: #b5f07c;
+  --signal-unknown: #8ab4ff;
+}
+
+:root[data-canvas='scope'] :is(.canvas, .minimap, .timing-body canvas) {
+  --canvas-bg: #04100a;
+  --grid-dot: #123222;
+  --ink: #7cf7a4;
+  --part-fill: #062014;
+  --wire: #3fbf73;
+  --accent: #ffcf4a;
+  --accent-soft: rgba(255, 207, 74, 0.2);
+  --signal-high: #ff6b6b;
+  --signal-low: #2f8f55;
+  --signal-hiz: #e8f56b;
+  --signal-unknown: #6ba8ff;
+}
+
+:root[data-canvas] .minimap {
+  background: var(--canvas-bg);
+}
+
 * {
   box-sizing: border-box;
 }

@@ -91,8 +91,9 @@ export { MAX_CIRCUIT_NAME, canPlace, interfaceOf, usersOf } from './subcircuit.t
 export { SIM_SPEEDS } from './simRunner.ts'
 export type { SimSpeed } from './simRunner.ts'
 export { useSim } from './simStore.ts'
-export { useEditor } from './store.ts'
-export type { ProjectSettings, ThemeChoice } from './store.ts'
+export { CANVAS_LOOKS, useEditor } from './store.ts'
+export type { CanvasLook, ProjectSettings, ThemeChoice } from './store.ts'
+export type { GateStyle } from './symbols.ts'
 export {
   digitColor,
   gradientColor,

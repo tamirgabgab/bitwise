@@ -8,5 +8,7 @@ export default defineConfig({
     // The simulation core is pure TypeScript, so tests run in plain Node.
     environment: 'node',
     include: ['src/**/*.test.ts'],
+    // The canvas looks are checked against the colors written in index.css.
+    css: { include: [/index\.css/] },
   },
 })

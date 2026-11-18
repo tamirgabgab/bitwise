@@ -3,6 +3,7 @@ import { docBounds } from './hitTest.ts'
 import type { LiveValues } from './liveValues.ts'
 import { renderScene } from './render.ts'
 import { SvgContext } from './svgContext.ts'
+import type { GateStyle } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import type { ValueStyle } from './valueStyle.ts'
 import { UNIT } from './view.ts'
@@ -22,6 +23,7 @@ export function circuitSvg(
   theme: CanvasTheme,
   style: ValueStyle,
   live: LiveValues,
+  gates?: GateStyle,
 ): string {
   let { x0, y0, x1, y1 } = docBounds(doc) ?? { x0: 0, y0: 0, x1: 0, y1: 0 }
   // A wire can run outside the box of the parts it joins.
@@ -55,6 +57,7 @@ export function circuitSvg(
     active: new Set(),
     marks: [],
     paper: true,
+    gates,
   })
   return (
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" ` +

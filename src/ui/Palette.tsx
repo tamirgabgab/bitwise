@@ -28,6 +28,7 @@ const ICON_HEIGHT = 40
 function SymbolIcon({ type }: { type: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const theme = useResolvedTheme()
+  const gates = useEditor((state) => state.gateStyle)
 
   useEffect(() => {
     const canvas = ref.current
@@ -36,8 +37,8 @@ function SymbolIcon({ type }: { type: string }) {
     const ratio = window.devicePixelRatio || 1
     canvas.width = ICON_WIDTH * ratio
     canvas.height = ICON_HEIGHT * ratio
-    renderSymbolIcon(ctx, ICON_WIDTH, ICON_HEIGHT, ratio, readCanvasTheme(canvas), type)
-  }, [type, theme])
+    renderSymbolIcon(ctx, ICON_WIDTH, ICON_HEIGHT, ratio, readCanvasTheme(canvas), type, gates)
+  }, [type, theme, gates])
 
   return <canvas ref={ref} aria-hidden="true" />
 }

@@ -1,4 +1,5 @@
 import {
+  CANVAS_LOOKS,
   EXAMPLES,
   MAX_ZOOM,
   MIN_ZOOM,
@@ -336,6 +337,21 @@ export function listCommands(): Command[] {
       keywords: 'light dark auto mode',
       disabled: editor.theme === 'system',
       run: () => editor.setTheme('system'),
+    },
+    ...CANVAS_LOOKS.map((look) => ({
+      id: `view.look.${look.id}`,
+      group: 'View',
+      title: `Paint the canvas: ${look.name}`,
+      keywords: 'canvas look theme colors blueprint chalkboard scope green classic',
+      disabled: editor.canvasLook === look.id,
+      run: () => editor.setCanvasLook(look.id),
+    })),
+    {
+      id: 'view.gates',
+      group: 'View',
+      title: editor.gateStyle === 'iec' ? 'Draw gates as ANSI shapes' : 'Draw gates as IEC boxes',
+      keywords: 'symbols ansi iec rectangular distinctive shape standard',
+      run: () => editor.setGateStyle(editor.gateStyle === 'iec' ? 'ansi' : 'iec'),
     },
   ]
 

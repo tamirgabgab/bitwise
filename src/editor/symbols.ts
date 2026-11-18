@@ -33,7 +33,74 @@ export interface ComponentSymbol {
   readonly notes?: readonly SymbolLabel[]
   /** Where a number display writes the number that reaches it. */
   readonly readout?: SymbolReadout
+  /**
+   * The same part drawn as an IEC box ("&", "≥1", "=1", "1"), for a gate
+   * that has one. Pins and bounds are shared, so a drawing does not move
+   * when the user changes the style.
+   */
+  readonly iec?: { draw(ctx: CanvasRenderingContext2D): void; readonly label: SymbolLabel }
 }
+
+/** How gates are drawn: American distinctive shapes or IEC rectangles. */
+export type GateStyle = 'ansi' | 'iec'
+
+const iecFaces = new WeakMap<ComponentSymbol, ComponentSymbol>()
+
+/** `symbol` as it is drawn in `style`: unchanged unless it has an IEC face. */
+export function inStyle(symbol: ComponentSymbol, style: GateStyle | undefined): ComponentSymbol {
+  if (style !== 'iec' || !symbol.iec) return symbol
+  let face = iecFaces.get(symbol)
+  if (!face) {
+    face = { ...symbol, draw: symbol.iec.draw, label: symbol.iec.label }
+    iecFaces.set(symbol, face)
+  }
+  return face
+}
+
+/**
+ * An IEC box from `x0` to `x1`, `half` above and below the middle, with
+ * input stubs from `inX` to its left side, an output stub to `outX`, and a
+ * bubble on the output when `inverted`.
+ */
+function iecBox(
+  rows: readonly number[],
+  half: number,
+  x0: number,
+  x1: number,
+  inX: number,
+  outX: number,
+  inverted: boolean,
+  text: string,
+): NonNullable<ComponentSymbol['iec']> {
+  return {
+    label: { text, pos: { x: (x0 + x1) / 2, y: half > 1.5 ? -half + 0.9 : 0 }, size: 0.9 },
+    draw(ctx) {
+      ctx.beginPath()
+      for (const y of rows) {
+        ctx.moveTo(inX, y)
+        ctx.lineTo(x0, y)
+      }
+      ctx.moveTo(inverted ? x1 + 2 * BUBBLE_RADIUS : x1, 0)
+      ctx.lineTo(outX, 0)
+      ctx.stroke()
+
+      ctx.beginPath()
+      ctx.rect(x0, -half, x1 - x0, 2 * half)
+      ctx.fill()
+      ctx.stroke()
+
+      if (inverted) {
+        ctx.beginPath()
+        ctx.arc(x1 + BUBBLE_RADIUS, 0, BUBBLE_RADIUS, 0, Math.PI * 2)
+        ctx.fill()
+        ctx.stroke()
+      }
+    },
+  }
+}
+
+/** What an IEC box says for each family of gate. */
+const IEC_TEXT = { and: '&', or: '≥1', xor: '=1' } as const
 
 export interface SymbolReadout {
   /** The pins that carry the digits, least significant first. */
@@ -170,6 +237,7 @@ function gateSymbol(shape: GateShape, inputs: number, inverted: boolean): Compon
   return {
     pins,
     bounds: { x0: -3, y0: -half, x1: 3, y1: half },
+    iec: iecBox(rows, half, -2, 2, -3, 3, inverted, IEC_TEXT[shape]),
     draw(ctx) {
       ctx.beginPath()
       for (const y of rows) {
@@ -220,6 +288,7 @@ function unarySymbol(inverted: boolean): ComponentSymbol {
       { name: 'out', direction: 'out', pos: { x: 2, y: 0 }, dir: RIGHT },
     ],
     bounds: { x0: -2, y0: -1, x1: 2, y1: 1 },
+    iec: iecBox([0], 1, -1, 1, -2, 2, inverted, '1'),
     draw(ctx) {
       ctx.beginPath()
       ctx.moveTo(-2, 0)

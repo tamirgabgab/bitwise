@@ -13,8 +13,8 @@ import type { BusFormat, CircuitDoc, DocComponent, SubRef } from './document.ts'
 import { formatAt } from './busFormat.ts'
 import type { Point, Rect } from './geometry.ts'
 import type { LiveValues, WireValue } from './liveValues.ts'
-import { DEFAULT_FRAME, FRAME_SIZE, FRAME_TITLE, symbolOf } from './symbols.ts'
-import type { ComponentSymbol, SymbolFace, SymbolReadout } from './symbols.ts'
+import { DEFAULT_FRAME, FRAME_SIZE, FRAME_TITLE, inStyle, symbolOf } from './symbols.ts'
+import type { ComponentSymbol, GateStyle, SymbolFace, SymbolReadout } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { inkOn } from './valueStyle.ts'
 import type { ValueStyle, WireLook } from './valueStyle.ts'
@@ -65,6 +65,8 @@ export interface Scene {
   readonly cone?: ConeMarks
   /** Leave the grid out, as for a picture of the circuit. */
   readonly paper?: boolean
+  /** How gates are drawn; ANSI shapes when left out. */
+  readonly gates?: GateStyle
 }
 
 /** A wave on its way along a wire. */
@@ -537,7 +539,7 @@ export function renderScene(
 
   for (const component of Object.values(doc.components)) {
     if (component.type === FRAME_TYPE) continue
-    const symbol = symbolOf(component)
+    const symbol = inStyle(symbolOf(component), scene.gates)
     const selected = selection.has(component.id)
     const outline = selected ? theme.accent : theme.ink
     // A rounded box `pad` units clear of the part, turned with it.
@@ -682,7 +684,7 @@ export function renderScene(
     ctx.globalAlpha = 0.55
     drawPart(
       ctx,
-      symbolOf({ type: ghost.type, params, sub: ghost.sub }),
+      inStyle(symbolOf({ type: ghost.type, params, sub: ghost.sub }), scene.gates),
       { pos: scene.ghost.pos, rotation: 0 },
       { stroke: theme.accent, fill: theme.partFill, lineWidth: STROKE },
       theme,
@@ -734,9 +736,10 @@ export function renderSymbolIcon(
   pixelRatio: number,
   theme: CanvasTheme,
   type: string,
+  gates?: GateStyle,
 ): void {
   const params = defaultParamsOf(type)
-  const symbol = symbolOf({ type, params })
+  const symbol = inStyle(symbolOf({ type, params }), gates)
   const { x0, y0, x1, y1 } = symbol.bounds
   const scale = Math.min((width - 8) / (x1 - x0), (height - 8) / (y1 - y0), 9)
   ctx.setTransform(pixelRatio, 0, 0, pixelRatio, 0, 0)

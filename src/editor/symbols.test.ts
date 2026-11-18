@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { builtinComponents, resolveParams } from '../core/index.ts'
 import { rectContainsPoint } from './geometry.ts'
-import { SUB_TYPE, inputRows, symbolFor, symbolOf } from './symbols.ts'
+import { SUB_TYPE, inStyle, inputRows, symbolFor, symbolOf } from './symbols.ts'
 import type { SubRef } from './symbols.ts'
 
 /** Every built-in type, and every input count a gate can have. */
@@ -236,5 +236,36 @@ describe('the cycling switch and the bit converters', () => {
         Array.from({ length: bits }, (_, i) => String(2 ** i)),
       )
     }
+  })
+})
+
+describe('IEC gate symbols', () => {
+  const families = { and: '&', nand: '&', or: '≥1', nor: '≥1', xor: '=1', xnor: '=1' }
+
+  it('keeps every pin and the bounds of the ANSI shape', () => {
+    for (const [type, text] of Object.entries(families)) {
+      for (let inputs = 2; inputs <= 6; inputs++) {
+        const ansi = symbolFor(type, resolveParams(builtinComponents.get(type), { inputs }))
+        const iec = inStyle(ansi, 'iec')
+        expect(iec).not.toBe(ansi)
+        expect(iec.pins).toBe(ansi.pins)
+        expect(iec.bounds).toEqual(ansi.bounds)
+        expect(iec.label?.text).toBe(text)
+        expect(inStyle(ansi, 'iec')).toBe(iec)
+      }
+    }
+    for (const type of ['not', 'buffer']) {
+      const ansi = symbolFor(type, resolveParams(builtinComponents.get(type)))
+      expect(inStyle(ansi, 'iec').pins).toBe(ansi.pins)
+      expect(inStyle(ansi, 'iec').label?.text).toBe('1')
+    }
+  })
+
+  it('leaves the ANSI style, and parts with no IEC box, as they are', () => {
+    const and = symbolFor('and', resolveParams(builtinComponents.get('and')))
+    expect(inStyle(and, 'ansi')).toBe(and)
+    expect(inStyle(and, undefined)).toBe(and)
+    const dff = symbolFor('dff', resolveParams(builtinComponents.get('dff')))
+    expect(inStyle(dff, 'iec')).toBe(dff)
   })
 })

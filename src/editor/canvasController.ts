@@ -208,7 +208,10 @@ export class CanvasController {
 
     this.cleanups.push(
       useEditor.subscribe((state, previous) => {
-        if (state.theme !== previous.theme) this.refreshTheme()
+        if (state.theme !== previous.theme || state.canvasLook !== previous.canvasLook) {
+          this.refreshTheme()
+        }
+        if (state.gateStyle !== previous.gateStyle) this.requestDraw()
         if (state.active !== previous.active || state.epoch !== previous.epoch) {
           // Another drawing is on screen: whatever was being dragged is gone.
           this.mode = { kind: 'idle' }
@@ -253,12 +256,16 @@ export class CanvasController {
       screenCenter: () => ({ x: this.width / 2, y: this.height / 2 }),
       size: () => ({ width: this.width, height: this.height }),
       svg: () => {
+        // A picture is drawn in the plain look of the page, whatever look the
+        // canvas has: a blueprint or a scope screen is for working, not for print.
         const state = useEditor.getState()
+        const theme = readCanvasTheme(document.documentElement)
         return circuitSvg(
           state.doc,
-          this.theme,
-          this.valueStyle(state.settings),
+          theme,
+          makeValueStyle(state.settings, theme),
           readLiveValues(state.doc, currentBridge()),
+          state.gateStyle,
         )
       },
     }
@@ -374,6 +381,7 @@ export class CanvasController {
       marks: breakpointMarks(doc),
       guides: mode.kind === 'move' ? this.guides : undefined,
       cone: useSim.getState().coneShown ? this.coneOf(doc, state.selection) : undefined,
+      gates: state.gateStyle,
     })
   }
 

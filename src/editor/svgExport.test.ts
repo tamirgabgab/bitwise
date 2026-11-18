@@ -6,6 +6,7 @@ import { DEFAULT_SETTINGS } from './project.ts'
 import { SimBridge } from './simBridge.ts'
 import { SvgContext } from './svgContext.ts'
 import { circuitSvg } from './svgExport.ts'
+import type { GateStyle } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
 
@@ -36,11 +37,17 @@ function sample(): CircuitDoc {
   return addText(doc, { x: 10, y: -5 }, 'Turns A <around> & back').doc
 }
 
-function picture(doc: CircuitDoc): string {
+function picture(doc: CircuitDoc, gates?: GateStyle): string {
   const bridge = new SimBridge()
   bridge.sync(doc, {})
   bridge.sim.settle()
-  return circuitSvg(doc, THEME, makeValueStyle(DEFAULT_SETTINGS, THEME), readLiveValues(doc, bridge))
+  return circuitSvg(
+    doc,
+    THEME,
+    makeValueStyle(DEFAULT_SETTINGS, THEME),
+    readLiveValues(doc, bridge),
+    gates,
+  )
 }
 
 describe('circuitSvg', () => {
@@ -58,6 +65,14 @@ describe('circuitSvg', () => {
     expect(svg.match(/<path /g)!.length).toBeGreaterThan(8)
     expect(svg).toContain('>A</text>')
     expect(svg).toContain('Turns A &lt;around&gt; &amp; back')
+  })
+
+  it('draws gates in the style it is given', () => {
+    const doc = addComponent(sample(), 'and', { x: 10, y: 8 }).doc
+    expect(picture(doc)).not.toContain('>&amp;</text>')
+    const iec = picture(doc, 'iec')
+    expect(iec).toContain('>&amp;</text>')
+    expect(iec).toContain('>1</text>')
   })
 
   it('leaves out the grid and anything that belongs to editing', () => {

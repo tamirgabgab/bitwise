@@ -1326,6 +1326,10 @@ kbd {
   color: var(--text-muted);
 }
 
+.settings .field + .field {
+  margin-top: 8px;
+}
+
 .note {
   margin: 8px 0 0;
   color: var(--text-muted);

@@ -7,7 +7,8 @@ import {
   presetUniversal,
 } from '../core/index.ts'
 import type { GatePreset } from '../core/index.ts'
-import { useEditor, valueText } from '../editor/index.ts'
+import { CANVAS_LOOKS, useEditor, valueText } from '../editor/index.ts'
+import type { CanvasLook, GateStyle } from '../editor/index.ts'
 import { ask } from './dialogs.ts'
 import { CloseIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { hasOwnColors, swatchStyle, usesClassicColors } from './swatch.ts'
@@ -209,6 +210,45 @@ function ColorSection() {
   )
 }
 
+/** How the canvas looks. Preferences of the app, not of the project. */
+function LookSection() {
+  const look = useEditor((state) => state.canvasLook)
+  const gates = useEditor((state) => state.gateStyle)
+  const { setCanvasLook, setGateStyle } = useEditor.getState()
+
+  return (
+    <section>
+      <h3>Canvas</h3>
+      <div className="field">
+        <label htmlFor="canvas-look">Look</label>
+        <select
+          id="canvas-look"
+          value={look}
+          onChange={(event) => setCanvasLook(event.target.value as CanvasLook)}
+        >
+          {CANVAS_LOOKS.map((choice) => (
+            <option key={choice.id} value={choice.id}>
+              {choice.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      <div className="field">
+        <label htmlFor="gate-style">Gates</label>
+        <select
+          id="gate-style"
+          value={gates}
+          onChange={(event) => setGateStyle(event.target.value as GateStyle)}
+        >
+          <option value="ansi">ANSI shapes</option>
+          <option value="iec">IEC boxes</option>
+        </select>
+      </div>
+      <p className="note">For every project in this browser. A picture keeps the plain look.</p>
+    </section>
+  )
+}
+
 interface SettingsPanelProps {
   onClose: () => void
 }
@@ -275,6 +315,7 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       <RadixSection />
       <KitSection />
       <ColorSection />
+      <LookSection />
     </div>
   )
 }
