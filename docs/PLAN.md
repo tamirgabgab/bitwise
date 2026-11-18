@@ -4,7 +4,7 @@ Goal: a comfortable, good-looking logic simulator that runs in the browser,
 in the spirit of CedarLogic. You can build architectures out of gates,
 flip-flops and (later) state-diagram components, and save the circuits.
 
-Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM), three rounds of interface work (finding things, the workspace, polish and a first-visit tour) and a round of fixes and additions after a review in the browser (readability, the full timing diagram, a richer inspector, a list of projects, the critical path, quick add and wire dragging). What comes next is a code review and a simplify pass, then touch and phone support, or the rest of the list under "After the MVP".
+Status: Phases 0 to 6 are done, and so are buses and larger components (without RAM and ROM), three rounds of interface work (finding things, the workspace, polish and a first-visit tour) and a round of fixes and additions after a review in the browser (readability, the full timing diagram, a richer inspector, a list of projects, the critical path, quick add and wire dragging). After those, the follow-up rounds chosen in `HANDOFF.md` began: round 1 (a table gate, a live truth table and a base calculator) and round 2 (alignment guides, typing a value on a switch and the cone of influence) are done. Rounds 3 to 8 come next, or the rest of the list under "After the MVP".
 
 ## Decisions
 
@@ -394,8 +394,9 @@ count, save it, close the browser, and load it back.
   above radix 2.
 - **State-diagram (FSM) editor.** Draw states and transitions, run them as a
   component, and later convert them to a flip-flop circuit automatically.
-- **Testing and sharing.** Automatic truth table (n^k rows), testbench, share
-  by URL.
+- **Testing and sharing.** Automatic truth table: done, in the inspector, up
+  to 256 rows and for parts without memory. Left to do: testbench, share by
+  URL.
 - **Desktop build.** A Tauri wrapper around the same code.
 
 ## Sources

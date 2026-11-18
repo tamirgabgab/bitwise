@@ -17,6 +17,8 @@ import type { ComponentSymbol, SymbolFace, SymbolReadout } from './symbols.ts'
 import type { CanvasTheme } from './theme.ts'
 import { inkOn } from './valueStyle.ts'
 import type { ValueStyle, WireLook } from './valueStyle.ts'
+import type { ConeMarks } from './cone.ts'
+import type { Guide } from './guides.ts'
 import { UNIT } from './view.ts'
 import type { View } from './view.ts'
 import { wireBranches, wirePath } from './wireLayout.ts'
@@ -44,6 +46,14 @@ export interface Scene {
   readonly pulse?: (wireId: string) => WirePulse | undefined
   /** The longest path through the circuit, to be marked, when the user asked for it. */
   readonly critical?: { readonly parts: ReadonlySet<string>; readonly wires: ReadonlySet<string> }
+  /** Where the parts being dragged line up with the others. */
+  readonly guides?: readonly Guide[]
+  /**
+   * The cone of influence of the selection, when the user asked for it:
+   * what it drives is lit, what drives it is drawn as usual, and the rest
+   * fades.
+   */
+  readonly cone?: ConeMarks
   /** Leave the grid out, as for a picture of the circuit. */
   readonly paper?: boolean
 }
@@ -61,6 +71,8 @@ const WIRE_STROKE = 0.14
 const PIN_DOT = 0.12
 const CORNER_RADIUS = 0.4
 const JUNCTION_DOT = 0.24
+/** How strongly a part or wire outside the cone of influence is drawn. */
+const FADED = 0.22
 const FONT = '"IBM Plex Sans", system-ui, "Segoe UI", sans-serif'
 /** Values are set in Plex Mono, falling back to Plex Sans (`--font-mono`). */
 const VALUE_FONT = '"IBM Plex Mono", "IBM Plex Sans", system-ui, sans-serif'
@@ -396,7 +408,8 @@ export function renderScene(
     wiredPins.add(terminalKey(wire.to))
     const path = wirePath(doc, wire)
     if (!path) continue
-    if (selection.has(wire.id) || scene.critical?.wires.has(wire.id)) {
+    ctx.globalAlpha = scene.cone && !scene.cone.wires.has(wire.id) ? FADED : 1
+    if (selection.has(wire.id) || scene.critical?.wires.has(wire.id) || scene.cone?.ahead.has(wire.id)) {
       tracePath(ctx, path)
       ctx.strokeStyle = theme.accentSoft
       ctx.lineWidth = selection.has(wire.id) ? 0.6 : 0.8
@@ -423,10 +436,15 @@ export function renderScene(
     }
   }
 
+  ctx.globalAlpha = 1
+
   for (const branch of wireBranches(doc)) {
     const value = live.net(branch.net)
+    const faded = scene.cone && !(branch.net !== undefined && scene.cone.nets.has(branch.net))
+    ctx.globalAlpha = faded ? FADED : 1
     fillDot(ctx, branch.pos, JUNCTION_DOT, wireLook(style, value))
   }
+  ctx.globalAlpha = 1
 
   const degrees = junctionDegrees(doc)
   for (const junction of Object.values(doc.junctions)) {
@@ -440,7 +458,9 @@ export function renderScene(
       ctx.fill()
     }
     const value = live.at({ kind: 'junction', junction: junction.id })
+    ctx.globalAlpha = scene.cone && !scene.cone.junctions.has(junction.id) ? FADED : 1
     fillDot(ctx, junction.pos, radius, wireLook(style, value))
+    ctx.globalAlpha = 1
   }
 
   for (const component of Object.values(doc.components)) {
@@ -458,7 +478,8 @@ export function renderScene(
       paint()
       ctx.restore()
     }
-    if (selected) {
+    ctx.globalAlpha = scene.cone && !scene.cone.parts.has(component.id) ? FADED : 1
+    if (selected || scene.cone?.ahead.has(component.id)) {
       ring(0.35, 0.4, () => {
         ctx.fillStyle = theme.accentSoft
         ctx.fill()
@@ -527,6 +548,7 @@ export function renderScene(
       }
     }
     ctx.restore()
+    ctx.globalAlpha = 1
   }
 
   for (const [value, label] of busLabels) {
@@ -594,6 +616,24 @@ export function renderScene(
     ctx.strokeStyle = theme.accent
     ctx.lineWidth = 1 / scale
     ctx.strokeRect(x0, y0, x1 - x0, y1 - y0)
+  }
+
+  if (scene.guides && scene.guides.length > 0) {
+    // Hairlines that reach a little past what lines up, as in a drawing program.
+    const reach = 1
+    ctx.beginPath()
+    for (const guide of scene.guides) {
+      if (guide.axis === 'x') {
+        ctx.moveTo(guide.at, guide.from - reach)
+        ctx.lineTo(guide.at, guide.to + reach)
+      } else {
+        ctx.moveTo(guide.from - reach, guide.at)
+        ctx.lineTo(guide.to + reach, guide.at)
+      }
+    }
+    ctx.strokeStyle = theme.accent
+    ctx.lineWidth = 1 / scale
+    ctx.stroke()
   }
 }
 

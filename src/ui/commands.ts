@@ -229,6 +229,14 @@ export function listCommands(): Command[] {
       run: () => chrome.setSettingsOpen(!chrome.settingsOpen),
     },
     {
+      id: 'view.cone',
+      group: 'View',
+      title: sim.coneShown ? 'Hide the cone of influence' : 'Show the cone of influence',
+      detail: 'Lights up what the selection drives and fades what has nothing to do with it',
+      keywords: 'fan in fan out depends drives highlight trace',
+      run: () => sim.setConeShown(!sim.coneShown),
+    },
+    {
       id: 'view.calculator',
       group: 'View',
       title: 'Open the base calculator',

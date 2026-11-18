@@ -163,6 +163,20 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - Dragging a selected wire moves the straight stretch under the pointer
   (`runAt` in `wireLayout.ts`): `bendWire` puts a junction at each end of
   it and moves them, so the file format has no bends of its own.
+- A table gate (`components/table.ts`, type `table`) keeps its answers in
+  the parameters `c0` to `c255`, laid out for radix 16 (`tableCell`), so it
+  keeps them when the radix changes; one it has no room for reads as X. The
+  inspector edits them (`TableEditor.tsx`).
+- `truthTable.ts` gives the truth table of a part with no memory: a
+  built-in part from its `evaluate`, a named circuit by running it once a
+  row. At most `MAX_TRUTH_ROWS`; otherwise it gives a reason.
+- While parts are dragged, `guides.ts` finds where their box or pins line
+  up with a part that stays put, and `render.ts` draws the guides.
+- With the pointer on a switch, a digit key (`digitKeys.ts`) puts it on
+  that value and the wheel steps it; elsewhere the wheel zooms. This wins
+  over a key the user gave a switch.
+- The cone of influence (`cone.ts`, `useSim.coneShown`) lights what the
+  selection drives and fades what has nothing to do with it.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
   live only for the session. Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.
@@ -194,6 +208,8 @@ Run lint, test and build before calling a change done. CI runs the same three.
 - `pulses.ts` notes which wires changed and which way a wire carries its
   value. `render.ts` draws the wave only when the scene has `pulse`: never
   in an SVG export, and never under `prefers-reduced-motion`.
+- The base calculator (`BaseCalculator.tsx`, `calculator.ts`) is an
+  overlay; it starts at the project's radix.
 - A chip for a value gets its colors from `swatch.ts`, in the settings
   panel and in the legend alike.
 - Values (wire and probe readouts, digits and buses on the canvas, the

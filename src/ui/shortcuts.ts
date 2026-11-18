@@ -40,7 +40,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
   {
     title: 'Canvas',
     items: [
-      { keys: ['Scroll'], does: 'Zoom in and out' },
+      { keys: ['Scroll'], does: 'Zoom in and out. Over a switch: step its value' },
       { keys: ['Space+Drag'], does: 'Pan the canvas' },
       {
         keys: ['Drag'],
@@ -56,6 +56,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
       { keys: ['Click'], does: 'Step a switch to its next value' },
       { keys: ['Shift+Click', 'Right-click'], does: 'Step a switch back one value' },
       { keys: ['A key you chose'], does: 'Step the switch or press the button it belongs to' },
+      { keys: ['0-9', 'A-F'], does: 'With the pointer on a switch: put it on that value' },
       { keys: ['Arrows'], does: 'Walk the presentation steps while their panel is open' },
     ],
   },

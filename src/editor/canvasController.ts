@@ -30,7 +30,9 @@ import {
   pressKey,
   releaseKey,
   releaseKeys,
+  setSwitch,
   showStep,
+  switchValue,
   toggleWatch,
 } from './session.ts'
 import { useSim } from './simStore.ts'
@@ -45,6 +47,11 @@ import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
 import { keepInSight, screenToWorld, wheelZoomFactor } from './view.ts'
 import { bendPoints, wirePath } from './wireLayout.ts'
+import { influenceCone } from './cone.ts'
+import type { ConeMarks } from './cone.ts'
+import { WheelSteps, digitOfKey, typedBusValue } from './digitKeys.ts'
+import { alignGuides } from './guides.ts'
+import type { Guide } from './guides.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
 const DRAG_THRESHOLD = 4
@@ -130,6 +137,11 @@ export class CanvasController {
   private hoverPoke = false
   /** The document as it would look if the drag in progress ended now. */
   private previewDoc: CircuitDoc | null = null
+  /** Where the parts being dragged line up with the others. */
+  private guides: readonly Guide[] = []
+  /** The cone of influence last worked out, and what it was worked out for. */
+  private cone: { doc: CircuitDoc; selection: ReadonlySet<string>; marks: ConeMarks | undefined } | null =
+    null
   private theme: CanvasTheme
   private style: ValueStyle | null = null
   private styleSettings: ProjectSettings | null = null
@@ -140,6 +152,7 @@ export class CanvasController {
   private spaceDown = false
   private centered = false
   private readonly pulses = new WirePulses()
+  private readonly wheelSteps = new WheelSteps()
   /** Set when the user asked the system for less motion: no waves then. */
   private readonly calm = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -199,7 +212,8 @@ export class CanvasController {
           state.revision !== previous.revision ||
           state.running !== previous.running ||
           state.speed !== previous.speed ||
-          state.criticalShown !== previous.criticalShown
+          state.criticalShown !== previous.criticalShown ||
+          state.coneShown !== previous.coneShown
         ) {
           this.requestDraw()
         }
@@ -342,7 +356,17 @@ export class CanvasController {
       active: this.followsChanges() ? evaluatedParts() : NO_PARTS,
       critical: useSim.getState().criticalShown ? criticalMarks() : undefined,
       marks: breakpointMarks(doc),
+      guides: mode.kind === 'move' ? this.guides : undefined,
+      cone: useSim.getState().coneShown ? this.coneOf(doc, state.selection) : undefined,
     })
+  }
+
+  /** The cone of influence of the selection in `doc`, worked out again only when either changed. */
+  private coneOf(doc: CircuitDoc, selection: ReadonlySet<string>): ConeMarks | undefined {
+    if (this.cone?.doc !== doc || this.cone.selection !== selection) {
+      this.cone = { doc, selection, marks: influenceCone(doc, selection) }
+    }
+    return this.cone.marks
   }
 
   /**
@@ -428,6 +452,31 @@ export class CanvasController {
     return inside ? hit.id : null
   }
 
+  /** The switch at `world`, anywhere on its symbol, if there is one. */
+  private switchAt(world: Point): string | null {
+    const doc = useEditor.getState().doc
+    const hit = hitTest(doc, world)
+    return hit?.kind === 'component' && doc.components[hit.id]?.type === 'input' ? hit.id : null
+  }
+
+  /**
+   * Puts the switch under the pointer on the digit a key types. A bus
+   * switch takes the digit in at the bottom, as on a calculator. Returns
+   * false when the pointer is on no switch or the key types no digit.
+   */
+  private typeOnSwitch(code: string): boolean {
+    if (this.mode.kind !== 'idle' || this.hover?.kind !== 'component') return false
+    const state = useEditor.getState()
+    const part = state.doc.components[this.hover.id]
+    if (part?.type !== 'input') return false
+    const digit = digitOfKey(code, state.settings.radix)
+    if (digit === undefined) return false
+    const width = part.params.width ?? 1
+    if (width === 1) return setSwitch(part.id, digit)
+    const current = switchValue(part.id)
+    return setSwitch(part.id, typedBusValue(typeof current === 'string' ? current : undefined, digit, width))
+  }
+
   private endOfHit(doc: CircuitDoc, hit: Hit): RouteEnd | undefined {
     if (hit.kind === 'pin') return terminalEnd(doc, hit.terminal)
     if (hit.kind === 'junction' || hit.kind === 'wire') return { pos: hit.pos }
@@ -478,6 +527,7 @@ export class CanvasController {
   private finish(): void {
     this.mode = { kind: 'idle' }
     this.previewDoc = null
+    this.guides = []
     this.setCursor()
     this.requestDraw()
   }
@@ -572,11 +622,17 @@ export class CanvasController {
         if (dx === mode.dx && dy === mode.dy) return
         mode.dx = dx
         mode.dy = dy
-        this.previewDoc = !mode.copy
-          ? moveItems(state.doc, state.selection, dx, dy)
-          : dx === 0 && dy === 0
-            ? null
-            : duplicateItems(state.doc, state.selection, { x: dx, y: dy }).doc
+        if (!mode.copy) {
+          this.previewDoc = moveItems(state.doc, state.selection, dx, dy)
+          this.guides = alignGuides(this.previewDoc, state.selection)
+        } else if (dx === 0 && dy === 0) {
+          this.previewDoc = null
+          this.guides = []
+        } else {
+          const copy = duplicateItems(state.doc, state.selection, { x: dx, y: dy })
+          this.previewDoc = copy.doc
+          this.guides = alignGuides(copy.doc, new Set(copy.ids))
+        }
         this.requestDraw()
         return
       }
@@ -754,6 +810,15 @@ export class CanvasController {
   private readonly onWheel = (event: WheelEvent): void => {
     event.preventDefault()
     const rect = this.canvas.getBoundingClientRect()
+    // Over a switch the wheel steps its value; a pinch (Ctrl) always zooms.
+    const over = event.ctrlKey ? null : this.switchAt(this.toWorld(event))
+    if (over !== null) {
+      const lines = event.deltaMode === 1 ? 16 : event.deltaMode === 2 ? rect.height : 1
+      const pixels = event.deltaY * lines
+      const steps = this.wheelSteps.turn(over, pixels)
+      if (steps !== 0) pokeInput(over, steps)
+      return
+    }
     const factor = wheelZoomFactor(event.deltaY, event.deltaMode, rect.height)
     useEditor.getState().zoomAt(factor, event.clientX - rect.left, event.clientY - rect.top)
   }
@@ -817,6 +882,12 @@ export class CanvasController {
         showStep(jumps[code])
         return
       }
+    }
+
+    // A digit typed over a switch puts it on that value, before any key the user gave a switch.
+    if (!event.altKey && !event.shiftKey && this.typeOnSwitch(code)) {
+      event.preventDefault()
+      return
     }
 
     const moves: Record<string, [number, number]> = {

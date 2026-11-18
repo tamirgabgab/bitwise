@@ -47,7 +47,7 @@ export function StatusBar() {
   } else if (parts === 0) {
     hint = 'Scroll to zoom. Hold Space and drag to pan.'
   } else if (hasInput && wires > 0) {
-    hint = 'Click an input to change its value. Shift-click or right-click steps back.'
+    hint = 'Click or scroll over an input to step its value, or type a digit. Shift-click steps back.'
   } else {
     hint = 'Drag from a pin to another pin or onto a wire to connect them.'
   }

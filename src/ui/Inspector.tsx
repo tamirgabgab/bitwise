@@ -397,6 +397,7 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
         />
         Show in the timing diagram
       </label>
+      <ConeCheck />
     </aside>
   )
 }
@@ -434,6 +435,17 @@ function PartValues({ id }: { id: string }) {
         ))}
       </ul>
     </section>
+  )
+}
+
+/** Turns the cone of influence of the selection on and off, as the command does. */
+function ConeCheck() {
+  const shown = useSim((state) => state.coneShown)
+  return (
+    <label className="check" title="Light up what this drives and fade what has nothing to do with it">
+      <input type="checkbox" checked={shown} onChange={() => useSim.getState().setConeShown(!shown)} />
+      Show the cone of influence
+    </label>
   )
 }
 
@@ -511,6 +523,7 @@ function ArrangePanel() {
       >
         Make a circuit
       </button>
+      <ConeCheck />
     </aside>
   )
 }
@@ -576,6 +589,7 @@ export function Inspector() {
           Open circuit
         </button>
         <TruthTablePanel part={component} />
+        <ConeCheck />
       </aside>
     )
   }
@@ -681,6 +695,7 @@ export function Inspector() {
       {component.type === 'table' && <TableEditor component={component} />}
       <PartValues id={component.id} />
       <TruthTablePanel part={component} />
+      <ConeCheck />
     </aside>
   )
 }
