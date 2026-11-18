@@ -191,6 +191,13 @@ Run lint, test and build before calling a change done. CI runs the same three.
   band or its edge, resized from its lower right corner, and drawn under
   everything in tints of the ink, never a value color or amber unless it
   is selected.
+- A net label is a part of type `NET_TYPE` with one pin, `NET_PIN`, and
+  its name in `label`. Labels with the same name in one drawing are one
+  node: `terminalNets` and `flatten` join them, each within its own
+  drawing, so a name never reaches into or out of a named circuit. The wire
+  layout asks `terminalNets(doc, false)`, so two tagged groups are never
+  drawn touching. `extract.ts` leaves labels behind, and the new pin takes
+  the label's name.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
   live only for the session. Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.
