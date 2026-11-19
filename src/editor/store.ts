@@ -63,7 +63,7 @@ import {
   reconcileAll,
   subRefOf,
 } from './subcircuit.ts'
-import type { Circuits } from './subcircuit.ts'
+import type { Circuit, Circuits } from './subcircuit.ts'
 import { DEFAULT_PALETTE } from './valueStyle.ts'
 import { DEFAULT_VIEW, fitView, zoomAt } from './view.ts'
 import type { View } from './view.ts'
@@ -262,6 +262,12 @@ export interface EditorState {
     text: string,
     output: string,
   ): { readonly circuit: string } | { readonly problem: string; readonly column?: number }
+  /**
+   * Adds circuits built for the user, such as the modules of a Verilog text,
+   * and opens `open`. Their ids go on from `nextCircuit`. Nothing is added,
+   * and the reason is given, when the project has no room for them.
+   */
+  addBuiltCircuits(built: readonly Circuit[], open: string): { readonly problem: string } | undefined
   /** Writes the bus at `terminal` in `format`, on every wire of its net. */
   setBusFormat(terminal: Terminal, format: BusFormat): void
   /** Puts a frame around the selection and selects it. */
@@ -637,6 +643,32 @@ export const useEditor = create<EditorState>()((set, get) => {
         return { problem: `The output cannot be called “${name}”, like an input.` }
       }
       return addBuiltCircuit(expressionCircuit(parsed, settings.radix, name), name)
+    },
+
+    addBuiltCircuits(built, open) {
+      const state = get()
+      if (built.length === 0) return { problem: 'There is no circuit to add.' }
+      if (state.order.length + built.length > MAX_CIRCUITS) {
+        return { problem: `A project holds at most ${MAX_CIRCUITS} circuits.` }
+      }
+      // They were built against the project as it was, each part naming a circuit by its id.
+      if (built.some((circuit, index) => circuit.id !== `k${state.nextCircuit + index}`)) {
+        return { problem: 'The project changed while the circuits were built. Build them again.' }
+      }
+      const circuits = { ...state.circuits }
+      for (const circuit of built) circuits[circuit.id] = circuit
+      if (built.some((circuit) => !withinBounds(circuit.doc)) || largestFlat(circuits) > MAX_FLAT_PARTS) {
+        return { problem: 'These circuits are larger than a project can hold.' }
+      }
+      const ids = built.map((circuit) => circuit.id)
+      set({
+        circuits,
+        order: [...state.order, ...ids],
+        nextCircuit: state.nextCircuit + built.length,
+        unframed: new Set([...state.unframed, ...ids]),
+      })
+      get().selectCircuit(ids.includes(open) ? open : ids[ids.length - 1])
+      return undefined
     },
 
     setBusFormat(terminal, format) {

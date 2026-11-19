@@ -4,6 +4,7 @@ import type { Terminal, WireEnd } from './document.ts'
 import { toProjectData } from './project.ts'
 import type { ProjectData } from './project.ts'
 import { DEFAULT_SETTINGS, resetEditor, useEditor } from './store.ts'
+import { verilogCircuits } from './verilogImport.ts'
 
 const editor = () => useEditor.getState()
 const at = (component: string, port: string): WireEnd => {
@@ -878,5 +879,50 @@ describe('a state machine', () => {
     editor().setMachine('c1', { ...machine, states: [{ ...machine.states[0], outputs: [5] }, machine.states[1]] })
     expect(editor().machineToCircuit('c1')).toEqual({ problem: expect.stringMatching(/no room for/) })
     expect(editor().machineToCircuit('c9')).toEqual({ problem: expect.stringMatching(/not a state machine/) })
+  })
+})
+
+describe('circuits built from a text', () => {
+  const TEXT = `
+    module half (input a, input b, output s, output c);
+      xor (s, a, b);
+      and (c, a, b);
+    endmodule
+    module pair (input a, input b, output s, output c);
+      half first (a, b, s, c);
+    endmodule`
+  const read = () => {
+    const state = editor()
+    const built = verilogCircuits(TEXT, {
+      gates: new Set(['and', 'xor']),
+      circuits: state.circuits,
+      nextCircuit: state.nextCircuit,
+    })
+    if ('problem' in built) throw new Error(built.problem)
+    return built
+  }
+
+  it('join the project, and the last module that no other uses is opened', () => {
+    inverter()
+    const before = editor().order.length
+    const built = read()
+    expect(editor().addBuiltCircuits(built.circuits, built.top)).toBeUndefined()
+    expect(editor().order.length).toBe(before + 2)
+    expect(editor().circuits[editor().active].name).toBe('pair')
+    expect(Object.values(editor().doc.components).filter((part) => part.type === SUB_TYPE)).toHaveLength(1)
+    // The circuit that was open is as it was.
+    expect(Object.keys(editor().circuits[editor().order[0]].doc.components)).toEqual(['c1', 'c2'])
+  })
+
+  it('are refused when the project has moved on since they were built', () => {
+    const built = read()
+    expect(editor().addBuiltCircuits(built.circuits, built.top)).toBeUndefined()
+    expect(editor().addBuiltCircuits(built.circuits, built.top)).toEqual({
+      problem: 'The project changed while the circuits were built. Build them again.',
+    })
+    // Read again, they take new names and join as well.
+    const again = read()
+    expect(editor().addBuiltCircuits(again.circuits, again.top)).toBeUndefined()
+    expect(editor().order.map((id) => editor().circuits[id].name).slice(-2)).toEqual(['half 2', 'pair 2'])
   })
 })

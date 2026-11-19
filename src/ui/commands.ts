@@ -123,6 +123,14 @@ export function listCommands(): Command[] {
       run: chrome.openExpression,
     },
     {
+      id: 'circuits.verilog',
+      group: 'Circuits',
+      title: 'Build circuits from Verilog',
+      detail: 'Paste modules or open a .v file, and get each module as a new circuit. Radix 2 only',
+      keywords: 'verilog hdl import code module rtl systemverilog paste read open',
+      run: chrome.openVerilog,
+    },
+    {
       id: 'file.share',
       group: 'File',
       title: 'Copy a link to this project',

@@ -267,6 +267,20 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   as (`UNATTACHED`), else `'bz`. A new part type needs a case in `emit`.
   The writer is loaded on first use (`exportCircuitVerilog` in
   `persistence.ts`), so do not export it from `editor/index.ts`.
+- `verilogParse.ts` reads Verilog text into a tree and `verilogImport.ts`
+  (`verilogCircuits`) builds circuits from it, only at radix 2: a module is
+  a named circuit, an `input` a switch, an `output` an output part. The
+  code is built as written, a part for each operator at the width of its
+  bus, and a gate the project's kit lacks is made from the gates it has.
+  A clocked `always` gives flip-flops and registers, an `always @(*)` the
+  multiplexers of its `if` and `case`; a latch is refused. A value is kept
+  bit by bit and drawn as wires only when the module is read to its end,
+  so order does not matter, loops through parts work, and a splitter or a
+  merger appears only where one is needed. What is not read is refused
+  with its line and column, never skipped. `VerilogDialog.tsx` keeps the
+  text in the browser (`cedar-logic.verilog`), not in the project, and
+  adds the circuits through `addBuiltCircuits`; the builder is loaded with
+  the window, so do not export it from `editor/index.ts`.
 - `scopeExport.ts` takes the timing diagram out: `scopeSvg` draws what is
   on screen through `renderScope` into `SvgContext` (so a new canvas call
   there needs its counterpart, `measureText` included), and `scopeVcd`

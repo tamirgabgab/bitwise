@@ -2737,6 +2737,25 @@ label.swatch:focus-within {
   font-family: var(--font-mono);
 }
 
+/* ---- Build from Verilog ---- */
+
+.verilog {
+  width: 680px;
+}
+
+.verilog-input {
+  min-height: 30vh;
+  max-height: 60vh;
+  line-height: 1.45;
+  tab-size: 2;
+  white-space: pre;
+}
+
+/* The file button stands apart, at the start of the row. */
+.verilog-open {
+  margin-inline-end: auto;
+}
+
 .calc-body {
   display: flex;
   flex-direction: column;

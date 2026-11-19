@@ -307,6 +307,11 @@ function FileMenu() {
             summary="A .v file, at radix 2"
             onPick={pick(() => void exportCircuitVerilog())}
           />
+          <MenuRow
+            name="Build circuits from Verilog"
+            summary="Paste code or open a .v file"
+            onPick={pick(useChrome.getState().openVerilog)}
+          />
           <div className="menu-heading" role="separator">
             Open an example as a new project
           </div>
