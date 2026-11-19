@@ -257,6 +257,16 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   the drawing; any wire of a net gives it to the whole net, and new wires
   cut from one keep it. The canvas, the inspector, the meter board and the
   timing diagram all write a bus through it.
+- `verilogExport.ts` (`circuitVerilog`) writes the open circuit as Verilog,
+  only at radix 2: a module for it and, before it, one for each circuit it
+  uses. A switch is an `input`, an output part and a display an `output`;
+  a button, a clock and a cycle are inputs too, handed up through every
+  module that uses the circuit. One-bit gates are primitives, buses and
+  larger parts `assign` with operators, memory parts `always`; delays are
+  left out. An input nothing drives is written as what the part counts it
+  as (`UNATTACHED`), else `'bz`. A new part type needs a case in `emit`.
+  The writer is loaded on first use (`exportCircuitVerilog` in
+  `persistence.ts`), so do not export it from `editor/index.ts`.
 - `scopeExport.ts` takes the timing diagram out: `scopeSvg` draws what is
   on screen through `renderScope` into `SvgContext` (so a new canvas call
   there needs its counterpart, `measureText` included), and `scopeVcd`

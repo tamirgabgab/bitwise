@@ -20,6 +20,7 @@ import { partHint, partName } from './parts.ts'
 import {
   copyShareLink,
   exportCircuitSvg,
+  exportCircuitVerilog,
   openExample,
   openProjectFile,
   saveProjectFile,
@@ -136,6 +137,15 @@ export function listCommands(): Command[] {
       keywords: 'image download',
       disabled: !hasParts,
       run: exportCircuitSvg,
+    },
+    {
+      id: 'file.verilog',
+      group: 'File',
+      title: 'Export this circuit as Verilog',
+      detail: 'A .v file with a module for it and for each circuit it uses. Radix 2 only',
+      keywords: 'hdl code download module rtl systemverilog',
+      disabled: !hasParts,
+      run: () => void exportCircuitVerilog(),
     },
 
     {

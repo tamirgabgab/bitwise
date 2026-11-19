@@ -44,6 +44,7 @@ import { Keys } from './Keys.tsx'
 import {
   copyShareLink,
   exportCircuitSvg,
+  exportCircuitVerilog,
   openExample,
   openProjectFile,
   saveProjectFile,
@@ -301,6 +302,11 @@ function FileMenu() {
           <MenuRow name="Save the project as a file" shortcut="Ctrl+S" onPick={pick(saveProjectFile)} />
           <MenuRow name="Copy a link to this project" onPick={pick(() => void copyShareLink())} />
           <MenuRow name="Export this circuit as an SVG picture" onPick={pick(exportCircuitSvg)} />
+          <MenuRow
+            name="Export this circuit as Verilog"
+            summary="A .v file, at radix 2"
+            onPick={pick(() => void exportCircuitVerilog())}
+          />
           <div className="menu-heading" role="separator">
             Open an example as a new project
           </div>

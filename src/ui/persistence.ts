@@ -237,6 +237,23 @@ export function saveProjectFile(): void {
   toast(`Saved the project as ${name}.bitwise.json`)
 }
 
+/**
+ * Saves the open circuit, and every circuit it uses, as a Verilog file. The
+ * writer is loaded when first asked for, like the large windows.
+ */
+export async function exportCircuitVerilog(): Promise<void> {
+  const { circuitVerilog } = await import('../editor/verilogExport.ts')
+  const { circuits, active, settings } = useEditor.getState()
+  const file = circuitVerilog(circuits, active, settings.radix)
+  if ('problem' in file) {
+    toast(file.problem)
+    return
+  }
+  const name = `${safeFileName(circuits[active].name, 'circuit')}.v`
+  downloadText(name, file.text, 'text/plain')
+  toast(`Exported the circuit as ${name}`)
+}
+
 /** Saves a picture of the open circuit, as it looks now, as an SVG file. */
 export function exportCircuitSvg(): void {
   const svg = canvasRuntime.current?.svg()
