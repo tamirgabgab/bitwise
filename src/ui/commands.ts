@@ -114,6 +114,14 @@ export function listCommands(): Command[] {
       run: saveProjectFile,
     },
     {
+      id: 'circuits.expression',
+      group: 'Circuits',
+      title: 'Build a circuit from an expression',
+      detail: 'Type a & ~b | c and get the fewest gates as a new circuit',
+      keywords: 'expression formula boolean logic synthesize minimize sum of products',
+      run: chrome.openExpression,
+    },
+    {
       id: 'file.share',
       group: 'File',
       title: 'Copy a link to this project',

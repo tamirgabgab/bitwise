@@ -1,16 +1,19 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { Signal } from '../core/index.ts'
 import {
   SUB_TYPE,
   describeNode,
+  karnaughMap,
   readPart,
   rowOf,
   signalText,
+  tableExpression,
   truthTable,
   useEditor,
   useSim,
+  variableNames,
 } from '../editor/index.ts'
-import type { DocComponent } from '../editor/index.ts'
+import type { DocComponent, TruthTable } from '../editor/index.ts'
 import { portLabel } from './probeText.ts'
 
 /** What the inputs of `part` carry right now, column by column. */
@@ -105,6 +108,99 @@ export function TruthTablePanel({ part }: { part: DocComponent }) {
           </table>
         </div>
       )}
+      {table.kind === 'table' && <TableLogic table={table} names={table.inputs.map(name)} outNames={table.outputs.map(name)} live={live} />}
     </section>
+  )
+}
+
+type Table = TruthTable & { kind: 'table' }
+
+/**
+ * Each output of a truth table as a small expression, and the Karnaugh map
+ * of one of them, with the cell the inputs are on now marked.
+ */
+function TableLogic({
+  table,
+  names,
+  outNames,
+  live,
+}: {
+  table: Table
+  names: readonly string[]
+  outNames: readonly string[]
+  live: number | undefined
+}) {
+  const settings = useEditor((state) => state.settings)
+  const [chosen, setChosen] = useState(0)
+  const radix = settings.radix
+  const output = Math.min(chosen, table.outputs.length - 1)
+  const written = table.outputs.map((_, index) => tableExpression(table, index, radix, names))
+  const single = table.inputs.every((column) => column.width === 1)
+  const map = single && table.outputs[output].width === 1 ? karnaughMap(table.inputs.length, radix) : undefined
+  const variables = variableNames(names)
+  const outputName = (index: number): string => variableNames([...names, outNames[index]])[names.length]
+
+  return (
+    <>
+      <h3>Expression</h3>
+      {written.every((item) => item.kind === 'none') ? (
+        <p className="note">{(written[0] as { reason: string }).reason}</p>
+      ) : (
+        <ul className="truth-expressions">
+          {written.map((item, index) =>
+            item.kind === 'expression' ? (
+              <li key={table.outputs[index].port}>
+                <span className="truth-expression-name">{outputName(index)} =</span> <code>{item.text}</code>
+              </li>
+            ) : null,
+          )}
+        </ul>
+      )}
+      {map?.kind === 'map' && (
+        <details className="karnaugh">
+          <summary>Karnaugh map</summary>
+          {table.outputs.length > 1 && (
+            <div className="field">
+              <label htmlFor="karnaugh-output">Output</label>
+              <select id="karnaugh-output" value={output} onChange={(event) => setChosen(Number(event.target.value))}>
+                {table.outputs.map((column, index) =>
+                  column.width === 1 ? (
+                    <option key={column.port} value={index}>
+                      {outputName(index)}
+                    </option>
+                  ) : null,
+                )}
+              </select>
+            </div>
+          )}
+          <table aria-label={`Karnaugh map of ${outputName(output)}`}>
+            <thead>
+              <tr>
+                <th scope="col" className="karnaugh-corner">
+                  {variables.slice(0, map.rowInputs).join(' ')} \ {variables.slice(map.rowInputs).join(' ')}
+                </th>
+                {map.columns.map((code) => (
+                  <th key={code.join()} scope="col">
+                    {code.map((digit) => digit.toString(radix).toUpperCase()).join('')}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {map.cells.map((cells, row) => (
+                <tr key={map.rows[row].join()}>
+                  <th scope="row">{map.rows[row].map((digit) => digit.toString(radix).toUpperCase()).join('')}</th>
+                  {cells.map((cell) => (
+                    <td key={cell} className={cell === live ? 'live' : undefined}>
+                      {signalText(table.rows[cell].outputs[output], settings)}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </details>
+      )}
+    </>
   )
 }

@@ -1160,6 +1160,65 @@ kbd {
   font-weight: 600;
 }
 
+.truth-expressions {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+  line-height: 1.6;
+}
+
+.truth-expressions code {
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+.truth-expression-name {
+  margin-right: 4px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.karnaugh {
+  margin-top: 8px;
+}
+
+.karnaugh summary {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.karnaugh .field {
+  margin-top: 6px;
+}
+
+.truth-table .karnaugh table {
+  width: auto;
+  margin-top: 6px;
+}
+
+.truth-table .karnaugh td,
+.truth-table .karnaugh tbody th {
+  min-width: 22px;
+  padding: 2px 4px;
+  border: 1px solid var(--border);
+  text-align: center;
+}
+
+.truth-table .karnaugh th {
+  position: static;
+  font-family: var(--font-mono);
+}
+
+.truth-table .karnaugh td.live {
+  background: var(--accent-soft);
+}
+
+.karnaugh-corner {
+  font-size: var(--text-sm);
+}
+
 /* ---- The words of a ROM or RAM ---- */
 
 .memory-count {
@@ -2618,6 +2677,64 @@ label.swatch:focus-within {
   color: var(--text-muted);
   font-size: var(--text-sm);
   font-weight: 500;
+}
+
+/* ---- Build from an expression ---- */
+
+.expression {
+  width: 480px;
+}
+
+.expression-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px 20px 4px;
+}
+
+.expression-label {
+  color: var(--text-muted);
+}
+
+.expression-input {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-control);
+  background: var(--canvas-bg);
+  color: inherit;
+  font-family: var(--font-mono);
+  font-size: var(--text-md);
+  resize: vertical;
+}
+
+.expression .dialog-actions {
+  margin-top: 4px;
+  padding: 0 20px 16px;
+}
+
+.expression-input[aria-invalid='true'] {
+  border-color: var(--text);
+}
+
+.dialog p.expression-help,
+.dialog p.expression-problem {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.dialog p.expression-help {
+  color: var(--text-muted);
+}
+
+.dialog p.expression-problem {
+  min-height: 1.5em;
+  margin-bottom: 6px;
+}
+
+.expression-help code {
+  font-family: var(--font-mono);
 }
 
 .calc-body {

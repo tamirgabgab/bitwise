@@ -202,6 +202,15 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   the parameters `c0` to `c255`, laid out for radix 16 (`tableCell`), so it
   keeps them when the radix changes; one it has no room for reads as X. The
   inspector edits them (`TableEditor.tsx`).
+- `sumOfProducts.ts` builds a function of digits from gates as a sum of
+  products (`minimize`, after Quine and McCluskey, at any radix); the state
+  machine and the expressions both use it. `expression.ts` reads an
+  expression (`&` or `·` AND, `|` or `+` OR, `^` XOR, `~` or `'` NOT, `x=v`
+  a value; the gates' meaning at radix n), builds it as a new circuit
+  (`expressionToCircuit` in the store, `ExpressionDialog.tsx`), writes a
+  truth table back as an expression, and lays out a Karnaugh map (Gray
+  order, 2 to 4 inputs, at most `MAX_MAP_SIDE` a side). Both show under the
+  truth table in the inspector.
 - `truthTable.ts` gives the truth table of a part with no memory: a
   built-in part from its `evaluate`, a named circuit by running it once a
   row. At most `MAX_TRUTH_ROWS`; otherwise it gives a reason.

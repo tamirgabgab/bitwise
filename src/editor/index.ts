@@ -30,6 +30,15 @@ export type { DocComponent, Terminal } from './document.ts'
 export { digitOfKey } from './digitKeys.ts'
 export { describeEdit } from './editNames.ts'
 export { MAX_TRUTH_ROWS, rowOf, truthTable } from './truthTable.ts'
+export {
+  MAX_EXPRESSION_LENGTH,
+  isExpressionError,
+  karnaughMap,
+  parseExpression,
+  tableExpression,
+  variableNames,
+} from './expression.ts'
+export type { KarnaughMap, TableExpression } from './expression.ts'
 export type { TruthColumn, TruthRow, TruthTable } from './truthTable.ts'
 export type { Point } from './geometry.ts'
 export { useProbe } from './probeStore.ts'

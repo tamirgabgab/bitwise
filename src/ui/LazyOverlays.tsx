@@ -25,6 +25,7 @@ const WINDOWS: readonly (readonly [Overlay, LazyExoticComponent<ComponentType>])
   ['history', deferred(() => import('./HistoryDialog.tsx'), 'HistoryDialog')],
   ['describe', deferred(() => import('./DescribeDialog.tsx'), 'DescribeDialog')],
   ['machine', deferred(() => import('./MachineEditor.tsx'), 'MachineEditor')],
+  ['expression', deferred(() => import('./ExpressionDialog.tsx'), 'ExpressionDialog')],
 ]
 
 export function LazyOverlays() {

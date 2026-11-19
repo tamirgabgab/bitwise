@@ -20,6 +20,7 @@ export type Overlay =
   | 'history'
   | 'describe'
   | 'machine'
+  | 'expression'
 
 interface ChromeState {
   readonly overlay: Overlay | null
@@ -58,6 +59,8 @@ interface ChromeState {
   openCalculator(): void
   openHistory(): void
   openDescribe(): void
+  /** Opens the window that builds a circuit from an expression. */
+  openExpression(): void
   /** Opens the machine editor on a state machine part of the open circuit. */
   openMachine(part: string): void
   startTour(): void
@@ -142,6 +145,9 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   },
   openDescribe() {
     set({ overlay: 'describe' })
+  },
+  openExpression() {
+    set({ overlay: 'expression' })
   },
   openMachine(part) {
     set({ overlay: 'machine', machinePart: part })

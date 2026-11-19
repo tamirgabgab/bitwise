@@ -10,6 +10,7 @@ import { alignItems, distributeItems } from './arrange.ts'
 import type { AlignEdge, Axis } from './arrange.ts'
 import {
   FRAME_TYPE,
+  MAX_LABEL,
   NET_TYPE,
   SUB_TYPE,
   TEXT_TYPE,
@@ -42,6 +43,7 @@ import { setBusFormat } from './busFormat.ts'
 import { autoLayout } from './layout.ts'
 import type { Machine } from './machine.ts'
 import { machineCircuit } from './machineCircuit.ts'
+import { expressionCircuit, isExpressionError, parseExpression } from './expression.ts'
 import { extractCircuit } from './extract.ts'
 import { changeStep, cleanNote, insertStep, removeStep } from './steps.ts'
 import { placementParams } from './placement.ts'
@@ -251,6 +253,15 @@ export interface EditorState {
    * a new circuit of the project, and opens it. Its id, or why it cannot.
    */
   machineToCircuit(id: string): { readonly circuit: string } | { readonly problem: string }
+  /**
+   * Builds an expression at the project's radix from gates, as a new
+   * circuit whose output part is called `output`, and opens it. Its id, or
+   * why it cannot, with the column of a mistake in the text.
+   */
+  expressionToCircuit(
+    text: string,
+    output: string,
+  ): { readonly circuit: string } | { readonly problem: string; readonly column?: number }
   /** Writes the bus at `terminal` in `format`, on every wire of its net. */
   setBusFormat(terminal: Terminal, format: BusFormat): void
   /** Puts a frame around the selection and selects it. */
@@ -415,6 +426,23 @@ export const useEditor = create<EditorState>()((set, get) => {
       future: [],
       selection: existingIds(placed.doc, selection ?? state.selection),
     })
+  }
+
+  /** Adds a drawing built for the user as a new circuit named after `base`, and opens it. */
+  const addBuiltCircuit = (doc: CircuitDoc, base: string): { readonly circuit: string } => {
+    const state = get()
+    const id = `k${state.nextCircuit}`
+    const names = new Set(Object.values(state.circuits).map((circuit) => circuit.name))
+    let name = base
+    for (let number = 2; names.has(name); number++) name = `${base} ${number}`
+    set({
+      circuits: { ...state.circuits, [id]: { id, name, doc } },
+      order: [...state.order, id],
+      nextCircuit: state.nextCircuit + 1,
+      unframed: new Set([...state.unframed, id]),
+    })
+    get().selectCircuit(id)
+    return { circuit: id }
   }
 
   /** Puts a new list of steps on the open circuit. Not a step of undo. */
@@ -596,19 +624,19 @@ export const useEditor = create<EditorState>()((set, get) => {
       }
       const doc = machineCircuit(machine, state.settings.radix)
       if (typeof doc === 'string') return { problem: doc }
-      const id = `k${state.nextCircuit}`
-      const names = new Set(Object.values(state.circuits).map((circuit) => circuit.name))
-      const base = `${state.doc.components[partId].label ?? 'Machine'} gates`
-      let name = base
-      for (let number = 2; names.has(name); number++) name = `${base} ${number}`
-      set({
-        circuits: { ...state.circuits, [id]: { id, name, doc } },
-        order: [...state.order, id],
-        nextCircuit: state.nextCircuit + 1,
-        unframed: new Set([...state.unframed, id]),
-      })
-      get().selectCircuit(id)
-      return { circuit: id }
+      return addBuiltCircuit(doc, `${state.doc.components[partId].label ?? 'Machine'} gates`)
+    },
+
+    expressionToCircuit(text, output) {
+      const { settings, order } = get()
+      if (order.length >= MAX_CIRCUITS) return { problem: `A project holds at most ${MAX_CIRCUITS} circuits.` }
+      const parsed = parseExpression(text, settings.radix)
+      if (isExpressionError(parsed)) return { problem: parsed.message, column: parsed.column }
+      const name = output.trim().slice(0, MAX_LABEL) || 'F'
+      if (parsed.variables.includes(name)) {
+        return { problem: `The output cannot be called “${name}”, like an input.` }
+      }
+      return addBuiltCircuit(expressionCircuit(parsed, settings.radix, name), name)
     },
 
     setBusFormat(terminal, format) {
