@@ -5,6 +5,7 @@ import {
   UNIT,
   fitView,
   keepInSight,
+  pinchView,
   wheelZoomFactor,
   screenToWorld,
   worldToScreen,
@@ -98,6 +99,33 @@ describe('keepInSight', () => {
 
   it('leaves the view alone when the canvas grows', () => {
     expect(keepInSight(view, bounds, { width: 600, height: 400 }, { width: 800, height: 500 })).toBe(view)
+  })
+})
+
+describe('pinchView', () => {
+  const view: View = { panX: 30, panY: -10, zoom: 1 }
+
+  it('moves the view with two fingers that move together', () => {
+    const moved = pinchView(view, [{ x: 100, y: 100 }, { x: 200, y: 100 }], [{ x: 120, y: 140 }, { x: 220, y: 140 }])
+    expect(moved).toEqual({ zoom: 1, panX: 50, panY: 30 })
+  })
+
+  it('zooms about the middle between fingers that come apart, and keeps what was under each of them there', () => {
+    const before = [{ x: 100, y: 100 }, { x: 200, y: 100 }] as const
+    const after = [{ x: 50, y: 80 }, { x: 250, y: 80 }] as const
+    const zoomed = pinchView(view, before, after)
+    expect(zoomed.zoom).toBe(2)
+    for (const index of [0, 1]) {
+      const under = screenToWorld(view, before[index].x, before[index].y)
+      expect(worldToScreen(zoomed, under)).toEqual(after[index])
+    }
+  })
+
+  it('stops at the limits of the zoom, and still moves', () => {
+    const out = pinchView(view, [{ x: 0, y: 0 }, { x: 400, y: 0 }], [{ x: 190, y: 10 }, { x: 210, y: 10 }])
+    expect(out.zoom).toBe(MIN_ZOOM)
+    const close = pinchView(view, [{ x: 100, y: 100 }, { x: 100, y: 100 }], [{ x: 0, y: 50 }, { x: 300, y: 50 }])
+    expect(close).toEqual({ zoom: 1, panX: 80, panY: -60 })
   })
 })
 

@@ -112,6 +112,14 @@ The build uses relative paths (`base: './'`), so it works under that folder.
 - `CanvasController` owns pointer and keyboard input for the canvas. React
   draws only the chrome around it and reaches the editor through the
   `useEditor` store.
+- A finger is a pointer of type `touch`, and the controller keeps where
+  each one is (`touches`). One finger dragged over empty canvas moves the
+  view, where a mouse draws a selection box; on a part, a pin or a wire it
+  does what a mouse does. Two fingers move and zoom the view (`pinchView`
+  in `view.ts`) and drop whatever the first one began. A finger that rests
+  for `LONG_PRESS` does what a right click does (`secondary`), and on empty
+  canvas starts the selection box instead. A finger needs `TOUCH_SLOP`
+  pixels before a press is a drag.
 - Project settings (radix, gate kit, sandbox, value colors) live in the
   `useEditor` store next to the document. They are not part of undo.
 - A project holds several circuits (`circuits`, `order`, `active`). The open

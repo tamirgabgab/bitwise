@@ -46,7 +46,7 @@ import { readCanvasTheme } from './theme.ts'
 import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
-import { keepInSight, screenToWorld, wheelZoomFactor } from './view.ts'
+import { keepInSight, pinchView, screenToWorld, wheelZoomFactor } from './view.ts'
 import { bendPoints, wirePath } from './wireLayout.ts'
 import { influenceCone } from './cone.ts'
 import type { ConeMarks } from './cone.ts'
@@ -58,6 +58,10 @@ import type { Guide } from './guides.ts'
 
 /** How far the pointer must travel, in pixels, before a press is a drag. */
 const DRAG_THRESHOLD = 4
+/** The same for a finger, which is never as still as a mouse. */
+const TOUCH_SLOP = 10
+/** How long a finger rests, in milliseconds, before it means what a right click does. */
+const LONG_PRESS = 500
 
 /** At this many ticks a second or fewer, the eye can follow a change spreading. */
 const SLOW_SPEED = 5
@@ -79,7 +83,11 @@ type Mode =
       readonly alt: boolean
       /** The press landed on the face of a switch: a click changes its value. */
       readonly poke: boolean
+      /** A finger: dragged over empty canvas it moves the view, where a mouse selects. */
+      readonly touch: boolean
     }
+  /** Two fingers move and zoom the view. */
+  | { readonly kind: 'pinch' }
   /** A push button is being held down. */
   | { readonly kind: 'hold'; readonly id: string }
   | {
@@ -169,6 +177,10 @@ export class CanvasController {
   private centered = false
   private readonly pulses = new WirePulses()
   private readonly wheelSteps = new WheelSteps()
+  /** Where each finger on the canvas is, in pixels from its corner, in the order they came down. */
+  private readonly touches = new Map<number, Point>()
+  /** The timer of a finger that may be resting for a long press, or 0. */
+  private longPress = 0
   /** Set when the user asked the system for less motion: no waves then. */
   private readonly calm = window.matchMedia('(prefers-reduced-motion: reduce)')
 
@@ -278,6 +290,7 @@ export class CanvasController {
   }
 
   dispose(): void {
+    this.endLongPress()
     cancelAnimationFrame(this.frame)
     for (const cleanup of this.cleanups) cleanup()
   }
@@ -571,11 +584,70 @@ export class CanvasController {
     this.requestDraw()
   }
 
+  // ---- Touch ----
+
+  private onCanvas(event: MouseEvent): Point {
+    const rect = this.canvas.getBoundingClientRect()
+    return { x: event.clientX - rect.left, y: event.clientY - rect.top }
+  }
+
+  private endLongPress(): void {
+    clearTimeout(this.longPress)
+    this.longPress = 0
+  }
+
+  /**
+   * What a right click does at a place: steps a switch backwards, or gives a
+   * wire a row of its own in the timing diagram or takes it away. Whether
+   * the place answers to it at all.
+   */
+  private secondary(hit: Hit | null, world: Point): boolean {
+    const doc = useEditor.getState().doc
+    const poked = this.pokeTarget(doc, hit, world)
+    if (poked !== null) {
+      if (doc.components[poked].type === 'input') pokeInput(poked, -1)
+      return true
+    }
+    const terminal = hit?.kind === 'component' ? undefined : terminalOfHit(doc, hit)
+    if (!terminal) return false
+    if (toggleWatch(terminal)) useSim.getState().setScopeOpen(true)
+    return true
+  }
+
+  /** A finger has rested where it came down: a touch screen has no right button. */
+  private readonly onLongPress = (): void => {
+    this.longPress = 0
+    const mode = this.mode
+    if (mode.kind !== 'press') return
+    if (mode.hit === null) {
+      // On empty canvas the finger now draws a box to select with, where a plain drag moves the view.
+      this.mode = { kind: 'marquee', start: mode.world, current: mode.world, additive: false }
+    } else if (this.secondary(mode.hit, mode.world)) {
+      // Lifting the finger is not a tap as well.
+      this.mode = { kind: 'idle' }
+    } else return
+    navigator.vibrate?.(10)
+    this.requestDraw()
+  }
+
   // ---- Pointer ----
 
   private readonly onPointerDown = (event: PointerEvent): void => {
     this.canvas.focus()
     this.probe(null)
+    if (event.pointerType === 'touch') {
+      this.touches.set(event.pointerId, this.onCanvas(event))
+      if (this.touches.size > 2) return
+      if (this.touches.size === 2) {
+        // A second finger: what the first one began is dropped, and the two move and zoom the view.
+        this.endLongPress()
+        if (this.mode.kind === 'hold') holdButton(this.mode.id, false)
+        this.finish()
+        this.canvas.setPointerCapture(event.pointerId)
+        this.mode = { kind: 'pinch' }
+        return
+      }
+    }
     if (event.button === 1 || (event.button === 0 && this.spaceDown)) {
       event.preventDefault()
       this.canvas.setPointerCapture(event.pointerId)
@@ -637,11 +709,30 @@ export class CanvasController {
       shift: event.shiftKey,
       alt: event.altKey,
       poke: poked !== null,
+      touch: event.pointerType === 'touch',
+    }
+    if (event.pointerType === 'touch') {
+      this.endLongPress()
+      this.longPress = window.setTimeout(this.onLongPress, LONG_PRESS)
     }
   }
 
   private readonly onPointerMove = (event: PointerEvent): void => {
     const state = useEditor.getState()
+    if (this.touches.has(event.pointerId)) {
+      const [first, second] = [...this.touches.keys()]
+      const before = [this.touches.get(first), this.touches.get(second)]
+      this.touches.set(event.pointerId, this.onCanvas(event))
+      if (this.mode.kind === 'pinch') {
+        const after = [this.touches.get(first), this.touches.get(second)]
+        if (before[0] && before[1] && after[0] && after[1]) {
+          state.setView(pinchView(state.view, [before[0], before[1]], [after[0], after[1]]))
+        }
+        return
+      }
+      // A finger that is not the one the gesture began with does nothing.
+      if (event.pointerId !== first) return
+    }
     const world = this.toWorld(event)
     const mode = this.mode
 
@@ -659,7 +750,8 @@ export class CanvasController {
       }
       case 'press': {
         const travelled = Math.hypot(event.clientX - mode.startX, event.clientY - mode.startY)
-        if (travelled < DRAG_THRESHOLD) return
+        if (travelled < (mode.touch ? TOUCH_SLOP : DRAG_THRESHOLD)) return
+        this.endLongPress()
         this.beginDrag(mode)
         if (this.mode.kind !== 'press') this.onPointerMove(event)
         return
@@ -746,7 +838,10 @@ export class CanvasController {
     const state = useEditor.getState()
     const hit = press.hit
     this.hover = null
-    if (hit === null) {
+    if (hit === null && press.touch) {
+      // From where the finger came down, so the drawing stays under it.
+      this.mode = { kind: 'pan', lastX: press.startX, lastY: press.startY }
+    } else if (hit === null) {
       this.mode = {
         kind: 'marquee',
         start: press.world,
@@ -778,6 +873,13 @@ export class CanvasController {
   private readonly onPointerUp = (event: PointerEvent): void => {
     if (this.canvas.hasPointerCapture(event.pointerId)) {
       this.canvas.releasePointerCapture(event.pointerId)
+    }
+    const touch = this.touches.delete(event.pointerId)
+    this.endLongPress()
+    if (this.mode.kind === 'pinch') {
+      // The finger that stays down does nothing more: lifting it is not a tap.
+      if (this.touches.size < 2) this.finish()
+      return
     }
     const state = useEditor.getState()
     const mode = this.mode
@@ -824,32 +926,28 @@ export class CanvasController {
         break
     }
     const world = this.toWorld(event)
-    this.hover = hitTest(useEditor.getState().doc, world)
+    // A finger that has left points at nothing.
+    this.hover = touch ? null : hitTest(useEditor.getState().doc, world)
     this.hoverPoke = this.pokeTarget(useEditor.getState().doc, this.hover, world) !== null
     this.finish()
   }
 
-  private readonly onPointerCancel = (): void => {
+  private readonly onPointerCancel = (event: PointerEvent): void => {
+    this.touches.delete(event.pointerId)
+    this.endLongPress()
     if (this.mode.kind === 'hold') holdButton(this.mode.id, false)
     this.finish()
   }
 
   /** A right-click on a switch steps it backwards instead of opening a menu. */
   private readonly onContextMenu = (event: MouseEvent): void => {
-    const doc = useEditor.getState().doc
-    const world = this.toWorld(event)
-    const hit = hitTest(doc, world)
-    const poked = this.pokeTarget(doc, hit, world)
-    if (poked !== null) {
+    // Some browsers ask for a menu when a finger rests. The long press has that in hand.
+    if (this.touches.size > 0) {
       event.preventDefault()
-      if (doc.components[poked].type === 'input') pokeInput(poked, -1)
       return
     }
-    // A right click on a wire gives it a row of its own in the timing diagram, or takes it away.
-    const terminal = hit?.kind === 'component' ? undefined : terminalOfHit(doc, hit)
-    if (!terminal) return
-    event.preventDefault()
-    if (toggleWatch(terminal)) useSim.getState().setScopeOpen(true)
+    const world = this.toWorld(event)
+    if (this.secondary(hitTest(useEditor.getState().doc, world), world)) event.preventDefault()
   }
 
   /**

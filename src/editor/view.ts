@@ -52,6 +52,23 @@ export function zoomAt(view: View, factor: number, x: number, y: number): View {
   return { zoom, panX: x - (x - view.panX) * k, panY: y - (y - view.panY) * k }
 }
 
+/**
+ * Two fingers moved over the canvas, from the screen points `before` to
+ * `after`. The view follows them: it moves as far as the middle between
+ * them did, and zooms as much as they came apart or together, so what was
+ * under the fingers stays under them.
+ */
+export function pinchView(view: View, before: readonly [Point, Point], after: readonly [Point, Point]): View {
+  const middle = ([a, b]: readonly [Point, Point]): Point => ({ x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 })
+  const apart = ([a, b]: readonly [Point, Point]): number => Math.hypot(a.x - b.x, a.y - b.y)
+  const from = middle(before)
+  const to = middle(after)
+  // Fingers that touch each other say nothing about the zoom.
+  const was = apart(before)
+  const zoomed = zoomAt(view, was < 1 ? 1 : apart(after) / was, from.x, from.y)
+  return { ...zoomed, panX: zoomed.panX + to.x - from.x, panY: zoomed.panY + to.y - from.y }
+}
+
 /** Screen pixels kept free between a drawing and the edge when it is moved into sight. */
 const SIGHT_MARGIN = 16
 
