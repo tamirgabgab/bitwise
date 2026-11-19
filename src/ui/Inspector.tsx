@@ -142,6 +142,40 @@ const FIELDS: readonly Field[] = [
   },
 ]
 
+/** What the select digits steer, where it is not a choice among ways. */
+const SELECT_LABELS: Readonly<Record<string, string>> = {
+  alu: 'Operation digits',
+  shifter: 'Amount digits',
+}
+
+/** Parameters that pick one of a few ways of working, by parameter name. */
+const CHOICES: readonly { param: string; label: string; options: readonly string[] }[] = [
+  { param: 'left', label: 'Direction', options: ['Down (right)', 'Up (left)'] },
+  { param: 'rotate', label: 'Brings in', options: ['Zeros', 'The digits pushed out'] },
+]
+
+/** A parameter that picks one of a few ways, by its number. */
+function ChoiceField(props: {
+  label: string
+  options: readonly string[]
+  value: number
+  onSet(next: number): void
+}) {
+  const id = useId()
+  return (
+    <div className="field">
+      <label htmlFor={id}>{props.label}</label>
+      <select id={id} value={props.value} onChange={(event) => props.onSet(Number(event.target.value))}>
+        {props.options.map((option, index) => (
+          <option key={option} value={index}>
+            {option}
+          </option>
+        ))}
+      </select>
+    </div>
+  )
+}
+
 /** The widest bus the inspector makes. Wider ones are hard to read on screen. */
 const MAX_BUS = 32
 
@@ -896,7 +930,7 @@ export function Inspector() {
           <Stepper
             // A fresh field for another part, so nothing typed carries over.
             key={`${active}:${component.id}:${field.param}`}
-            label={field.label}
+            label={(field.param === 'select' && SELECT_LABELS[component.type]) || field.label}
             value={component.params[field.param]}
             min={min}
             max={max}
@@ -905,6 +939,15 @@ export function Inspector() {
           />
         )
       })}
+      {CHOICES.filter((choice) => choice.param in specs).map((choice) => (
+        <ChoiceField
+          key={`${active}:${component.id}:${choice.param}`}
+          label={choice.label}
+          options={choice.options}
+          value={component.params[choice.param]}
+          onSet={(next) => setParams(component.id, { [choice.param]: next })}
+        />
+      ))}
       {timed && (
         <Stepper
           key={`${active}:${component.id}:delay`}

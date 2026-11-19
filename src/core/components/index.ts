@@ -1,5 +1,5 @@
 import { ComponentRegistry } from '../component.ts'
-import { adder, comparator } from './arith.ts'
+import { adder, alu, comparator, multiplier, shifter, subtractor } from './arith.ts'
 import { merger, splitter } from './bus.ts'
 import { fromBits, toBits } from './convert.ts'
 import {
@@ -67,6 +67,10 @@ export function createBuiltinRegistry(): ComponentRegistry {
     .register(demultiplexer)
     .register(decoder)
     .register(adder)
+    .register(subtractor)
+    .register(multiplier)
+    .register(alu)
+    .register(shifter)
     .register(comparator)
     .register(register)
     .register(counter)

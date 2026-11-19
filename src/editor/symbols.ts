@@ -814,6 +814,49 @@ function largeSymbol(type: string, params: Readonly<Record<string, number>>): Co
           { name: 'cout', text: 'Cout' },
         ],
       )
+    case 'subtractor':
+      return blockSymbol(
+        'Subtract',
+        [
+          { name: 'a', text: 'A', bus },
+          { name: 'b', text: 'B', bus },
+          { name: 'bin', text: 'Bin' },
+        ],
+        [
+          { name: 'diff', text: 'A−B', bus },
+          { name: 'bout', text: 'Bout' },
+        ],
+      )
+    case 'multiplier':
+      return blockSymbol(
+        'Multiply',
+        [
+          { name: 'a', text: 'A', bus },
+          { name: 'b', text: 'B', bus },
+        ],
+        [{ name: 'p', text: 'A×B', bus: true }],
+      )
+    case 'alu':
+      return blockSymbol(
+        'ALU',
+        [
+          { name: 'a', text: 'A', bus },
+          { name: 'b', text: 'B', bus },
+        ],
+        [
+          { name: 'y', text: 'Y', bus },
+          { name: 'zero', text: 'Zero' },
+          { name: 'carry', text: 'Carry' },
+        ],
+        [{ name: 'op', text: 'Op', bus: (params.select ?? 1) > 1 }],
+      )
+    case 'shifter':
+      return blockSymbol(
+        params.rotate === 1 ? 'Rotate' : 'Shift',
+        [{ name: 'in', text: params.left === 0 ? '>>' : '<<', bus }],
+        [{ name: 'out', text: '', bus }],
+        [{ name: 'amt', text: 'Amt', bus: (params.select ?? 1) > 1 }],
+      )
     case 'compare':
       return blockSymbol(
         'Compare',

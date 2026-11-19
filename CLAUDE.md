@@ -52,10 +52,14 @@ The build uses relative paths (`base: './'`), so it works under that folder.
 - Larger parts work on buses and follow the flip-flop rules at radix n:
   `components/bus.ts` (splitter, merger), `select.ts` (multiplexer,
   demultiplexer, decoder: one select digit chooses among n ways),
-  `arith.ts` (adder, comparator) and `register.ts` (register, counter). A
-  flag such as a carry is 0 or the top value, and a control input is on
-  only at the top value. Unattached, `cin` is 0, `en` is on, and `load` and
-  `reset` are off.
+  `arith.ts` (adder, subtractor, multiplier, ALU, shifter, comparator) and
+  `register.ts` (register, counter). A flag such as a carry is 0 or the top
+  value, and a control input is on only at the top value. Unattached, `cin`
+  and `bin` are 0, `en` is on, and `load` and `reset` are off. The
+  multiplier's product is twice as wide as its inputs. The ALU's `op` is a
+  number naming one of `ALU_OPERATIONS`; AND, OR, XOR and NOT are the gates'
+  meaning at radix n. The shifter's amount comes from a pin; its direction
+  (`left`) and fill (`rotate`) are parameters, chosen in the inspector.
 - A net is one electrical node. Several outputs may drive it: Z drivers are
   ignored, and two different digits read as X and set the net's `conflict`
   flag.
@@ -256,7 +260,7 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   B live only for the session: the board in `session.ts` next to the
   watched wires, the markers in `TimingPanel`.
 - `problems.ts` lists what is likely a mistake: unattached inputs (not
-  `cin`, `en`, `load`, `set` or `reset`), wires nothing drives, loops with
+  `cin`, `bin`, `en`, `load`, `set` or `reset`), wires nothing drives, loops with
   no memory part, parts that drive nothing, and from the running circuit
   conflicts and mixed widths. The status bar counts the ones read off the
   drawing; the strip under the canvas lists them all.

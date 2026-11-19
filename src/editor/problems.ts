@@ -31,9 +31,9 @@ const ORDER: readonly ProblemKind[] = ['conflict', 'mixed', 'floating', 'undrive
 
 /**
  * Inputs that may be left unattached: each has a value of its own then
- * (`cin` 0, `en` on, `load`, `set` and `reset` off).
+ * (`cin` and `bin` 0, `en` on, `load`, `set` and `reset` off).
  */
-const OPTIONAL_INPUTS: ReadonlySet<string> = new Set(['cin', 'en', 'load', 'set', 'reset'])
+const OPTIONAL_INPUTS: ReadonlySet<string> = new Set(['cin', 'bin', 'en', 'load', 'set', 'reset'])
 
 /** The parts of a drawing that are in the circuit: no notes, frames or net labels. */
 function circuitParts(doc: CircuitDoc): DocComponent[] {

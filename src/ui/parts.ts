@@ -35,6 +35,10 @@ const NAMES: Readonly<Record<string, string>> = {
   demux: 'Demultiplexer',
   decoder: 'Decoder',
   adder: 'Adder',
+  subtractor: 'Subtractor',
+  multiplier: 'Multiplier',
+  alu: 'ALU',
+  shifter: 'Shifter',
   compare: 'Comparator',
   register: 'Register',
   counter: 'Counter',
@@ -136,6 +140,22 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
   adder: [
     'Adds two binary numbers on buses, with a carry in and a carry out',
     'Adds two numbers in base n on buses. A carry is 0 or the top value',
+  ],
+  subtractor: [
+    'Takes B and a borrow in from A, on buses. Bout is 1 when B was more',
+    'Takes B and a borrow in from A, in base n on buses. Bout is the top value when B was more',
+  ],
+  multiplier: [
+    'Multiplies two binary numbers on buses. The product is twice as wide',
+    'Multiplies two numbers in base n on buses. The product is twice as wide',
+  ],
+  alu: [
+    'Op picks what to do with A and B: add, subtract, AND, OR, XOR, NOT, shift up or down',
+    'Op picks what to do with A and B in base n: add, subtract, AND, OR, XOR, NOT, shift up or down',
+  ],
+  shifter: [
+    'Moves the bits of its input by as many places as Amt says, bringing in zeros or wrapping around',
+    'Moves the digits of its input by as many places as Amt says, bringing in zeros or wrapping around',
   ],
   compare: [
     'Compares two numbers on buses: less, equal or greater',
