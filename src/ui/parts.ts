@@ -178,8 +178,8 @@ const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>
     'Gives the word at the address on A, and writes D there when the clock rises past the middle while WE is at the top value',
   ],
   fsm: [
-    'Moves between the states you draw when the clock rises. Double-click it to draw them',
-    'Moves between the states you draw when the clock rises past the middle. Double-click it to draw them',
+    'Moves between the states you draw when the clock rises, Moore or Mealy. Double-click it to draw them',
+    'Moves between the states you draw when the clock rises past the middle, Moore or Mealy. Double-click it to draw them',
   ],
   text: [
     'Writing on the canvas. It is not part of the circuit',

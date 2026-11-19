@@ -18,7 +18,8 @@ export function MachineSummary({ id, machine }: { id: string; machine: Machine }
   return (
     <section className="machine-summary" aria-label="Machine">
       <p className="note">
-        {count(machine.states.length, 'state', 'states')}, {count(machine.rules.length, 'rule', 'rules')},{' '}
+        A {machine.mealy ? 'Mealy' : 'Moore'} machine: {count(machine.states.length, 'state', 'states')},{' '}
+        {count(machine.rules.length, 'rule', 'rules')},{' '}
         {count(machine.inputs.length, 'input', 'inputs')} and {count(machine.outputs.length, 'output', 'outputs')}.
         It starts in {machine.states[0].name}.
       </p>

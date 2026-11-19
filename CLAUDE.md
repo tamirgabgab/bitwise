@@ -190,10 +190,16 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   `clk` while `we` is on (unattached, off), starts from the same words and
   goes back to them on a restart; `memory` in its `ComponentDef` gives the
   inspector every word (`MemoryEditor.tsx`).
-- A state machine (`components/machine.ts`, type `fsm`) is Moore: on the
-  rising edge of `clk` it follows the first rule of its state whose
-  conditions the inputs meet, and `reset` at the top value takes it at once
-  to state 0, the start. The engine reads it from parameters; the drawing
+- A state machine (`components/machine.ts`, type `fsm`): on the rising
+  edge of `clk` it follows the first rule of its state whose conditions the
+  inputs meet, and `reset` at the top value takes it at once to state 0,
+  the start. It is Moore (each state gives the outputs) unless `mealy` is
+  set on the `Machine`: then each rule has `outputs` of its own, given at
+  once while its condition holds, and the digits of the state are what it
+  gives when no rule matches (`machineOutputs`). A rule keeps its digits
+  when the machine goes back to Moore; `setMealy` makes the change, and a
+  rule that never had digits takes those of its state, so nothing changes
+  until one is edited. The engine reads it from parameters; the drawing
   keeps the `Machine` on the part (`editor/machine.ts`: inputs, outputs,
   states with a name and a place, rules), and `compileMachine` makes the
   parameters again on every change and on load. `MachineEditor.tsx` draws

@@ -1,7 +1,7 @@
-import { builtinComponents, nextState, resolveParams } from '../core/index.ts'
+import { builtinComponents, machineOutputs, nextState, resolveParams } from '../core/index.ts'
 import type { CircuitDoc } from './document.ts'
 import { autoLayout } from './layout.ts'
-import { MACHINE_TYPE, compileMachine } from './machine.ts'
+import { MACHINE_TYPE, compileMachine, ruleOutputs } from './machine.ts'
 import type { Machine } from './machine.ts'
 import { digitsOf, gateBuilder } from './sumOfProducts.ts'
 import type { Variable } from './sumOfProducts.ts'
@@ -17,7 +17,8 @@ export type { Cube, RowKind } from './sumOfProducts.ts'
  * flip-flops start and where Reset puts them. Each digit of the next state
  * and each output is a function of the inputs and the state digits, built as
  * a sum of products (`sumOfProducts.ts`). A state code no state has is a row
- * that does not matter.
+ * that does not matter. The outputs of a Moore machine depend on the state
+ * digits alone; those of a Mealy machine on the inputs as well.
  */
 
 /** The most rows of inputs and state digits the conversion works through. */
@@ -43,6 +44,15 @@ export function machineCircuit(machine: Machine, radix: number): CircuitDoc | st
     const output = state.outputs.findIndex((digit) => digit > top)
     if (output !== -1) {
       return `State “${state.name}” gives ${machine.outputs[output]} the digit ${hex(state.outputs[output])}, which radix ${radix} has no room for.`
+    }
+  }
+  if (machine.mealy) {
+    for (const rule of machine.rules) {
+      const digits = ruleOutputs(machine, rule)
+      const output = digits.findIndex((digit) => digit > top)
+      if (output === -1) continue
+      const name = (id: string): string => machine.states.find((state) => state.id === id)?.name ?? id
+      return `A rule from “${name(rule.from)}” to “${name(rule.to)}” gives ${machine.outputs[output]} the digit ${hex(digits[output])}, which radix ${radix} has no room for.`
     }
   }
   const inputs = machine.inputs.length
@@ -88,11 +98,16 @@ export function machineCircuit(machine: Machine, radix: number): CircuitDoc | st
   })
   machine.outputs.forEach((name, output) => {
     const sink = place('output', { label: name })
-    // An output depends on the state alone: its rows are the state digits.
-    const pin = builder.build(all.slice(inputs), (row) => {
-      const state = stateOf([...Array<number>(inputs).fill(0), ...row])
-      return state === undefined ? undefined : machine.states[state].outputs[output]
-    })
+    const pin = machine.mealy
+      ? builder.build(all, (row) => {
+          const state = stateOf(row)
+          return state === undefined ? undefined : machineOutputs(state, row.slice(0, inputs), params, radix)[output]
+        })
+      : // In a Moore machine an output depends on the state alone: its rows are the state digits.
+        builder.build(all.slice(inputs), (row) => {
+          const state = stateOf([...Array<number>(inputs).fill(0), ...row])
+          return state === undefined ? undefined : machine.states[state].outputs[output]
+        })
     connect(pin, { component: sink, port: 'in' })
   })
   return autoLayout(builder.doc())

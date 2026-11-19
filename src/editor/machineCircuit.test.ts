@@ -20,7 +20,7 @@ function randomFrom(seed: number): (below: number) => number {
 }
 
 /** A machine made up at random. */
-function randomMachine(random: (below: number) => number, radix: number): Machine {
+function randomMachine(random: (below: number) => number, radix: number, mealy = false): Machine {
   const count = 1 + random(6)
   const inputs = Array.from({ length: random(3) }, (_, input) => `i${input}`)
   const outputs = Array.from({ length: 1 + random(2) }, (_, output) => `o${output}`)
@@ -34,8 +34,9 @@ function randomMachine(random: (below: number) => number, radix: number): Machin
     from: `s${random(count)}`,
     to: `s${random(count)}`,
     when: inputs.map(() => (random(3) === 0 ? null : random(radix))),
+    ...(mealy ? { outputs: outputs.map(() => random(radix)) } : {}),
   }))
-  return { inputs, outputs, states, rules }
+  return { inputs, outputs, states, rules, ...(mealy ? { mealy } : {}) }
 }
 
 /** Drives a circuit through its switches, by name, and reads its outputs, by name. */
@@ -171,6 +172,46 @@ describe('machineCircuit', () => {
     }
   })
 
+  it('builds a Mealy machine whose outputs follow the inputs at once, at radix 2 and 3', () => {
+    const random = randomFrom(23)
+    for (const radix of [2, 3]) {
+      for (let round = 0; round < 25; round++) {
+        const machine = randomMachine(random, radix, true)
+        const doc = machineCircuit(machine, radix)
+        if (typeof doc === 'string') throw new Error(doc)
+        const part = partBench(machine, radix)
+        const gates = circuitBench(doc, radix)
+        const both = (name: string, digit: number): void => {
+          part.drive(name, digit)
+          gates.drive(name, digit)
+        }
+        const same = (): void => {
+          for (const name of machine.outputs) expect(gates.read(name)).toBe(part.read(name))
+        }
+        both('reset', 0)
+        both('clk', 0)
+        for (const name of machine.inputs) both(name, 0)
+        same()
+        for (let step = 0; step < 30; step++) {
+          for (const name of machine.inputs) {
+            both(name, random(radix))
+            // No clock edge: the outputs already answer the new inputs.
+            same()
+          }
+          if (random(10) === 0) {
+            both('reset', radix - 1)
+            same()
+            both('reset', 0)
+          }
+          both('clk', radix - 1)
+          same()
+          both('clk', 0)
+          same()
+        }
+      }
+    }
+  })
+
   it('names the switches and outputs as the machine does, and keeps the state in flip-flops', () => {
     const machine: Machine = {
       inputs: ['go'],
@@ -207,5 +248,12 @@ describe('machineCircuit', () => {
     expect(machineCircuit({ ...machine, states: machine.states.slice(0, 3) }, 6)).toMatch(
       new RegExp(`at most ${MAX_MACHINE_ROWS}`),
     )
+    const rule = { from: 's0', to: 's1', when: [null, null, null, null], outputs: [5] }
+    const small = { ...machine, states: machine.states.slice(0, 2), rules: [rule] }
+    expect(machineCircuit({ ...small, mealy: true }, 2)).toMatch(
+      /A rule from “S0” to “S1” gives y the digit 5, which radix 2 has no room for/,
+    )
+    // The same digits are never read while the machine is Moore.
+    expect(typeof machineCircuit(small, 2)).toBe('object')
   })
 })

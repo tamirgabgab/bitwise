@@ -54,6 +54,8 @@ export {
   MAX_STATE_NAME,
   freeStateId,
   freeStateName,
+  ruleOutputs,
+  setMealy,
   shadowedRules,
 } from './machine.ts'
 export type { Machine, MachineNode, MachineRule } from './machine.ts'

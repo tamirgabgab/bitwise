@@ -6,6 +6,7 @@ import {
   MAX_RULES,
   MAX_STATES,
   ruleFrom,
+  ruleOutput,
   ruleTo,
   ruleWhen,
   stateOutput,
@@ -19,6 +20,12 @@ import type { Point } from './geometry.ts'
  * state is where the machine starts. A rule takes the machine from one
  * state to another when every input it names has the digit it asks for;
  * the first rule of a state that matches wins.
+ *
+ * A machine is Moore unless `mealy` is set. In a Mealy machine every rule
+ * also has a digit for every output, given while its condition holds; the
+ * digits of a state are what the outputs give when none of its rules does.
+ * A rule keeps its digits when the machine is turned back into Moore, so
+ * nothing is lost by trying.
  *
  * The engine does not see this: `compileMachine` turns it into the
  * parameters of the part, and every change goes through it again.
@@ -47,6 +54,11 @@ export interface MachineRule {
   readonly to: string
   /** For each input, the digit it must be, or null for any. */
   readonly when: readonly (number | null)[]
+  /**
+   * The digit it gives on each output while it holds, written for radix 16.
+   * Read only in a Mealy machine, where every rule has it.
+   */
+  readonly outputs?: readonly number[]
 }
 
 export interface Machine {
@@ -56,6 +68,8 @@ export interface Machine {
   readonly states: readonly MachineNode[]
   /** In order: the first that matches wins. */
   readonly rules: readonly MachineRule[]
+  /** The outputs sit on the rules, in the manner of Mealy. */
+  readonly mealy?: true
 }
 
 /** What a new state machine part starts with: a light that a button turns on and off. */
@@ -123,19 +137,47 @@ export function cleanMachine(value: unknown): Machine | undefined {
   }
   if (states.length === 0) return undefined
 
+  const mealy = value.mealy === true
   const rules: MachineRule[] = []
   for (const item of Array.isArray(value.rules) ? value.rules : []) {
     if (rules.length === MAX_RULES) break
     if (!isObject(item) || typeof item.from !== 'string' || typeof item.to !== 'string') continue
     if (!ids.has(item.from) || !ids.has(item.to)) continue
     const given = Array.isArray(item.when) ? item.when : []
+    // A rule with no digits of its own gives what its state gives.
+    const own = states.find((state) => state.id === item.from)!.outputs
+    const digits = Array.isArray(item.outputs) ? item.outputs : undefined
     rules.push({
       from: item.from,
       to: item.to,
       when: inputs.map((_name, input) => (isDigit(given[input]) ? given[input] : null)),
+      ...(digits || mealy
+        ? { outputs: outputs.map((_name, output) => (isDigit(digits?.[output]) ? digits[output] : own[output])) }
+        : {}),
     })
   }
-  return { inputs, outputs, states, rules }
+  return { inputs, outputs, states, rules, ...(mealy ? { mealy: true as const } : {}) }
+}
+
+/**
+ * The machine with its outputs on the rules (Mealy) or on the states
+ * (Moore). A rule that never had digits starts with those of its state, so
+ * the machine does the same until one of them is changed.
+ */
+export function setMealy(machine: Machine, mealy: boolean): Machine {
+  const { mealy: _was, ...rest } = machine
+  if (!mealy) return rest
+  const own = new Map(machine.states.map((state) => [state.id, state.outputs]))
+  return {
+    ...rest,
+    rules: machine.rules.map((rule) => (rule.outputs ? rule : { ...rule, outputs: own.get(rule.from) ?? [] })),
+    mealy: true,
+  }
+}
+
+/** The digits a rule gives in a Mealy machine: its own, or those of its state. */
+export function ruleOutputs(machine: Machine, rule: MachineRule): readonly number[] {
+  return rule.outputs ?? machine.states.find((state) => state.id === rule.from)?.outputs ?? []
 }
 
 /** The parameters of the `fsm` part that runs the machine. */
@@ -153,7 +195,13 @@ export function compileMachine(machine: Machine): Record<string, number> {
     rule.when.forEach((digit, input) => {
       params[ruleWhen(index, input)] = digit ?? ANY
     })
+    if (machine.mealy) {
+      ruleOutputs(machine, rule).forEach((digit, output) => {
+        params[ruleOutput(index, output)] = digit
+      })
+    }
   })
+  if (machine.mealy) params.mealy = 1
   machine.states.forEach((state, index) =>
     state.outputs.forEach((digit, output) => {
       params[stateOutput(index, output)] = digit

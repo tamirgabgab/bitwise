@@ -13,6 +13,8 @@ import {
   freeStateId,
   freeStateName,
   readPart,
+  ruleOutputs,
+  setMealy,
   shadowedRules,
   useEditor,
   useSim,
@@ -25,7 +27,8 @@ import { useModal } from './useModal.ts'
 /*
  * The machine editor: the states of a state machine part drawn as circles
  * and its rules as arrows, with the selected state and its rules in a panel
- * beside them. Every change is one step of undo of the circuit.
+ * beside them. Every change is one step of undo of the circuit. A Moore
+ * machine shows its outputs in the states, a Mealy machine on the arrows.
  */
 
 /** The radius of a state, in the editor's pixels. */
@@ -35,10 +38,15 @@ const LEAST = { width: 640, height: 400 }
 
 const hex = (digit: number): string => digit.toString(16).toUpperCase()
 
-/** What a rule asks of the inputs, in words. */
+/**
+ * What a rule asks of the inputs, in words. In a Mealy machine what it
+ * gives follows a slash, as such machines are drawn.
+ */
 function conditionText(machine: Machine, rule: MachineRule): string {
   const parts = rule.when.flatMap((digit, input) => (digit === null ? [] : [`${machine.inputs[input]}=${hex(digit)}`]))
-  return parts.length === 0 ? 'always' : parts.join(' ')
+  const when = parts.length === 0 ? 'always' : parts.join(' ')
+  if (!machine.mealy || machine.outputs.length === 0) return when
+  return `${when} / ${ruleOutputs(machine, rule).map(hex).join(' ')}`
 }
 
 /** A text field that takes its text when it loses focus or on Enter; Esc puts it back. */
@@ -259,6 +267,7 @@ function MachineBody({
   const svgRef = useRef<SVGSVGElement>(null)
   const titleId = 'machine-title'
   const panelId = useId()
+  const kindId = useId()
 
   const change = (next: Machine): void => {
     setProblem(null)
@@ -268,6 +277,9 @@ function MachineBody({
   const live = readPart(partId)?.stored?.[0]
   const liveId = live !== undefined && live >= 0 ? machine.states[live]?.id : undefined
   const shadowed = shadowedRules(machine)
+  const mealy = machine.mealy === true
+  // A Moore machine writes what a state gives inside its circle.
+  const inStates = !mealy && machine.outputs.length > 0
   const at = (node: MachineNode): Point => (drag?.id === node.id ? drag.pos : node.pos)
 
   // The drawing shows every state with room around it, and never less than LEAST.
@@ -356,6 +368,7 @@ function MachineBody({
       from: state.id,
       to: after.id,
       when: machine.inputs.map((_name, input) => (input === 0 ? radix - 1 : null)),
+      ...(machine.mealy ? { outputs: state.outputs } : {}),
     }
     change({ ...machine, rules: [...machine.rules, rule] })
     setSelectedRule(machine.rules.length)
@@ -372,7 +385,12 @@ function MachineBody({
     if (side === 'inputs') {
       change({ ...machine, inputs: [...machine.inputs, name], rules: machine.rules.map((rule) => ({ ...rule, when: [...rule.when, null] })) })
     } else {
-      change({ ...machine, outputs: [...machine.outputs, name], states: machine.states.map((node) => ({ ...node, outputs: [...node.outputs, 0] })) })
+      change({
+        ...machine,
+        outputs: [...machine.outputs, name],
+        states: machine.states.map((node) => ({ ...node, outputs: [...node.outputs, 0] })),
+        rules: machine.rules.map((rule) => (rule.outputs ? { ...rule, outputs: [...rule.outputs, 0] } : rule)),
+      })
     }
   }
   const removePin = (side: 'inputs' | 'outputs', index: number): void => {
@@ -380,7 +398,12 @@ function MachineBody({
     if (side === 'inputs') {
       change({ ...machine, inputs: without(machine.inputs), rules: machine.rules.map((rule) => ({ ...rule, when: without(rule.when) })) })
     } else {
-      change({ ...machine, outputs: without(machine.outputs), states: machine.states.map((node) => ({ ...node, outputs: without(node.outputs) })) })
+      change({
+        ...machine,
+        outputs: without(machine.outputs),
+        states: machine.states.map((node) => ({ ...node, outputs: without(node.outputs) })),
+        rules: machine.rules.map((rule) => (rule.outputs ? { ...rule, outputs: without(rule.outputs) } : rule)),
+      })
     }
   }
 
@@ -487,10 +510,10 @@ function MachineBody({
                   />
                 )}
                 <circle cx={p.x} cy={p.y} r={RADIUS} />
-                <text x={p.x} y={machine.outputs.length > 0 ? p.y - 4 : p.y + 4} className="machine-name">
+                <text x={p.x} y={inStates ? p.y - 4 : p.y + 4} className="machine-name">
                   {node.name}
                 </text>
-                {machine.outputs.length > 0 && (
+                {inStates && (
                   <text x={p.x} y={p.y + 14} className="machine-outputs">
                     {node.outputs.map(hex).join(' ')}
                   </text>
@@ -500,6 +523,22 @@ function MachineBody({
           })}
         </svg>
         <div className="machine-panel" id={panelId}>
+          <section className="machine-pins" aria-label="Kind of machine">
+            <div className="machine-row">
+              <label className="field-label" htmlFor={kindId}>
+                Outputs on
+              </label>
+              <select
+                id={kindId}
+                value={mealy ? 'mealy' : 'moore'}
+                title="A Moore machine gives its outputs by the state it is in. A Mealy machine gives them by the rule the inputs meet, at once."
+                onChange={(event) => change(setMealy(machine, event.target.value === 'mealy'))}
+              >
+                <option value="moore">States (Moore)</option>
+                <option value="mealy">Rules (Mealy)</option>
+              </select>
+            </div>
+          </section>
           {pinList('inputs', 'Inputs', MAX_MACHINE_INPUTS)}
           {pinList('outputs', 'Outputs', MAX_MACHINE_OUTPUTS)}
           {state ? (
@@ -518,11 +557,14 @@ function MachineBody({
                   onName={(name) => putState(state.id, { name })}
                 />
               </div>
+              {mealy && machine.outputs.length > 0 && (
+                <p className="note">While no rule matches, {state.name} gives:</p>
+              )}
               {machine.outputs.map((name, output) => (
                 <div key={output} className="machine-row">
                   <span className="field-label">{name}</span>
                   <DigitSelect
-                    label={`${name} in ${state.name}`}
+                    label={mealy ? `${name} in ${state.name} while no rule matches` : `${name} in ${state.name}`}
                     value={state.outputs[output]}
                     radix={radix}
                     onDigit={(digit) =>
@@ -591,6 +633,24 @@ function MachineBody({
                           />
                         </div>
                       ))}
+                      {mealy &&
+                        machine.outputs.map((name, output) => (
+                          <div key={`out${output}`} className="machine-row">
+                            <span className="field-label">gives {name}</span>
+                            <DigitSelect
+                              label={`Rule ${place + 1}: gives ${name}`}
+                              value={ruleOutputs(machine, rule)[output]}
+                              radix={radix}
+                              onDigit={(digit) =>
+                                putRule(index, {
+                                  outputs: ruleOutputs(machine, rule).map((old, other) =>
+                                    other === output ? (digit ?? 0) : old,
+                                  ),
+                                })
+                              }
+                            />
+                          </div>
+                        ))}
                       {shadowed.has(index) && (
                         <p className="note">Never taken: a rule above it matches first.</p>
                       )}

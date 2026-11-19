@@ -70,6 +70,7 @@ export interface FileComponent {
 /**
  * A state machine as it is drawn. The first state is where it starts; a
  * rule asks each input for a digit (written for radix 16), or null for any.
+ * A Mealy machine says so, and each of its rules gives its own outputs.
  */
 export interface FileMachine {
   readonly inputs: readonly string[]
@@ -84,7 +85,11 @@ export interface FileMachine {
     readonly from: string
     readonly to: string
     readonly when: readonly (number | null)[]
+    /** In a Mealy machine: the digit the rule gives on each output. */
+    readonly outputs?: readonly number[]
   }[]
+  /** The outputs sit on the rules. Left out, the machine is Moore. */
+  readonly mealy?: true
 }
 
 export interface FileJunction {
@@ -345,6 +350,10 @@ function machineOf(value: unknown, what: string): FileMachine {
     return { id: state.id, name, pos, outputs: digits as number[] }
   })
 
+  if (value.mealy !== undefined && typeof value.mealy !== 'boolean') {
+    fail(`${what} must say true or false for whether it is a Mealy machine.`)
+  }
+  const mealy = value.mealy === true
   const ruleList = value.rules
   if (!Array.isArray(ruleList) || ruleList.length > MAX_RULES) fail(`${what} must have a list of up to ${MAX_RULES} rules.`)
   const rules = ruleList.map((rule) => {
@@ -360,9 +369,14 @@ function machineOf(value: unknown, what: string): FileMachine {
     ) {
       fail(`${what} has a rule that does not ask each input for a digit from 0 to F or any.`)
     }
-    return { from: rule.from, to: rule.to, when: when as (number | null)[] }
+    const digits = rule.outputs
+    if (digits === undefined && !mealy) return { from: rule.from, to: rule.to, when: when as (number | null)[] }
+    if (!Array.isArray(digits) || digits.length !== outputs.length || !digits.every(isDigit)) {
+      fail(`${what} has a rule that does not give a digit from 0 to F on each output.`)
+    }
+    return { from: rule.from, to: rule.to, when: when as (number | null)[], outputs: digits as number[] }
   })
-  return { inputs, outputs, states, rules }
+  return { inputs, outputs, states, rules, ...(mealy ? { mealy: true as const } : {}) }
 }
 
 function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<string>): FileComponent {

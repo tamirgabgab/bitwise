@@ -92,6 +92,43 @@ describe('a project through the file format', () => {
     expect(() => parseProject(text.replace('"Busy"', '"A very long name"'))).toThrow(/name is not 1 to 12/)
   })
 
+  it('reads a Mealy machine back with the outputs of its rules', () => {
+    const data = EXAMPLES[0].build()
+    const [first, ...rest] = data.circuits
+    const machine = {
+      inputs: ['x'],
+      outputs: ['y', 'z'],
+      states: [
+        { id: 's1', name: 'Low', pos: { x: 100, y: 100 }, outputs: [0, 0] },
+        { id: 's2', name: 'High', pos: { x: 300, y: 100 }, outputs: [0, 1] },
+      ],
+      rules: [
+        { from: 's1', to: 's2', when: [1], outputs: [1, 0] },
+        { from: 's2', to: 's1', when: [0], outputs: [0, 1] },
+      ],
+      mealy: true as const,
+    }
+    const doc = { ...emptyDoc(), nextId: first.nextId }
+    const placed = addComponent(doc, 'fsm', { x: 20, y: 0 }, { machine }).doc.components[`c${first.nextId}`]
+    expect(placed.params).toMatchObject({ mealy: 1, r0o0: 1, r0o1: 0, r1o0: 0, r1o1: 1 })
+    const withMachine = {
+      ...data,
+      circuits: [{ ...first, nextId: first.nextId + 1, components: [...first.components, placed] }, ...rest],
+    }
+    const text = serializeProject(withMachine)
+    expect(parseProject(text)).toEqual(withMachine)
+    const loaded = fromProjectData(parseProject(text))
+    expect(toProjectData(loaded)).toEqual(toProjectData(fromProjectData(withMachine)))
+    expect(loaded.circuits[first.id].doc.components[placed.id]).toEqual(placed)
+
+    expect(() => parseProject(text.replace('"mealy":true', '"mealy":"yes"'))).toThrow(/true or false/)
+    expect(() => parseProject(text.replace('"outputs":[1,0]', '"outputs":[1]'))).toThrow(/does not give a digit/)
+    // The lenient reader fills what a rule lacks from its state.
+    const lacking = JSON.parse(text.replace('"outputs":[1,0]', '"outputs":[1]')) as Parameters<typeof fromProjectData>[0]
+    const filled = fromProjectData(lacking).circuits[first.id].doc.components[placed.id]
+    expect(filled.machine?.rules[0].outputs).toEqual([1, 0])
+  })
+
   it('reads the format of a bus back, and refuses one it does not know', () => {
     const data = EXAMPLES[0].build()
     const [first, ...rest] = data.circuits

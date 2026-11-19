@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { Simulator } from '../simulator.ts'
 import type { ComponentId } from '../simulator.ts'
 import { X, formatSignal, parseSignal } from '../signal.ts'
-import { ANY, nextState, ruleFrom, ruleTo, ruleWhen, stateOutput } from './machine.ts'
+import { ANY, machineOutputs, nextState, ruleFrom, ruleOutput, ruleTo, ruleWhen, stateOutput } from './machine.ts'
 
 /** The parameters of a machine: rules as [from, to, ...conditions], and each state's outputs. */
 function machine(inputs: number, rules: readonly (readonly number[])[], outputs: readonly (readonly number[])[]) {
@@ -25,6 +25,17 @@ function machine(inputs: number, rules: readonly (readonly number[])[], outputs:
     }),
   )
   return params
+}
+
+/** The same machine in the manner of Mealy, with the digits each rule gives while it holds. */
+function mealy(params: Record<string, number>, gives: readonly (readonly number[])[]): Record<string, number> {
+  const next: Record<string, number> = { ...params, mealy: 1 }
+  gives.forEach((digits, rule) =>
+    digits.forEach((digit, output) => {
+      next[ruleOutput(rule, output)] = digit
+    }),
+  )
+  return next
 }
 
 /** Counts presses of `go` to three: the output is on in the third state. */
@@ -148,5 +159,89 @@ describe('fsm', () => {
     tick()
     expect(read('out0')).toBe('X')
     expect(read('out1')).toBe('0')
+  })
+})
+
+describe('a Mealy machine', () => {
+  /** Says 1 for as long as `x` is high after having been low: states Low and High. */
+  const edge = mealy(
+    machine(
+      1,
+      [
+        [0, 1, 1],
+        [1, 0, 0],
+      ],
+      [[0], [0]],
+    ),
+    [[1], [0]],
+  )
+
+  it('gives the outputs of the rule the inputs meet at once, and of the state when none does', () => {
+    const { sim, part, drive, read, tick } = bench(edge)
+    drive('in0', '0')
+    expect(read()).toBe('0')
+    // No clock yet: the rule out of Low already holds.
+    drive('in0', '1')
+    expect(read()).toBe('1')
+    expect(sim.getStored(part)).toEqual([0])
+    tick()
+    // In High with x still 1 no rule matches, so the state speaks.
+    expect(sim.getStored(part)).toEqual([1])
+    expect(read()).toBe('0')
+    drive('in0', '0')
+    expect(read()).toBe('0')
+    tick()
+    expect(sim.getStored(part)).toEqual([0])
+  })
+
+  it('takes the first rule that matches', () => {
+    const params = mealy(
+      machine(
+        2,
+        [
+          [0, 0, 1, ANY],
+          [0, 0, ANY, 1],
+        ],
+        [[0, 0]],
+      ),
+      [
+        [1, 0],
+        [0, 1],
+      ],
+    )
+    expect(machineOutputs(0, [1, 1], params, 2)).toEqual([1, 0])
+    expect(machineOutputs(0, [0, 1], params, 2)).toEqual([0, 1])
+    expect(machineOutputs(0, [0, 0], params, 2)).toEqual([0, 0])
+  })
+
+  it('shows only what the open choices agree on when an unknown input decides', () => {
+    const params = mealy(machine(1, [[0, 0, 1]], [[0, 1]]), [[1, 1]])
+    expect(machineOutputs(0, [X], params, 2)).toEqual([X, 1])
+    const { drive, read } = bench(params)
+    // Nothing is wired to the input yet, so it floats.
+    expect(read('out0')).toBe('X')
+    expect(read('out1')).toBe('1')
+    drive('in0', '1')
+    expect(read('out0')).toBe('1')
+  })
+
+  it('goes back to state 0 on reset and answers from there', () => {
+    const { drive, read, tick } = bench(edge)
+    drive('in0', '1')
+    tick()
+    expect(read()).toBe('0')
+    drive('reset', '1')
+    expect(read()).toBe('1')
+  })
+
+  it('leaves a Moore machine to its states, whatever its rules say', () => {
+    const params = { ...mealy(machine(1, [[0, 0, 1]], [[0]]), [[1]]), mealy: 0 }
+    expect(machineOutputs(0, [1], params, 2)).toEqual([0])
+  })
+
+  it('reads a digit the radix has no room for as X', () => {
+    const params = mealy(machine(1, [[0, 0, 2]], [[1]]), [[3]])
+    expect(machineOutputs(0, [2], params, 3)).toEqual([X])
+    expect(machineOutputs(0, [1], params, 3)).toEqual([1])
   })
 })
