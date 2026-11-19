@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { canvasRuntime, isBlankProject, projectSnapshot, useEditor, useSim } from '../editor/index.ts'
 import type { Example, ProjectData } from '../editor/index.ts'
 import {
+  LONG_LINK,
   MAX_FILE_LENGTH,
   ProjectFileError,
   addVersion,
@@ -17,14 +18,18 @@ import {
   parseProject,
   pickTextFile,
   readLocal,
+  readShareFragment,
   renameLocal,
   safeFileName,
   saveLocal,
   serializeProject,
   setAsideLocal,
+  shareFragment,
+  unpackShared,
   watchLocal,
 } from '../io/index.ts'
 import type { Library } from '../io/index.ts'
+import { useChrome } from './chrome.ts'
 import { ask } from './dialogs.ts'
 import { latestFirst } from './projectList.ts'
 import { toast } from './toasts.ts'
@@ -264,6 +269,72 @@ export async function openProjectFile(): Promise<void> {
   const base = file.name.replace(/(\.bitwise|\.cedar)?\.json$/i, '')
   if (await openAsNew(base, `“${file.name}”`, () => useEditor.getState().loadProject(data))) {
     toast(`Opened “${file.name}”`)
+  }
+}
+
+/**
+ * Copies a link that carries the whole project, so it can be sent without a
+ * file. Nothing leaves the browser: the project is in the part of the
+ * address after #, which is never sent to the server.
+ */
+export async function copyShareLink(): Promise<void> {
+  const name = openName()
+  const fragment = await shareFragment(projectText(), name)
+  const link = `${location.origin}${location.pathname}${location.search}#${fragment}`
+  try {
+    await navigator.clipboard.writeText(link)
+  } catch {
+    toast('The browser did not let the app copy the link. Save the project as a file instead.')
+    return
+  }
+  const long = link.length > LONG_LINK ? ` It is long (${link.length.toLocaleString('en')} characters), and some apps cut long links; a file is safer.` : ''
+  toast(`Copied a link to “${name}”.${long}`)
+}
+
+/** Takes the project out of the address, so a reload does not open it again. */
+function clearAddressFragment(): void {
+  history.replaceState(history.state, '', `${location.pathname}${location.search}`)
+}
+
+/**
+ * Opens the project a share link in the address carries, as a new project
+ * of the list; the one that was open stays in the list. Called at start and
+ * whenever the address changes.
+ */
+export async function openLinkInAddress(): Promise<void> {
+  let shared
+  let text: string
+  try {
+    shared = readShareFragment(location.hash)
+    if (shared === null) return
+    clearAddressFragment()
+    text = await unpackShared(shared.data)
+  } catch (error) {
+    clearAddressFragment()
+    await ask({
+      title: 'The shared link could not be opened',
+      body: `${reasonOf(error)}\nYour project is unchanged.`,
+      confirm: 'Close',
+    })
+    return
+  }
+  let data: ProjectData
+  try {
+    data = parseProject(text)
+  } catch (error) {
+    await ask({
+      title: 'The shared link could not be opened',
+      body: `${reasonOf(error)}\nYour project is unchanged.`,
+      confirm: 'Close',
+    })
+    return
+  }
+  const name = shared.name === '' ? 'Shared project' : shared.name
+  if (await openAsNew(name, `The shared project “${name}”`, () => useEditor.getState().loadProject(data))) {
+    noteOpened(projectText())
+    // The project is what the visitor came for, not the list of others.
+    if (useChrome.getState().overlay === 'home') useChrome.getState().closeOverlay()
+    toast(`Opened the shared project “${name}”`)
   }
 }
 

@@ -9,14 +9,8 @@ import { Inspector } from './Inspector.tsx'
 import { Palette } from './Palette.tsx'
 import { SettingsPanel } from './SettingsPanel.tsx'
 import { ProblemsPanel } from './ProblemsPanel.tsx'
-import { HomeScreen } from './HomeScreen.tsx'
-import { VersionsDialog } from './VersionsDialog.tsx'
+import { LazyOverlays } from './LazyOverlays.tsx'
 import { listenForPresentation } from './presentation.ts'
-import { ShortcutsSheet } from './ShortcutsSheet.tsx'
-import { BaseCalculator } from './BaseCalculator.tsx'
-import { HistoryDialog } from './HistoryDialog.tsx'
-import { DescribeDialog } from './DescribeDialog.tsx'
-import { MachineEditor } from './MachineEditor.tsx'
 import { StatusBar } from './StatusBar.tsx'
 import { StepsPanel } from './StepsPanel.tsx'
 import { TimingPanel } from './TimingPanel.tsx'
@@ -64,13 +58,7 @@ export function App() {
       <StatusBar />
       <ToastHost />
       <CommandPalette />
-      <ShortcutsSheet />
-      <BaseCalculator />
-      <HistoryDialog />
-      <DescribeDialog />
-      <MachineEditor />
-      <HomeScreen />
-      <VersionsDialog />
+      <LazyOverlays />
       <Tour />
       <DialogHost />
     </div>

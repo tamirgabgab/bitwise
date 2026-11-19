@@ -42,6 +42,7 @@ import {
 } from './icons.tsx'
 import { Keys } from './Keys.tsx'
 import {
+  copyShareLink,
   exportCircuitSvg,
   openExample,
   openProjectFile,
@@ -298,6 +299,7 @@ function FileMenu() {
             onPick={pick(() => void openProjectFile())}
           />
           <MenuRow name="Save the project as a file" shortcut="Ctrl+S" onPick={pick(saveProjectFile)} />
+          <MenuRow name="Copy a link to this project" onPick={pick(() => void copyShareLink())} />
           <MenuRow name="Export this circuit as an SVG picture" onPick={pick(exportCircuitSvg)} />
           <div className="menu-heading" role="separator">
             Open an example as a new project

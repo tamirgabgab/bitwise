@@ -32,6 +32,8 @@ export type {
   ProjectFile,
 } from './projectFile.ts'
 export { downloadText, pickTextFile, safeFileName } from './files.ts'
+export { LONG_LINK, readShareFragment, shareFragment, unpackShared } from './shareLink.ts'
+export type { SharedProject } from './shareLink.ts'
 export type { PickedFile } from './files.ts'
 export {
   MAX_PROJECT_NAME,

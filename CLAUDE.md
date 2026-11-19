@@ -353,6 +353,15 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   open one; `persistence.ts` asks before replacing only when storage is off.
   Each tab has its own open project; the index remembers only the one
   opened last, where a new tab starts.
+- A share link (`src/io/shareLink.ts`) carries the whole project in the
+  address fragment, `#n=<name>&p=<data>`: the text of the project file,
+  raw deflate, base64url. It is a file from anyone: unpacking stops past
+  `MAX_FILE_LENGTH` and the text goes through `parseProject`. It opens as a
+  new project of the list (`openLinkInAddress` in `persistence.ts`), and
+  the fragment is cleared so a reload does not open it again.
+- The windows not needed for the first screen load on first open
+  (`LazyOverlays.tsx`), and the libraries are a chunk of their own
+  (`vite.config.ts`). A new large window goes there too.
 - Versions of a project (`src/io/versions.ts`) are kept in the browser under
   `cedar-logic.versions.<id>`, never in the project file: one by hand, one
   each time the project is opened, and one before going back to an older

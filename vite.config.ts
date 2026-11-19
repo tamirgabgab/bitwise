@@ -26,6 +26,16 @@ export default defineConfig({
   // /bitwise/ on GitHub Pages.
   base: './',
   plugins: [react(), contentSecurityPolicy()],
+  build: {
+    rolldownOptions: {
+      output: {
+        // The libraries change less often than the app, so a browser keeps
+        // them cached across releases. The large windows are split off by
+        // their dynamic imports (`src/ui/LazyOverlays.tsx`).
+        codeSplitting: { groups: [{ name: 'vendor', test: /node_modules/ }] },
+      },
+    },
+  },
   test: {
     // The simulation core is pure TypeScript, so tests run in plain Node.
     environment: 'node',

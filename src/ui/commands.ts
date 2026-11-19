@@ -18,6 +18,7 @@ import { startPresenting } from './presentation.ts'
 import { matchRank, matchesQuery, paletteSections } from './paletteModel.ts'
 import { partHint, partName } from './parts.ts'
 import {
+  copyShareLink,
   exportCircuitSvg,
   openExample,
   openProjectFile,
@@ -111,6 +112,14 @@ export function listCommands(): Command[] {
       shortcut: 'Ctrl+S',
       keywords: 'download export json',
       run: saveProjectFile,
+    },
+    {
+      id: 'file.share',
+      group: 'File',
+      title: 'Copy a link to this project',
+      detail: 'The whole project rides in the link; no file needed',
+      keywords: 'share send url address clipboard',
+      run: () => void copyShareLink(),
     },
     {
       id: 'file.svg',
