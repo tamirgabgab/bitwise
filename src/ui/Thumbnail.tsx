@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { fromProjectData, projectSvg, readCanvasTheme, useEditor } from '../editor/index.ts'
 import type { ProjectData } from '../editor/index.ts'
 import { t } from '../i18n/index.ts'
+import { useResolvedTheme } from './useResolvedTheme.ts'
 
 /*
  * Small pictures of projects, for the home screen and the versions. Each is
@@ -40,6 +41,10 @@ interface ThumbnailProps {
 }
 
 export function Thumbnail({ cacheKey, data }: ThumbnailProps) {
+  // A change of theme or gate style, even one the system makes while the
+  // window is open, gives a new key, so the picture is drawn again.
+  useResolvedTheme()
+  useEditor((state) => state.gateStyle)
   const full = keyOf(cacheKey)
   // Drawn after the window shows, so the latest `data` is kept here for it.
   const source = useRef(data)

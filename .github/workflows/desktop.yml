@@ -2,7 +2,8 @@ name: Desktop
 
 # Builds the desktop app (src-tauri) for Windows, macOS and Linux.
 # A push to main that touches the app or its window builds it, to show it
-# still builds. A tag such as v0.2.0 also makes a draft release on GitHub
+# still builds, and keeps the installers for two weeks as an artifact of the
+# run, to be tried. A tag such as v0.2.0 also makes a draft release on GitHub
 # with the installers attached; publish the draft by hand.
 # The installers are not signed, so Windows and macOS warn before the
 # first start.
@@ -61,3 +62,17 @@ jobs:
           releaseBody: 'The desktop app. The installers are not signed: Windows and macOS ask before the first start.'
           releaseDraft: true
           args: ${{ matrix.args }}
+      - name: Keep the installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: bitwise-${{ runner.os }}
+          # The bundles of the build for the machine and of the macOS universal build.
+          path: |
+            src-tauri/target/**/release/bundle/*/*.msi
+            src-tauri/target/**/release/bundle/*/*.exe
+            src-tauri/target/**/release/bundle/*/*.dmg
+            src-tauri/target/**/release/bundle/*/*.deb
+            src-tauri/target/**/release/bundle/*/*.rpm
+            src-tauri/target/**/release/bundle/*/*.AppImage
+          if-no-files-found: error
+          retention-days: 14

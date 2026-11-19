@@ -34,7 +34,7 @@ import { minimize } from './sumOfProducts.ts'
  * The code is written the way a designer would write it: gate primitives
  * for gates of one bit, `assign` with operators for buses and for the
  * larger parts, and `always` for what keeps a value. It stays inside what
- * `verilogImport.ts` reads, except for a memory (ROM, RAM) and an SR latch.
+ * `verilogImport.ts` reads, except for an SR latch.
  * Delays are left out: the code says what the circuit computes, not when.
  */
 

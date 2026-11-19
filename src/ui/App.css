@@ -830,6 +830,13 @@ kbd {
   animation: inspector-in 140ms ease-out;
 }
 
+@keyframes sheet-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
 @keyframes inspector-in {
   from {
     opacity: 0;
@@ -1805,6 +1812,8 @@ label.swatch:focus-within {
 
 .statusbar .counts {
   display: flex;
+  /* A button taller than the words, under a finger, keeps them on one line. */
+  align-items: center;
   gap: 16px;
   font-variant-numeric: tabular-nums;
 }
@@ -1880,6 +1889,31 @@ label.swatch:focus-within {
   }
 }
 
+/* ---- A smaller laptop: the name of the kit and of the app give way ---- */
+
+@media (max-width: 1320px) {
+  .logic-kit {
+    display: none;
+  }
+
+  /* Out of sight to make room for the tools, still read out as the heading. */
+  .brand-name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+}
+
+/* The wheel, a pinch and the keys still zoom; the readout and Fit stay. */
+@media (max-width: 1180px) {
+  .zoom-group > .tool:nth-child(1),
+  .zoom-group > .tool:nth-child(3) {
+    display: none;
+  }
+}
+
 /* ---- Mid-width screens: the top bar gives up what it can spare ---- */
 
 @media (max-width: 1120px) {
@@ -1951,6 +1985,8 @@ label.swatch:focus-within {
     border-top: 1px solid var(--border);
     border-inline-start: 0;
     box-shadow: var(--shadow-float);
+    /* A sheet the width of the screen comes up from below, never from the side. */
+    animation-name: sheet-in;
   }
 
   .workspace:has(> .inspector) .settings {
@@ -2226,7 +2262,8 @@ label.swatch:focus-within {
 
 .command[aria-selected='true'] {
   background: var(--hover);
-  box-shadow: inset 2px 0 0 var(--accent);
+  /* At the start of the line, which is the right in Hebrew. */
+  box-shadow: inset calc(2px * var(--inline-sign, 1)) 0 0 var(--accent);
 }
 
 .command[aria-disabled='true'] {
@@ -3270,7 +3307,8 @@ label.swatch:focus-within {
 }
 
 .machine-rules li.chosen {
-  box-shadow: inset 2px 0 0 var(--accent);
+  /* At the start of the line, which is the right in Hebrew. */
+  box-shadow: inset calc(2px * var(--inline-sign, 1)) 0 0 var(--accent);
   padding-inline-start: 8px;
 }
 

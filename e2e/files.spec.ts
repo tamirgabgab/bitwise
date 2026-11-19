@@ -31,8 +31,11 @@ test('a share link carries the project into another tab', async ({ page, context
   await newProject(page)
   await dropPart(page, 'Input', await onCanvas(page, 0, 0))
   await menu(page, 'Copy a link to this project')
-  const link = await page.evaluate(() => navigator.clipboard.readText())
-  expect(link).toMatch(/#n=.*&p=/)
+  // The link is packed before it is copied, so the clipboard fills a moment later.
+  let link = ''
+  await expect
+    .poll(async () => (link = await page.evaluate(() => navigator.clipboard.readText())))
+    .toMatch(/#n=.*&p=/)
 
   const other = await context.newPage()
   await other.goto(link)

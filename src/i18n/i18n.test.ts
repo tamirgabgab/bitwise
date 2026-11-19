@@ -5,7 +5,7 @@ import { msg, placesOf, scanMessages, setLanguage, t } from './index.ts'
 /** Every source file of the app outside this folder, by its path. */
 const SOURCES = Object.fromEntries(
   Object.entries(
-    import.meta.glob<string>(['../**/*.ts', '../**/*.tsx', '!../**/*.test.ts', '!./**'], {
+    import.meta.glob<string>(['../**/*.ts', '../**/*.tsx', '!../**/*.test.ts', '!../**/*.test.tsx', '!./**'], {
       query: '?raw',
       import: 'default',
       eager: true,

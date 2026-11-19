@@ -131,7 +131,8 @@ work at any radix.
   delays.
 - **Verilog.** Export a circuit as Verilog, and build circuits from
   Verilog modules: gates, `assign` with operators, and `always` blocks that
-  become flip-flops, registers and multiplexers. Radix 2 only.
+  become flip-flops, registers and multiplexers, and memories that become
+  a ROM or a RAM. Radix 2 only.
 - **Sharing.** A link that carries the whole project, a timing diagram
   exported as SVG or VCD, and expressions and Karnaugh maps both ways.
 - **Anywhere.** Pinch to zoom and drag with a finger on a phone, install

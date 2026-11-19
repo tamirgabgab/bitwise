@@ -1,3 +1,4 @@
+import { MAX_WORDS, MAX_WORD_WIDTH, memoryCell, packWord } from '../core/index.ts'
 import { msg, t } from '../i18n/index.ts'
 import { addComponent, addSubcircuit, addWire, emptyDoc, MAX_ITEMS } from './document.ts'
 import type { CircuitDoc } from './document.ts'
@@ -104,6 +105,40 @@ interface Mode {
   readonly clocked: boolean
   /** In a clocked block, the signals given a value with `=`, which is seen at once. */
   readonly blocking: Set<Signal>
+  /** On a clock edge, where the words given to memories are noted; elsewhere a memory takes none. */
+  readonly writes?: Write[]
+  /** On the way to here, what has to hold: made only when a memory is written. */
+  readonly path?: () => Bit[]
+  /** In the branch that resets the registers, where a memory takes no word either. */
+  readonly resetting?: true
+}
+
+/** `reg [7:0] mem [0:15]`: a ROM where nothing writes it, a RAM where something does. */
+interface Memory {
+  readonly name: string
+  readonly at: number
+  readonly width: number
+  readonly words: number
+  /** Address bits: enough to name every word. */
+  readonly address: number
+  /** What each word starts with, from an `initial` block. */
+  readonly start: bigint[]
+  /** Given a word on a clock edge somewhere, so a RAM. */
+  readonly written: boolean
+  /** The RAM, once it is placed, and the address it is placed for: a RAM has one. */
+  ram?: { readonly id: string; readonly address: Expr }
+  /** The ROMs, one for each address the memory is read at. */
+  readonly roms: { readonly id: string; readonly address: Expr }[]
+  /** A word is given to it already: a RAM has one port to write. */
+  wrote?: true
+}
+
+/** A word given to a memory on a clock edge. */
+interface Write {
+  readonly ram: string
+  readonly data: Bits
+  /** When it is written; always, when there is no condition. */
+  readonly when?: Bits
 }
 
 /** The operators whose answer is as wide as the wider side. */
@@ -143,6 +178,29 @@ const alike = (a: Expr, b: Expr): boolean => {
   return written(a) === written(b)
 }
 /** A block of one statement is that statement. */
+/** Said where a memory is given a word other than on a clock edge. */
+const MEMORY_WRITE = msg('A memory is given a word only on a clock edge, as in “if (we) mem[a] <= d;”.')
+
+/** The names given a word with `name[...] <=` somewhere in a statement: memories, if they are. */
+function* wordsGiven(stmt: Stmt | undefined): Generator<string> {
+  if (!stmt) return
+  switch (stmt.kind) {
+    case 'block':
+      for (const inner of stmt.body) yield* wordsGiven(inner)
+      return
+    case 'if':
+      yield* wordsGiven(stmt.then)
+      yield* wordsGiven(stmt.else)
+      return
+    case 'case':
+      for (const arm of stmt.arms) yield* wordsGiven(arm.body)
+      yield* wordsGiven(stmt.otherwise)
+      return
+    case 'set':
+      if (stmt.target.kind === 'bit') yield stmt.target.name
+  }
+}
+
 const only = (stmt: Stmt | undefined): Stmt | undefined =>
   stmt?.kind === 'block' && stmt.body.length === 1 ? only(stmt.body[0]) : stmt
 
@@ -240,8 +298,12 @@ function buildModule(
   // ---- Names ----
   const params = new Map<string, { readonly value: bigint; readonly size?: number }>()
   const signals = new Map<string, Signal>()
+  const memories = new Map<string, Memory>()
   const signal = (name: string, at: number): Signal => {
     const found = signals.get(name)
+    if (!found && memories.has(name)) {
+      throw new VerilogError(t('“{name}” is a memory: one word of it is read at a time, as in {name}[0].', { name }), at)
+    }
     if (!found) {
       throw new VerilogError(
         params.has(name) ? t('“{name}” is a number, not a signal.', { name }) : t('“{name}” is not declared.', { name }),
@@ -325,7 +387,7 @@ function buildModule(
         return param ? (param.size ?? 32) : signal(expr.name, expr.at).width
       }
       case 'bit':
-        return 1
+        return memories.get(expr.name)?.width ?? 1
       case 'part':
         return partOf(expr).count
       case 'concat':
@@ -744,6 +806,8 @@ function buildModule(
         return fit(refs(from, 0, from.width), width)
       }
       case 'bit': {
+        const memory = memories.get(expr.name)
+        if (memory) return fit(readWord(memory, expr.index), width)
         const from = signal(expr.name, expr.at)
         return fit(refs(from, bitOf(from, expr.index), 1), width)
       }
@@ -888,6 +952,7 @@ function buildModule(
         return Array.from({ length: to.width }, (_, index) => ({ signal: to, index }))
       }
       case 'bit': {
+        if (memories.has(expr.name)) throw new VerilogError(t(MEMORY_WRITE), expr.at)
         const to = signal(expr.name, expr.at)
         return [{ signal: to, index: bitOf(to, expr.index) }]
       }
@@ -915,6 +980,80 @@ function buildModule(
   const implicit = (expr: Expr): void => {
     if (expr.kind !== 'id' || signals.has(expr.name) || params.has(expr.name)) return
     signals.set(expr.name, { name: expr.name, at: expr.at, width: 1, low: 0, reg: false, bits: [undefined] })
+  }
+
+  // ---- Memories ----
+  function memoryOf(name: string, at: number, range: Range | undefined, words: Range, written: boolean): Memory {
+    const { width } = bounds(range)
+    if (width > MAX_WORD_WIDTH) {
+      throw new VerilogError(t('A word of a memory is at most {max} bits wide.', { max: MAX_WORD_WIDTH }), at)
+    }
+    const ends = [whole(words.high, 'first'), whole(words.low, 'first')]
+    if (Math.min(...ends) !== 0) throw new VerilogError(t('The words of a memory are numbered from 0, as in [0:15].'), words.high.at)
+    const count = Math.max(...ends) + 1
+    if (count > MAX_WORDS) throw new VerilogError(t('A memory holds at most {max} words.', { max: MAX_WORDS }), words.high.at)
+    let address = 1
+    while (2 ** address < count) address++
+    return { name, at, width, words: count, address, start: Array<bigint>(count).fill(0n), written, roms: [] }
+  }
+  /** The parameters of the part that keeps a memory. */
+  const memoryParams = (memory: Memory): Record<string, number> => {
+    const params: Record<string, number> = { address: memory.address, width: memory.width }
+    memory.start.forEach((word, index) => {
+      params[memoryCell(index)] = packWord(Array.from({ length: memory.width }, (_, bit) => Number((word >> BigInt(bit)) & 1n)))
+    })
+    return params
+  }
+  const addressBits = (memory: Memory, index: Expr): Bit[] =>
+    build(index, Math.max(widthOf(index), memory.address), memory.address)
+  /** The RAM of a memory something writes; it reads and writes at one address. */
+  function placeRam(memory: Memory, index: Expr): string {
+    if (memory.ram) {
+      if (!alike(memory.ram.address, index)) {
+        throw new VerilogError(
+          t('“{name}” is written, so it is read and written at one address. A RAM has one.', { name: memory.name }),
+          index.at,
+        )
+      }
+      return memory.ram.id
+    }
+    const id = place('ram', memoryParams(memory), memory.name)
+    memory.ram = { id, address: index }
+    link(addressBits(memory, index), id, 'a')
+    return id
+  }
+  /** A word of a memory: the RAM's, or that of a ROM for this address. */
+  function readWord(memory: Memory, index: Expr): Bit[] {
+    if (memory.written) return pinBits(placeRam(memory, index), 'q', memory.width)
+    let rom = memory.roms.find((one) => alike(one.address, index))
+    if (!rom) {
+      rom = { id: place('rom', memoryParams(memory), memory.name), address: index }
+      memory.roms.push(rom)
+      link(addressBits(memory, index), rom.id, 'a')
+    }
+    return pinBits(rom.id, 'q', memory.width)
+  }
+  /** Reads an `initial` block, which may only give memories their first words. */
+  function startWords(stmt: Stmt): void {
+    here = stmt.at
+    if (stmt.kind === 'block') return stmt.body.forEach(startWords)
+    const memory = stmt.kind === 'set' && stmt.target.kind === 'bit' ? memories.get(stmt.target.name) : undefined
+    if (!memory || stmt.kind !== 'set' || stmt.target.kind !== 'bit') {
+      throw new VerilogError(t('An initial block is read only for the words a memory starts with, as in “mem[0] = 3;”.'), stmt.at)
+    }
+    const index = constant(stmt.target.index, MAX_VERILOG_WIDTH)
+    const value = constant(stmt.value, Math.max(memory.width, widthOf(stmt.value)))
+    if (index === undefined || value === undefined) {
+      throw new VerilogError(t('A memory starts with numbers, given at numbered words.'), stmt.at)
+    }
+    if (index >= BigInt(memory.words)) throw new VerilogError(t('“{name}” has no word there.', { name: memory.name }), stmt.target.index.at)
+    memory.start[Number(index)] = value & mask(memory.width)
+  }
+  /** A clocked block, or a branch of one, that may go on to write a memory. */
+  const within = (mode: Mode, test: () => Bit[]): Mode => {
+    if (!mode.writes) return mode
+    const before = mode.path
+    return { ...mode, path: () => (before ? gate('and', [before(), test()], 1) : test()) }
   }
 
   // ---- always ----
@@ -970,6 +1109,20 @@ function buildModule(
         for (const inner of stmt.body) run(inner, env, mode)
         return
       case 'set': {
+        const { target } = stmt
+        const memory = target.kind === 'bit' ? memories.get(target.name) : undefined
+        if (memory && target.kind === 'bit') {
+          if (mode.resetting) throw new VerilogError(t('A memory is not reset. Give it its first words in an initial block.'), stmt.at)
+          if (!mode.writes) throw new VerilogError(t(MEMORY_WRITE), stmt.at)
+          if (memory.wrote) {
+            throw new VerilogError(t('“{name}” is given a word in two places. A memory has one port to write.', { name: memory.name }), stmt.at)
+          }
+          memory.wrote = true
+          const data = reading(env, mode, () => build(stmt.value, Math.max(memory.width, widthOf(stmt.value)), memory.width))
+          const ram = reading(env, mode, () => placeRam(memory, target.index))
+          mode.writes.push({ ram, data, ...(mode.path ? { when: mode.path() } : {}) })
+          return
+        }
         const to = targets(stmt.target)
         const bits = reading(env, mode, () => build(stmt.value, Math.max(to.length, widthOf(stmt.value)), to.length))
         to.forEach((target, place) => {
@@ -998,8 +1151,8 @@ function buildModule(
         const test = reading(env, mode, () => truth(stmt.test))
         const yes = copy(env)
         const no = copy(env)
-        run(stmt.then, yes, mode)
-        if (stmt.else) run(stmt.else, no, mode)
+        run(stmt.then, yes, within(mode, () => test))
+        if (stmt.else) run(stmt.else, no, within(mode, () => invert(test)))
         join(env, [no, yes], ([low, high]) => mux(test, high, low), mode, stmt.at)
         return
       }
@@ -1035,7 +1188,13 @@ function buildModule(
         const ways = taken.map((arm) => {
           const way = copy(env)
           const body = arm === stmt.arms.length ? stmt.otherwise : stmt.arms[arm].body
-          if (body) run(body, way, mode)
+          const inCase: Mode = {
+            ...mode,
+            path: () => {
+              throw new VerilogError(t('A memory is given its word under an “if”, not in a “case”.'), stmt.at)
+            },
+          }
+          if (body) run(body, way, mode.writes ? inCase : mode)
           return way
         })
         join(
@@ -1087,7 +1246,7 @@ function buildModule(
       }
       const [edge] = edges.splice(found, 1)
       const env: Env = new Map()
-      run(first.then, env, { clocked: true, blocking: new Set() })
+      run(first.then, env, { clocked: true, blocking: new Set(), resetting: true })
       forced.push({ active: level(edge), env })
       body = only(first.else)
     }
@@ -1100,7 +1259,14 @@ function buildModule(
       body = only(body.then)
     }
     const env: Env = new Map()
-    if (body) run(body, env, { clocked: true, blocking: new Set() })
+    const writes: Write[] = []
+    const always = enable
+    if (body) run(body, env, { clocked: true, blocking: new Set(), writes, ...(always ? { path: () => always } : {}) })
+    for (const write of writes) {
+      link(write.data, write.ram, 'd')
+      link(clock, write.ram, 'clk')
+      link(write.when ?? [1], write.ram, 'we')
+    }
 
     const kept = new Set<Signal>([...env.keys(), ...forced.flatMap((force) => [...force.env.keys()])])
     for (const to of kept) {
@@ -1173,7 +1339,10 @@ function buildModule(
   }
 
   // A port of the old style is declared in pieces: in the header, as an output, as a reg.
-  const declared = new Map<string, { at: number; dir?: 'input' | 'output'; reg: boolean; range?: Range; init?: Expr }>()
+  const declared = new Map<
+    string,
+    { at: number; dir?: 'input' | 'output'; reg: boolean; range?: Range; init?: Expr; words?: Range }
+  >()
   for (const decl of module.decls) {
     const known = declared.get(decl.name)
     if (known && ((known.dir && decl.dir) || (!decl.dir && !known.dir))) {
@@ -1186,8 +1355,10 @@ function buildModule(
       reg: (known?.reg ?? false) || decl.reg === true,
       range: known?.range ?? decl.range,
       init: known?.init ?? decl.init,
+      words: known?.words ?? decl.words,
     })
   }
+  const written = new Set(module.items.flatMap((item) => (item.kind === 'always' ? [...wordsGiven(item.body)] : [])))
   const ports: Port[] = []
   const outputs: Signal[] = []
   const names = [...new Set([...module.ports, ...declared.keys()])]
@@ -1199,6 +1370,10 @@ function buildModule(
     }
     if (!decl) continue
     here = decl.at
+    if (decl.words) {
+      memories.set(name, memoryOf(name, decl.at, decl.range, decl.words, written.has(name)))
+      continue
+    }
     const { low, width } = bounds(decl.range)
     if (decl.dir === 'input' && decl.reg) throw new VerilogError(t('An input cannot be a reg, and “{name}” is said to be both.', { name }), decl.at)
     const made: Signal = {
@@ -1219,9 +1394,14 @@ function buildModule(
     } else if (decl.dir === 'output') outputs.push(made)
   }
 
+  // The words a memory starts with are known before any part of it is placed.
+  for (const item of module.items) if (item.kind === 'initial') startWords(item.body)
+
   for (const item of module.items) {
     here = item.at
     switch (item.kind) {
+      case 'initial':
+        break
       case 'assign': {
         const to = targets(item.target)
         drive(to, build(item.value, Math.max(to.length, widthOf(item.value)), to.length), item.at)

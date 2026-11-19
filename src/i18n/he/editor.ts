@@ -2,6 +2,13 @@ import type { Dictionary } from '../index.ts'
 
 /** Hebrew for the messages of the files listed in `docs/hebrew.md` under "editor". */
 export const editor: Dictionary = {
+  // busFormat.ts: a value typed for a bus.
+  'Use the digits 0 to {top}.': 'משתמשים בספרות 0 עד {top}.',
+  'Write a hexadecimal number, such as 0x1F.': 'כותבים מספר הקסדצימלי, למשל 0x1F.',
+  'Write a whole number, with a sign if it is below zero.': 'כותבים מספר שלם, עם סימן אם הוא מתחת לאפס.',
+  'Use a number from {low} to {high}.': 'המספר צריך להיות בין {low} לבין {high}.',
+  'Write a whole number, such as 12.': 'כותבים מספר שלם, למשל 12.',
+  'This bus holds at most {count} digits.': 'בבאס הזה יש מקום לכל היותר ל-{count} ספרות.',
   // Edit steps (editNames.ts)
   'Insert {part} into a wire': 'הכנסת {part} לתוך חוט',
   'Replace {old} with {new}': 'החלפת {old} ב-{new}',

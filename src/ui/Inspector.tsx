@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react'
-import { builtinComponents } from '../core/index.ts'
+import { builtinComponents, formatSignal } from '../core/index.ts'
 import {
   MAX_DELAY,
   MAX_LABEL,
@@ -18,6 +18,7 @@ import {
   isMetered,
   isWatched,
   keyName,
+  readBusValue,
   readPart,
   setBreakpoint,
   setSwitch,
@@ -133,13 +134,13 @@ const FIELDS: readonly Field[] = [
   {
     param: 'width',
     label: msg('Width (digits)'),
-    range: (_radix, limits) => [limits.min, Math.min(limits.max, MAX_BUS)],
+    range: (_radix, limits) => [limits.min, limits.max],
     show: String,
   },
   {
     param: 'each',
     label: msg('Digits per branch'),
-    range: (_radix, limits) => [limits.min, Math.min(limits.max, MAX_BUS)],
+    range: (_radix, limits) => [limits.min, limits.max],
     show: String,
   },
 ]
@@ -178,9 +179,6 @@ function ChoiceField(props: {
   )
 }
 
-/** The widest bus the inspector makes. Wider ones are hard to read on screen. */
-const MAX_BUS = 32
-
 /** The parts whose name becomes a pin when the circuit is used as a part. */
 const NAMED: readonly string[] = ['input', 'output']
 
@@ -203,7 +201,7 @@ interface StepperProps {
  * when the field is left, and one outside the range is refused with a note
  * that names the range.
  */
-function Stepper({ label, title, value, min, max, onSet, shown }: StepperProps) {
+export function Stepper({ label, title, value, min, max, onSet, shown }: StepperProps) {
   const [draft, setDraft] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const noteId = useId()
@@ -495,7 +493,101 @@ function BusValueField({ id, width }: { id: string; width: number }) {
 }
 
 function breakValue(when: BreakWhen | undefined): string {
-  return when === undefined ? 'never' : String(when)
+  if (when === undefined) return 'never'
+  return typeof when === 'object' ? 'value' : String(when)
+}
+
+/**
+ * When the run pauses for the wire at `terminal`. A plain wire offers each
+ * of its values; a bus `width` digits wide takes one typed in its `format`.
+ */
+export function BreakField({ terminal, width, format }: { terminal: Terminal; width: number; format: BusFormat }) {
+  const settings = useEditor((state) => state.settings)
+  const fieldId = useId()
+  const valueId = useId()
+  const problemId = useId()
+  const when = breakpointOn(terminal)
+  /** "Becomes a value" is chosen, and no value is set yet. */
+  const [asking, setAsking] = useState(false)
+  const [draft, setDraft] = useState<string | null>(null)
+  const [problem, setProblem] = useState<string | null>(null)
+  const bus = width > 1
+  const values = bus ? [] : Array.from({ length: settings.radix }, (_, digit) => digit)
+  const choice = when === undefined && asking ? 'value' : breakValue(when)
+  const written = draft ?? (typeof when === 'object' ? when.shown : '')
+
+  const commit = () => {
+    if (written.trim() === '') return setProblem(null)
+    const read = readBusValue(written, settings.radix, width, format)
+    if ('problem' in read) return setProblem(read.problem)
+    setProblem(null)
+    setDraft(null)
+    setBreakpoint(terminal, { bus: formatSignal(read.signal), shown: written.trim() })
+  }
+
+  return (
+    <>
+      <div className="field">
+        <label htmlFor={fieldId}>{t('Pause when it')}</label>
+        <select
+          id={fieldId}
+          value={choice}
+          onChange={(event) => {
+            const next = event.target.value
+            setAsking(next === 'value')
+            setDraft(null)
+            setProblem(null)
+            setBreakpoint(
+              terminal,
+              next === 'never' || next === 'value'
+                ? null
+                : next === 'change' || next === 'conflict'
+                  ? next
+                  : Number(next),
+            )
+          }}
+        >
+          <option value="never">{t('Never')}</option>
+          <option value="change">{t('Changes')}</option>
+          <option value="conflict">{t('Is in conflict')}</option>
+          {values.map((digit) => (
+            <option key={digit} value={digit}>
+              {t('Becomes {value}', { value: valueText(digit, settings) })}
+            </option>
+          ))}
+          {bus && <option value="value">{t('Becomes a value')}</option>}
+        </select>
+      </div>
+      {bus && choice === 'value' && (
+        <div className="field">
+          <label htmlFor={valueId}>{t('Value')}</label>
+          <input
+            id={valueId}
+            className="mono"
+            value={written}
+            spellCheck={false}
+            autoComplete="off"
+            autoFocus={asking && when === undefined}
+            aria-invalid={problem !== null}
+            aria-describedby={problem === null ? undefined : problemId}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setProblem(null)
+            }}
+            onBlur={commit}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') commit()
+            }}
+          />
+        </div>
+      )}
+      {problem !== null && (
+        <p className="note" id={problemId} role="alert">
+          {problem}
+        </p>
+      )}
+    </>
+  )
 }
 
 /**
@@ -509,14 +601,9 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   useSim((state) => state.breakpoints)
   useSim((state) => state.meters)
   const doc = useEditor((state) => state.doc)
-  const fieldId = useId()
   const formatId = useId()
   const info = describeNode(terminal)
   const format = formatAt(doc, terminal)
-  const when = breakpointOn(terminal)
-  // A bus has too many values to list: it can only wait for a change.
-  const values =
-    info.signal.length > 1 ? [] : Array.from({ length: settings.radix }, (_, digit) => digit)
 
   return (
     <aside className="inspector" aria-label={t('Wire')}>
@@ -564,33 +651,7 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
           ))}
         </ul>
       )}
-      <div className="field">
-        <label htmlFor={fieldId}>{t('Pause when it')}</label>
-        <select
-          id={fieldId}
-          value={breakValue(when)}
-          onChange={(event) => {
-            const choice = event.target.value
-            setBreakpoint(
-              terminal,
-              choice === 'never'
-                ? null
-                : choice === 'change' || choice === 'conflict'
-                  ? choice
-                  : Number(choice),
-            )
-          }}
-        >
-          <option value="never">{t('Never')}</option>
-          <option value="change">{t('Changes')}</option>
-          <option value="conflict">{t('Is in conflict')}</option>
-          {values.map((digit) => (
-            <option key={digit} value={digit}>
-              {t('Becomes {value}', { value: valueText(digit, settings) })}
-            </option>
-          ))}
-        </select>
-      </div>
+      <BreakField terminal={terminal} width={info.signal.length} format={format} />
       {/* The same as a right-click on the wire, for the keyboard. */}
       <label className="check">
         <input

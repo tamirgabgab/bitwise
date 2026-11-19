@@ -58,6 +58,55 @@ export function busText(signal: Signal, radix: number, format: BusFormat): strin
 
 const DIGIT_CHARS = '0123456789ABCDEF'
 
+/**
+ * The digits of a bus `width` digits wide that `text` names in `format`,
+ * the least significant first, or a reason it names none. The digits are
+ * written most significant first and may leave out leading zeros; hex may
+ * start with `0x`, and a balanced value with a sign.
+ */
+export function readBusValue(
+  text: string,
+  radix: number,
+  width: number,
+  format: BusFormat,
+): { readonly signal: Signal } | { readonly problem: string } {
+  const written = text.trim().toUpperCase().replace(/\s+/g, '')
+  const base = BigInt(radix)
+  const room = base ** BigInt(width)
+  let value: bigint
+  if (format === 'digits') {
+    if (!/^[0-9A-F]+$/.test(written) || [...written].some((char) => DIGIT_CHARS.indexOf(char) >= radix)) {
+      return { problem: t('Use the digits 0 to {top}.', { top: DIGIT_CHARS[radix - 1] }) }
+    }
+    value = [...written].reduce((sum, char) => sum * base + BigInt(DIGIT_CHARS.indexOf(char)), 0n)
+  } else if (format === 'hex') {
+    const hex = written.replace(/^0X/, '')
+    if (!/^[0-9A-F]+$/.test(hex)) return { problem: t('Write a hexadecimal number, such as 0x1F.') }
+    value = BigInt(`0x${hex}`)
+  } else if (format === 'balanced' && radix % 2 === 1) {
+    const signed = /^([+\-−]?)(\d+)$/.exec(written)
+    if (!signed) return { problem: t('Write a whole number, with a sign if it is below zero.') }
+    const middle = BigInt((radix - 1) / 2)
+    // Every digit counts from the middle of the radix, so the whole range is moved by this much.
+    const shift = (middle * (room - 1n)) / (base - 1n)
+    const number = signed[1] === '' || signed[1] === '+' ? BigInt(signed[2]) : -BigInt(signed[2])
+    if (number < -shift || number > shift) {
+      return { problem: t('Use a number from {low} to {high}.', { low: `−${shift}`, high: `+${shift}` }) }
+    }
+    value = number + shift
+  } else {
+    if (!/^\d+$/.test(written)) return { problem: t('Write a whole number, such as 12.') }
+    value = BigInt(written)
+  }
+  if (value >= room) return { problem: t('This bus holds at most {count} digits.', { count: width }) }
+  const signal: number[] = []
+  for (let at = 0; at < width; at++) {
+    signal.push(Number(value % base))
+    value /= base
+  }
+  return { signal }
+}
+
 /** The digits of a bus as the timing diagram keeps them, the most significant first. */
 function digitsOf(text: string): Signal | undefined {
   const digits: number[] = []

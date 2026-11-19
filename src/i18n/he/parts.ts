@@ -250,6 +250,7 @@ export const parts: Dictionary = {
   Changes: 'משתנה',
   'Is in conflict': 'בהתנגשות',
   'Becomes {value}': 'הופך ל-{value}',
+  'Becomes a value': 'מקבל ערך מסוים',
   'Show in the timing diagram': 'הצגה בדיאגרמת התזמון',
   'Pin to the meter board': 'הצמדה ללוח המדידות',
   'Values now': 'הערכים עכשיו',

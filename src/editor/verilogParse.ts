@@ -69,6 +69,8 @@ export interface Decl {
   readonly range?: Range
   /** `reg q = 0`: what it starts with. */
   readonly init?: Expr
+  /** `reg [7:0] mem [0:15]`: a memory, and the numbers of its words. */
+  readonly words?: Range
 }
 
 export interface Param {
@@ -98,6 +100,8 @@ export type Item =
     }
   /** With no edges it is combinational: `always @(*)` and `always_comb`. */
   | { readonly kind: 'always'; readonly at: number; readonly edges: readonly Edge[]; readonly body: Stmt }
+  /** Read only for the words a memory starts with. */
+  | { readonly kind: 'initial'; readonly at: number; readonly body: Stmt }
 
 export interface Module {
   readonly at: number
@@ -382,7 +386,7 @@ export function parseVerilog(text: string): Module[] {
         picked = { kind: 'part', at: token.at, name: token.text, high: first, low: expression(), step }
       } else picked = { kind: 'bit', at: token.at, name: token.text, index: first }
       expect(']')
-      if (is('[')) throw new VerilogError(t('A memory of several words is not read.'), peek().at)
+      if (is('[')) throw new VerilogError(t('A bit of a word of a memory is not read. Give the word a name of its own first.'), peek().at)
       return picked
     }
     throw new VerilogError(
@@ -562,11 +566,20 @@ export function parseVerilog(text: string): Module[] {
         parameters(';')
         continue
       }
+      if (take('initial')) {
+        items.push({ kind: 'initial', at: token.at, body: statement() })
+        continue
+      }
       const said = kind()
       if (said) {
         for (;;) {
           const signal = name('signal')
-          if (is('[')) throw new VerilogError(t('A memory of several words is not read.'), peek().at)
+          if (is('[')) {
+            if (!said.reg || said.dir) throw new VerilogError(t('Only a reg inside the module holds several words.'), peek().at)
+            decls.push({ ...said, at: signal.at, name: signal.text, words: range() })
+            if (!take(',')) break
+            continue
+          }
           if (take('=')) {
             const value = expression()
             if (said.reg) decls.push({ ...said, at: signal.at, name: signal.text, init: value })

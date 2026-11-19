@@ -12,7 +12,8 @@ file is now `.bitwise.json`, and `.cedar.json` still opens.
 ## Commands
 
 - `npm run dev` — start the dev server
-- `npm test` — run unit tests once (`npm run test:watch` to watch)
+- `npm test` — run unit tests once, the React component tests in jsdom
+  among them (`npm run test:watch` to watch)
 - `npm run lint` — oxlint
 - `npm run build` — type-check, then build to `dist/`
 - `npm run pictures` — draw the README pictures again (`scripts/readme-pictures.ts`
@@ -32,8 +33,11 @@ Every push to `main` that passes them all is published to GitHub Pages
 (`.github/workflows/pages.yml`), at https://tamirgabgab.github.io/bitwise/.
 The build uses relative paths (`base: './'`), so it works under that folder.
 `.github/workflows/desktop.yml` builds the desktop app for Windows, macOS and
-Linux on the same pushes, and drafts a release for a `v*` tag. Only CI has
-Rust; nothing is built for the desktop locally.
+Linux on the same pushes, keeps the installers as an artifact of the run for
+two weeks, and drafts a release for a `v*` tag. Only CI has Rust; nothing is
+built for the desktop locally. The version is the same in `package.json`,
+`src-tauri/tauri.conf.json` and `src-tauri/Cargo.toml`. `.gitattributes`
+keeps text files LF in the repository.
 
 ## Layers
 
@@ -146,7 +150,7 @@ Rust; nothing is built for the desktop locally.
 - The value of a switch lives in the simulator, not in the document, so
   toggling one is not an edit and is not undone.
 - A part gets its width from its `width` parameter (`widths.ts`, at most
-  `MAX_BUS` in the inspector). When a wire joins pins of different widths,
+  `MAX_WIDTH`, 64 digits, in the inspector as in the core). When a wire joins pins of different widths,
   `SimBridge` keeps each width on a net of its own and reports the wire as
   `mixed`; it is drawn like a conflict. The value of a wide switch is a
   string of digits (`InputValue`), in steps and in the saved file.
@@ -294,7 +298,11 @@ Rust; nothing is built for the desktop locally.
   code is built as written, a part for each operator at the width of its
   bus, and a gate the project's kit lacks is made from the gates it has.
   A clocked `always` gives flip-flops and registers, an `always @(*)` the
-  multiplexers of its `if` and `case`; a latch is refused. A value is kept
+  multiplexers of its `if` and `case`; a latch is refused. A memory
+  (`reg [7:0] m [0:15]`) is a ROM where nothing writes it, with a ROM for
+  each address it is read at, and a RAM where a clocked block writes it
+  under its `if`s; its first words come from an `initial` block, the only
+  thing an `initial` may do. A value is kept
   bit by bit and drawn as wires only when the module is read to its end,
   so order does not matter, loops through parts work, and a splitter or a
   merger appears only where one is needed. What is not read is refused
@@ -327,7 +335,9 @@ Rust; nothing is built for the desktop locally.
   circuit is not a built-in type: check `builtinComponents.has` before
   `get`, which throws.
 - Breakpoints (`session.ts`, `SimRunner`) and the probe (`probeStore.ts`)
-  live only for the session. Step back uses a short history of simulator
+  live only for the session. A breakpoint on a bus can wait for a value,
+  typed in the bus's format and read by `readBusValue` (`busFormat.ts`); it
+  keeps the digits to compare and the text as typed (`BusValue`). Step back uses a short history of simulator
   states, `HISTORY_TICKS` in `simRunner.ts`.
 - The canvas look (`canvasLook`: classic, blueprint, chalk, scope) and the
   gate style (`gateStyle`: ANSI or IEC) are app preferences in `useEditor`,
@@ -422,6 +432,9 @@ Rust; nothing is built for the desktop locally.
 
 - Every behavior in `src/core` gets a unit test next to it (`*.test.ts`).
   Editor logic that is not drawing or input handling is tested the same way.
+- A React component is tested in jsdom with Testing Library: a `*.test.tsx`
+  whose first line is `// @vitest-environment jsdom` and whose first import
+  is `src/ui/domTesting.ts` (cleanup, `<dialog>`, `matchMedia`).
 - Components (gates, flip-flops, ...) are defined as data plus a pure
   `evaluate` function, one file per component family under
   `src/core/components`, and registered in `components/index.ts`. Adding one

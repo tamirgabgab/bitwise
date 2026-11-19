@@ -1,0 +1,9 @@
+# Text is kept with LF line endings in the repository, so a checkout on
+# Windows does not warn about them.
+* text=auto eol=lf
+
+*.png binary
+*.gif binary
+*.ico binary
+*.icns binary
+*.woff2 binary

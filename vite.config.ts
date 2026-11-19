@@ -69,8 +69,9 @@ export default defineConfig(({ mode }) => ({
   },
   test: {
     // The simulation core is pure TypeScript, so tests run in plain Node.
+    // A test of a React component (*.test.tsx) asks for jsdom in its first line.
     environment: 'node',
-    include: ['src/**/*.test.ts'],
+    include: ['src/**/*.test.ts', 'src/**/*.test.tsx'],
     // The canvas looks are checked against the colors written in index.css.
     css: { include: [/index\.css/] },
   },

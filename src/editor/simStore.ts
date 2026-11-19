@@ -4,9 +4,18 @@ import type { SimSpeed } from './simRunner.ts'
 
 /**
  * When a breakpoint on a wire stops the run: on any change, when the wire
- * goes into conflict, or when it takes one value.
+ * goes into conflict, or when it takes one value: a digit on a plain wire,
+ * a whole value on a bus.
  */
-export type BreakWhen = 'change' | 'conflict' | number
+export type BreakWhen = 'change' | 'conflict' | number | BusValue
+
+/** A value a bus is waited for. */
+export interface BusValue {
+  /** Its digits, the most significant first, as `formatSignal` writes them. */
+  readonly bus: string
+  /** How the user wrote it, to say it back. */
+  readonly shown: string
+}
 
 /** The breakpoint that stopped the run, and what the wire carried then. */
 export interface BreakHit {
@@ -14,6 +23,8 @@ export interface BreakHit {
   readonly key: string
   readonly digit: number
   readonly conflict: boolean
+  /** What a bus carried then, written out; a plain wire has only `digit`. */
+  readonly value?: string
 }
 
 /** What the app shell shows and controls about the running simulation. */

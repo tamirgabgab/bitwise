@@ -114,9 +114,9 @@ function watchesChanged(engine: Engine): void {
 
 /**
  * Looks at every breakpoint after a tick. Returns the first one whose wire
- * just did what it waits for.
+ * just did what it waits for. Exported for the tests.
  */
-function checkBreaks(engine: Pick<Engine, 'bridge' | 'breaks'>): BreakHit | null {
+export function checkBreaks(engine: Pick<Engine, 'bridge' | 'breaks'>): BreakHit | null {
   let hit: BreakHit | null = null
   for (const [key, point] of engine.breaks) {
     const now = wireReading(engine.bridge.probeTerminal(key))
@@ -129,8 +129,13 @@ function checkBreaks(engine: Pick<Engine, 'bridge' | 'breaks'>): BreakHit | null
         ? before.text !== now.text || before.conflict !== now.conflict
         : when === 'conflict'
           ? now.conflict && !before.conflict
-          : now.digit === when && before.digit !== when
-    if (fired) hit = { key, digit: now.digit, conflict: now.conflict }
+          : typeof when === 'number'
+            ? now.digit === when && before.digit !== when
+            : now.text === when.bus && before.text !== when.bus
+    if (fired) {
+      const value = typeof when === 'object' ? when.shown : now.text.length > 1 ? now.text : undefined
+      hit = { key, digit: now.digit, conflict: now.conflict, value }
+    }
   }
   return hit
 }

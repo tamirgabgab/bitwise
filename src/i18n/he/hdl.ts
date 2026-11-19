@@ -53,7 +53,9 @@ export const hdl: Dictionary = {
   'The name of the part is expected here, not the end of the text.': 'כאן צריך לבוא שם הרכיב, אבל הטקסט נגמר.',
   '“{wanted}” is expected here, not “{found}”.': 'כאן צריך לבוא "{wanted}", לא "{found}".',
   '“{wanted}” is expected here, not the end of the text.': 'כאן צריך לבוא "{wanted}", אבל הטקסט נגמר.',
-  'A memory of several words is not read.': 'זיכרון של כמה מילים לא נתמך.',
+  'A bit of a word of a memory is not read. Give the word a name of its own first.':
+    'ביט של מילה בזיכרון לא נתמך. קודם נותנים למילה שם משלה.',
+  'Only a reg inside the module holds several words.': 'רק reg בתוך המודול מחזיק כמה מילים.',
   'A value is expected here, not “{found}”.': 'כאן צריך לבוא ערך, לא "{found}".',
   'A value is expected here, not the end of the text.': 'כאן צריך לבוא ערך, אבל הטקסט נגמר.',
   'This delay is never closed.': 'ההשהיה הזו לא נסגרת.',
@@ -66,6 +68,26 @@ export const hdl: Dictionary = {
     'נותנים למודול את הפרמטרים שלו במקום שבו הוא נכתב, לא במקום שבו משתמשים בו.',
 
   // ---- Building the circuits (verilogImport.ts) ----
+  // Memories: a ROM, or a RAM where something writes.
+  'A memory is given a word only on a clock edge, as in “if (we) mem[a] <= d;”.':
+    'כותבים מילה לזיכרון רק בקצה של שעון, כמו "if (we) mem[a] <= d;".',
+  '“{name}” is a memory: one word of it is read at a time, as in {name}[0].':
+    '"{name}" הוא זיכרון: קוראים ממנו מילה אחת בכל פעם, כמו {name}[0].',
+  'A word of a memory is at most {max} bits wide.': 'מילה בזיכרון רחבה לכל היותר {max} ביטים.',
+  'The words of a memory are numbered from 0, as in [0:15].': 'המילים של זיכרון ממוספרות מ-0, כמו [0:15].',
+  'A memory holds at most {max} words.': 'בזיכרון יש לכל היותר {max} מילים.',
+  '“{name}” is written, so it is read and written at one address. A RAM has one.':
+    'כותבים ל-"{name}", ולכן קוראים ממנו וכותבים אליו באותה כתובת. ל-RAM יש כתובת אחת.',
+  'An initial block is read only for the words a memory starts with, as in “mem[0] = 3;”.':
+    'בלוק initial נקרא רק בשביל המילים שזיכרון מתחיל בהן, כמו "mem[0] = 3;".',
+  'A memory starts with numbers, given at numbered words.': 'זיכרון מתחיל במספרים, שנותנים למילים לפי המספר שלהן.',
+  '“{name}” has no word there.': 'אין ל-"{name}" מילה במקום הזה.',
+  'A memory is not reset. Give it its first words in an initial block.':
+    'זיכרון לא מתאפס. את המילים הראשונות שלו נותנים בבלוק initial.',
+  '“{name}” is given a word in two places. A memory has one port to write.':
+    'כותבים מילה ל-"{name}" בשני מקומות. לזיכרון יש פתח כתיבה אחד.',
+  'A memory is given its word under an “if”, not in a “case”.':
+    'כותבים מילה לזיכרון בתוך "if", לא בתוך "case".',
   'The high bit of a range has to be a number, known before the circuit runs.':
     'הביט העליון של טווח חייב להיות מספר שידוע לפני שהמעגל רץ.',
   'The high bit of a range is too large.': 'הביט העליון של טווח גדול מדי.',

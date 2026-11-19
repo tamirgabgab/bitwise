@@ -108,7 +108,7 @@ export function StatusBar() {
             {breakHit.conflict
               ? t('Paused at a breakpoint: the wire is in conflict')
               : t('Paused at a breakpoint: the wire is {value}', {
-                  value: valueText(breakHit.digit, settings),
+                  value: breakHit.value ?? valueText(breakHit.digit, settings),
                 })}
           </span>
         )}

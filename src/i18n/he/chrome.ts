@@ -91,8 +91,8 @@ export const chrome: Dictionary = {
 
   // Toolbar.tsx
   'Full speed': 'מהירות מלאה',
-  '1 tick/s': 'טיק אחד בשנייה',
-  '{speed} ticks/s': '{speed} טיקים בשנייה',
+  '1 tick/s': 'טיק אחד/ש׳',
+  '{speed} ticks/s': '{speed} טיקים/ש׳',
   'Step back one tick (nothing to go back to yet)': 'צעד אחורה בטיק אחד (עדיין אין לאן לחזור)',
   'Step to the next clock edge (this circuit has no clock)':
     'צעד עד החזית הבאה של השעון (אין שעון במעגל הזה)',

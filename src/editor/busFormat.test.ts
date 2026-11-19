@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { X, Z, parseSignal } from '../core/index.ts'
-import { busFormatsFor, busText, busTextOf, formatAt, setBusFormat } from './busFormat.ts'
+import { busFormatsFor, busText, busTextOf, formatAt, readBusValue, setBusFormat } from './busFormat.ts'
 import { addComponent, addWire, bendWire, copyItems, emptyDoc, pasteFragment } from './document.ts'
 import type { CircuitDoc, Terminal } from './document.ts'
 import { describeEdit } from './editNames.ts'
@@ -97,5 +97,43 @@ describe('the format of a bus in the drawing', () => {
     const doc = bus()
     const named = describeEdit(doc, setBusFormat(doc, pin('c1', 'out'), 'hex'), (part) => part.type)
     expect(named).toBe('Change how a bus is written')
+  })
+})
+
+describe('reading a value typed for a bus', () => {
+  const read = (text: string, radix: number, width: number, format: Parameters<typeof readBusValue>[3]) => {
+    const found = readBusValue(text, radix, width, format)
+    return 'signal' in found ? found.signal : found.problem
+  }
+
+  it('reads digits, the most significant first, with the leading zeros left out', () => {
+    expect(read('101', 2, 4, 'digits')).toEqual([1, 0, 1, 0])
+    expect(read('2 1', 3, 3, 'digits')).toEqual([1, 2, 0])
+    expect(read('2', 2, 4, 'digits')).toEqual('Use the digits 0 to 1.')
+  })
+
+  it('reads decimal and hex', () => {
+    expect(read('12', 2, 4, 'decimal')).toEqual([0, 0, 1, 1])
+    expect(read('0x1f', 2, 8, 'hex')).toEqual([1, 1, 1, 1, 1, 0, 0, 0])
+    expect(read('1F', 2, 8, 'hex')).toEqual([1, 1, 1, 1, 1, 0, 0, 0])
+    expect(read('twelve', 2, 4, 'decimal')).toEqual('Write a whole number, such as 12.')
+  })
+
+  it('refuses a value the bus has no room for', () => {
+    expect(read('16', 2, 4, 'decimal')).toEqual('This bus holds at most 4 digits.')
+    expect(read('15', 2, 4, 'decimal')).toEqual([1, 1, 1, 1])
+  })
+
+  it('reads a balanced value back into the digits busText writes it from', () => {
+    for (const signal of [[0, 0], [2, 1], [1, 1], [2, 2], [0, 2]]) {
+      const text = busText(signal, 3, 'balanced')!
+      expect(read(text, 3, 2, 'balanced')).toEqual(signal)
+    }
+    expect(read('-4', 3, 2, 'balanced')).toEqual([0, 0])
+    expect(read('+5', 3, 2, 'balanced')).toEqual('Use a number from −4 to +4.')
+  })
+
+  it('takes a 64-digit bus whole', () => {
+    expect(read('0xFFFFFFFFFFFFFFFF', 2, 64, 'hex')).toEqual(Array(64).fill(1))
   })
 })

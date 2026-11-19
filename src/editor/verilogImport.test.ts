@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { GATE_PRESETS, formatSignal, presetAvailable } from '../core/index.ts'
+import { GATE_PRESETS, formatSignal, memoryCell, packWord, presetAvailable } from '../core/index.ts'
 import { terminalKey } from './document.ts'
 import type { DocComponent } from './document.ts'
 import { EXAMPLES } from './examples.ts'
@@ -765,6 +765,137 @@ describe('reading Verilog: what the export writes', () => {
       both({ clk: 1 })
       both({ clk: 0 })
       for (const label of ['flop', 'toggle', 'jk', 'kept', 'count']) {
+        expect(back.text(label), `${label} at step ${step}`).toBe(first.shown(original(label, 'output')))
+      }
+    }
+  })
+})
+
+describe('reading Verilog: memories', () => {
+  /** The parameter that keeps a word of `width` bits. */
+  const word = (value: number, width: number): number =>
+    packWord(Array.from({ length: width }, (_, bit) => (value >> bit) & 1))
+
+  it('makes a memory nothing writes a ROM, with the words of its initial block', () => {
+    const rom = bench(`
+      module table (input [1:0] a, output [3:0] q);
+        reg [3:0] words [0:3];
+        initial begin
+          words[0] = 4'h3; words[1] = 9; words[3] = 4'b1111;
+        end
+        assign q = words[a];
+      endmodule`)
+    expect(rom.count('rom')).toBe(1)
+    const part = rom.parts.find((item) => item.type === 'rom')!
+    expect(part.params).toMatchObject({ address: 2, width: 4, [memoryCell(1)]: word(9, 4), [memoryCell(2)]: 0 })
+    for (const [address, value] of [[0, 3], [1, 9], [2, 0], [3, 15]]) {
+      rom.set({ a: address })
+      expect(rom.get('q'), `word ${address}`).toBe(value)
+    }
+  })
+
+  it('reads a ROM at two addresses with a ROM for each, and at one address with one', () => {
+    const two = built(`
+      module m (input [1:0] a, input [1:0] b, output [1:0] x, output [1:0] y, output [1:0] z);
+        reg [1:0] mem [0:3];
+        assign x = mem[a];
+        assign y = mem[b];
+        assign z = mem[a];
+      endmodule`)
+    expect(Object.values(two.circuits[0].doc.components).filter((part) => part.type === 'rom')).toHaveLength(2)
+  })
+
+  it('makes a memory written on a clock edge a RAM, with the condition of the write as its enable', () => {
+    const ram = bench(`
+      module store (input clk, input we, input [2:0] a, input [3:0] d, output [3:0] q);
+        reg [3:0] mem [0:7];
+        always @(posedge clk)
+          if (we) mem[a] <= d;
+        assign q = mem[a];
+      endmodule`)
+    expect(ram.count('ram')).toBe(1)
+    expect(ram.count('rom')).toBe(0)
+    ram.set({ clk: 0, we: 1, a: 5, d: 11 })
+    ram.tick()
+    ram.set({ we: 0, a: 2, d: 7 })
+    ram.tick()
+    expect(ram.get('q')).toBe(0)
+    ram.set({ a: 5 })
+    expect(ram.get('q')).toBe(11)
+  })
+
+  it('writes under nested ifs and next to registers in one block', () => {
+    const ram = bench(`
+      module m (input clk, input go, input up, input [1:0] a, input [1:0] d, output [1:0] q, output reg seen);
+        reg [1:0] mem [0:3];
+        always @(posedge clk) begin
+          seen <= go;
+          if (go) begin
+            if (up) mem[a] <= d;
+          end
+        end
+        assign q = mem[a];
+      endmodule`)
+    ram.set({ clk: 0, go: 1, up: 0, a: 1, d: 3 })
+    ram.tick()
+    expect(ram.get('q')).toBe(0)
+    expect(ram.get('seen')).toBe(1)
+    ram.set({ up: 1 })
+    ram.tick()
+    expect(ram.get('q')).toBe(3)
+  })
+
+  it('refuses a memory used in a way a ROM or a RAM cannot be', () => {
+    expect(refused('module m (input [1:0] a, output y);\n  reg mem [0:3];\n  assign mem[0] = 1;\nendmodule')).toMatch(/^3:10 A memory is given a word only on a clock edge/)
+    expect(refused('module m (input clk, input [1:0] a, input [1:0] b, output y);\n  reg mem [0:3];\n  always @(posedge clk) mem[a] <= 1;\n  assign y = mem[b];\nendmodule')).toMatch(
+      /read and written at one address/,
+    )
+    expect(refused('module m (input clk, input s, input [1:0] a, output y);\n  reg mem [0:3];\n  always @(posedge clk) case (s) 1: mem[a] <= 1; endcase\n  assign y = mem[a];\nendmodule')).toMatch(
+      /under an “if”, not in a “case”/,
+    )
+    expect(refused('module m (output y);\n  reg q;\n  initial q = 1;\n  assign y = q;\nendmodule')).toMatch(/^3:11 An initial block is read only/)
+    expect(refused('module m (input [1:0] a, output [9:0] y);\n  reg [9:0] mem [0:3];\nendmodule')).toMatch(/at most 8 bits wide/)
+    expect(refused('module m (input [1:0] a, output y);\n  reg mem [1:4];\nendmodule')).toMatch(/numbered from 0/)
+    expect(refused('module m (input [1:0] a, output y);\n  reg [3:0] mem [0:3];\n  assign y = mem[a][1];\nendmodule')).toMatch(/A bit of a word of a memory/)
+    expect(refused('module m (input [1:0] a, output [3:0] y);\n  reg [3:0] mem [0:3];\n  assign y = mem;\nendmodule')).toMatch(/is a memory/)
+    expect(refused('module m (input [3:0] a);\n  wire w [0:3];\nendmodule')).toMatch(/Only a reg inside the module/)
+  })
+
+  it('reads back the ROM and the RAM the export writes, clock edge by clock edge', () => {
+    const { doc, place, connect } = gateBuilder(2)
+    const pin = (component: string, port: string) => ({ component, port })
+    const clk = pin(place('input', { label: 'clk' }), 'out')
+    const we = pin(place('input', { label: 'we' }), 'out')
+    const a = pin(place('input', { label: 'a', params: { width: 3 } }), 'out')
+    const d = pin(place('input', { label: 'd', params: { width: 4 } }), 'out')
+    const words = Object.fromEntries([5, 0, 12, 7, 1, 15, 9, 3].map((value, index) => [memoryCell(index), word(value, 4)]))
+    const rom = place('rom', { params: { address: 3, width: 4, ...words } })
+    const ram = place('ram', { params: { address: 3, width: 4, ...words } })
+    connect(a, pin(rom, 'a'))
+    for (const [port, from] of Object.entries({ a, d, clk, we })) connect(from, pin(ram, port))
+    connect(pin(rom, 'q'), pin(place('output', { label: 'look', params: { width: 4 } }), 'in'))
+    connect(pin(ram, 'q'), pin(place('output', { label: 'kept', params: { width: 4 } }), 'in'))
+    const circuits: Circuits = { k1: { id: 'k1', name: 'Memories', doc: doc() } }
+    const file = circuitVerilog(circuits, 'k1', 2)
+    if ('problem' in file) throw new Error(file.problem)
+    const back = bench(file.text)
+    expect(back.count('rom')).toBe(1)
+    expect(back.count('ram')).toBe(1)
+    const first = running(circuits, 'k1')
+    const original = (label: string, type: string): DocComponent => first.parts.find((part) => part.type === type && part.label === label)!
+    const both = (values: Readonly<Record<string, number>>): void => {
+      for (const [label, value] of Object.entries(values)) first.put(original(label, 'input'), value)
+      first.settle()
+      back.set(values)
+    }
+    both({ clk: 0, we: 0, a: 0, d: 0 })
+    let state = 7
+    for (let step = 0; step < 40; step++) {
+      state = (state * 1103515245 + 12345) % 2 ** 31
+      both({ a: state % 8, d: (state >> 4) % 16, we: (state >> 9) % 3 === 0 ? 1 : 0 })
+      both({ clk: 1 })
+      both({ clk: 0 })
+      for (const label of ['look', 'kept']) {
         expect(back.text(label), `${label} at step ${step}`).toBe(first.shown(original(label, 'output')))
       }
     }

@@ -88,10 +88,10 @@ export {
   switchValue,
 } from './session.ts'
 export type { MeterReading, NodeInfo, ProbedPin } from './session.ts'
-export { busFormatName, busFormatsFor, formatAt } from './busFormat.ts'
+export { busFormatName, busFormatsFor, formatAt, readBusValue } from './busFormat.ts'
 export type { BusFormat } from './document.ts'
 export type { PartReading, PinReading } from './simBridge.ts'
-export type { BreakHit, BreakWhen } from './simStore.ts'
+export type { BreakHit, BreakWhen, BusValue } from './simStore.ts'
 export type { ScopeSignal, Span } from './scope.ts'
 export {
   DEFAULT_SCOPE_VIEW,
