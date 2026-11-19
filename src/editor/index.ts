@@ -46,6 +46,7 @@ export { EXAMPLES } from './examples.ts'
 export type { Example } from './examples.ts'
 export { MAX_CIRCUITS, MAX_ID_NUMBER, fromProjectData, isBlankProject, isSafeId } from './project.ts'
 export { projectSvg } from './svgExport.ts'
+export { scopeSvg, scopeVcd } from './scopeExport.ts'
 export {
   MACHINE_SPACE,
   MACHINE_TYPE,

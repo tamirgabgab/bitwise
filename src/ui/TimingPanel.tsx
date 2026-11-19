@@ -19,15 +19,47 @@ import {
   scopeStart,
   scopeTickAt,
   scopeTicks,
+  scopeSvg,
+  scopeVcd,
   scopeZoom,
   unwatchRow,
   useEditor,
   useSim,
 } from '../editor/index.ts'
 import type { CanvasTheme, ScopeMarkers, ScopeView, ValueStyle } from '../editor/index.ts'
+import { downloadText, safeFileName } from '../io/index.ts'
 import { useChrome } from './chrome.ts'
-import { CloseIcon, PauseIcon, PlayIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
+import { CloseIcon, PauseIcon, PictureIcon, PlayIcon, SaveIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { clampPanelHeight } from './panelSize.ts'
+import { toast } from './toasts.ts'
+
+/** The name the files of the open circuit's diagram take. */
+function fileBase(): string {
+  const { circuits, active } = useEditor.getState()
+  return `${safeFileName(circuits[active].name, 'circuit')}-timing`
+}
+
+/** Saves the timing diagram as it is on screen as an SVG picture, in the plain look of the page. */
+function exportTimingSvg(view: ScopeView, width: number): void {
+  const theme = readCanvasTheme(document.documentElement)
+  const svg = scopeSvg(currentScope(), view, width, theme, makeValueStyle(useEditor.getState().settings, theme))
+  const name = `${fileBase()}.svg`
+  downloadText(name, svg, 'image/svg+xml')
+  toast(`Exported the timing diagram as ${name}`)
+}
+
+/** Saves everything the timing diagram recorded as a VCD file, for GTKWave and the like. */
+function exportTimingVcd(): void {
+  const { circuits, active } = useEditor.getState()
+  const vcd = scopeVcd(currentScope(), circuits[active].name)
+  if (typeof vcd !== 'string') {
+    toast(vcd.problem)
+    return
+  }
+  const name = `${fileBase()}.vcd`
+  downloadText(name, vcd, 'text/plain')
+  toast(`Exported the timing diagram as ${name}`)
+}
 
 /** How far one press of an arrow key moves the edge of the panel. */
 const KEY_STEP = 24
@@ -320,6 +352,32 @@ export function TimingPanel() {
           onClick={() => setEnd(frozen ? null : useSim.getState().time)}
         >
           {frozen ? <PlayIcon /> : <PauseIcon />}
+        </button>
+        <button
+          type="button"
+          className="tool"
+          aria-label="Export the timing diagram as an SVG picture"
+          title="Export as an SVG picture, as it is on screen"
+          disabled={rows === 0}
+          onClick={() =>
+            exportTimingSvg({ tickWidth, end, cursor: null, markers }, canvasRef.current?.clientWidth ?? 640)
+          }
+        >
+          <PictureIcon />
+        </button>
+        <button
+          type="button"
+          className="tool"
+          aria-label="Export the timing diagram as a VCD file"
+          title={
+            settings.radix === 2
+              ? 'Export as a VCD file, for GTKWave: every change recorded'
+              : 'VCD holds only 0, 1, X and Z: export it at radix 2'
+          }
+          disabled={rows === 0 || settings.radix !== 2}
+          onClick={exportTimingVcd}
+        >
+          <SaveIcon />
         </button>
         <button
           type="button"

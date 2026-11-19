@@ -247,6 +247,11 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   the drawing; any wire of a net gives it to the whole net, and new wires
   cut from one keep it. The canvas, the inspector, the meter board and the
   timing diagram all write a bus through it.
+- `scopeExport.ts` takes the timing diagram out: `scopeSvg` draws what is
+  on screen through `renderScope` into `SvgContext` (so a new canvas call
+  there needs its counterpart, `measureText` included), and `scopeVcd`
+  writes the whole record as a VCD file, one tick to a nanosecond, only at
+  radix 2. The buttons are in the header of `TimingPanel`.
 - The meter board (`MeterBoard.tsx`) and the timing diagram's markers A and
   B live only for the session: the board in `session.ts` next to the
   watched wires, the markers in `TimingPanel`.

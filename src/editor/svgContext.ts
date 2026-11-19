@@ -363,6 +363,16 @@ export class SvgContext {
     )
   }
 
+  /**
+   * How wide a text is, as near as can be told without a font: the
+   * characters times six tenths of the size, the width of a digit of a
+   * monospaced face, which is what is measured (values and tick numbers).
+   */
+  measureText(text: string): { width: number } {
+    const size = Number(/([\d.]+)px/.exec(this.font)?.[1] ?? 10)
+    return { width: Array.from(text).length * size * 0.6 }
+  }
+
   fillText(text: string, x: number, y: number): void {
     this.text(text, x, y, `fill="${escapeXml(this.fillStyle)}"${this.opacity('fill-opacity')}`)
   }
