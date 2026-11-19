@@ -1,3 +1,4 @@
+import { msg, t } from '../i18n/index.ts'
 import { addComponent, addSubcircuit, addWire, emptyDoc, MAX_ITEMS } from './document.ts'
 import type { CircuitDoc } from './document.ts'
 import { autoLayout } from './layout.ts'
@@ -145,6 +146,37 @@ const alike = (a: Expr, b: Expr): boolean => {
 const only = (stmt: Stmt | undefined): Stmt | undefined =>
   stmt?.kind === 'block' && stmt.body.length === 1 ? only(stmt.body[0]) : stmt
 
+/**
+ * The numbers that have to be known before a circuit is built, with what is
+ * said when one is not known and when it is too large. Shown with `t`.
+ */
+const WHOLE = {
+  high: {
+    unknown: msg('The high bit of a range has to be a number, known before the circuit runs.'),
+    large: msg('The high bit of a range is too large.'),
+  },
+  low: {
+    unknown: msg('The low bit of a range has to be a number, known before the circuit runs.'),
+    large: msg('The low bit of a range is too large.'),
+  },
+  place: {
+    unknown: msg('The place of a bit has to be a number, known before the circuit runs.'),
+    large: msg('The place of a bit is too large.'),
+  },
+  first: {
+    unknown: msg('The first bit of a range has to be a number, known before the circuit runs.'),
+    large: msg('The first bit of a range is too large.'),
+  },
+  width: {
+    unknown: msg('The width of a range has to be a number, known before the circuit runs.'),
+    large: msg('The width of a range is too large.'),
+  },
+  repeat: {
+    unknown: msg('How many times a value is repeated has to be a number, known before the circuit runs.'),
+    large: msg('How many times a value is repeated is too large.'),
+  },
+} as const
+
 function buildModule(
   module: Module,
   modules: ReadonlyMap<string, Built>,
@@ -159,7 +191,10 @@ function buildModule(
   const room = (): void => {
     if (++items > MAX_ITEMS) {
       throw new VerilogError(
-        `“${module.name}” comes to more than ${MAX_ITEMS} parts and wires, the most one circuit holds.`,
+        t('“{name}” comes to more than {max} parts and wires, the most one circuit holds.', {
+          name: module.name,
+          max: MAX_ITEMS,
+        }),
         here,
       )
     }
@@ -209,7 +244,7 @@ function buildModule(
     const found = signals.get(name)
     if (!found) {
       throw new VerilogError(
-        params.has(name) ? `“${name}” is a number, not a signal.` : `“${name}” is not declared.`,
+        params.has(name) ? t('“{name}” is a number, not a signal.', { name }) : t('“{name}” is not declared.', { name }),
         at,
       )
     }
@@ -225,29 +260,32 @@ function buildModule(
 
   const checked = (width: number, at: number): number => {
     if (width < 1 || width > MAX_VERILOG_WIDTH) {
-      throw new VerilogError(`A value is 1 to ${MAX_VERILOG_WIDTH} bits wide, and this one would be ${width}.`, at)
+      throw new VerilogError(
+        t('A value is 1 to {max} bits wide, and this one would be {width}.', { max: MAX_VERILOG_WIDTH, width }),
+        at,
+      )
     }
     return width
   }
-  /** A number that has to be known before the circuit is built. */
-  const whole = (expr: Expr, what: string): number => {
+  /** A number that has to be known before the circuit is built: `what` says which, from `WHOLE`. */
+  const whole = (expr: Expr, what: keyof typeof WHOLE): number => {
     const value = constant(expr, MAX_VERILOG_WIDTH)
-    if (value === undefined) throw new VerilogError(`${what} has to be a number, known before the circuit runs.`, expr.at)
-    if (value > 1_000_000n) throw new VerilogError(`${what} is too large.`, expr.at)
+    if (value === undefined) throw new VerilogError(t(WHOLE[what].unknown), expr.at)
+    if (value > 1_000_000n) throw new VerilogError(t(WHOLE[what].large), expr.at)
     return Number(value)
   }
   const bounds = (range: Range | undefined): { low: number; width: number } => {
     if (!range) return { low: 0, width: 1 }
-    const high = whole(range.high, 'The high bit of a range')
-    const low = whole(range.low, 'The low bit of a range')
+    const high = whole(range.high, 'high')
+    const low = whole(range.low, 'low')
     if (high < low) {
-      throw new VerilogError('A range runs from the high bit down to the low one, as in [7:0].', range.high.at)
+      throw new VerilogError(t('A range runs from the high bit down to the low one, as in [7:0].'), range.high.at)
     }
     return { low, width: checked(high - low + 1, range.high.at) }
   }
   const bitOf = (from: Signal, index: Expr): number => {
-    const place = whole(index, 'The place of a bit') - from.low
-    if (place < 0 || place >= from.width) throw new VerilogError(`“${from.name}” has no bit there.`, index.at)
+    const place = whole(index, 'place') - from.low
+    if (place < 0 || place >= from.width) throw new VerilogError(t('“{name}” has no bit there.', { name: from.name }), index.at)
     return place
   }
   const partOf = (expr: Extract<Expr, { kind: 'part' }>): { from: Signal; start: number; count: number } => {
@@ -255,24 +293,24 @@ function buildModule(
     let high: number
     let low: number
     if (expr.step === undefined) {
-      high = whole(expr.high, 'The high bit of a range')
-      low = whole(expr.low, 'The low bit of a range')
+      high = whole(expr.high, 'high')
+      low = whole(expr.low, 'low')
     } else {
-      const base = whole(expr.high, 'The first bit of a range')
-      const count = whole(expr.low, 'The width of a range')
-      if (count < 1) throw new VerilogError('A range holds at least one bit.', expr.low.at)
+      const base = whole(expr.high, 'first')
+      const count = whole(expr.low, 'width')
+      if (count < 1) throw new VerilogError(t('A range holds at least one bit.'), expr.low.at)
       low = expr.step === '+' ? base : base - count + 1
       high = low + count - 1
     }
-    if (high < low) throw new VerilogError('A range runs from the high bit down to the low one, as in [7:0].', expr.at)
+    if (high < low) throw new VerilogError(t('A range runs from the high bit down to the low one, as in [7:0].'), expr.at)
     if (low < from.low || high >= from.low + from.width) {
-      throw new VerilogError(`“${from.name}” does not have all of these bits.`, expr.at)
+      throw new VerilogError(t('“{name}” does not have all of these bits.', { name: from.name }), expr.at)
     }
     return { from, start: low - from.low, count: high - low + 1 }
   }
   const times = (expr: Extract<Expr, { kind: 'repeat' }>): number => {
-    const count = whole(expr.count, 'How many times a value is repeated')
-    if (count < 1) throw new VerilogError('A value is repeated at least once.', expr.count.at)
+    const count = whole(expr.count, 'repeat')
+    if (count < 1) throw new VerilogError(t('A value is repeated at least once.'), expr.count.at)
     return count
   }
 
@@ -388,7 +426,7 @@ function buildModule(
         const left = constant(expr.left, width)
         const right = constant(expr.right, SHIFT.has(op) ? widthOf(expr.right) : width)
         if (left === undefined || right === undefined) return undefined
-        if ((op === '/' || op === '%') && right === 0n) throw new VerilogError('This divides by 0.', expr.at)
+        if ((op === '/' || op === '%') && right === 0n) throw new VerilogError(t('This divides by 0.'), expr.at)
         if (SHIFT.has(op) && right > BigInt(MAX_VERILOG_WIDTH)) return op === '**' && left <= 1n ? left : 0n
         switch (op) {
           case '+':
@@ -466,7 +504,7 @@ function buildModule(
   // ---- Gates, from the kit of the project ----
   const has = (type: string): boolean => kit.has(type)
   const cannot = (): never => {
-    throw new VerilogError('The gate kit of this project has no gates to build this from.', here)
+    throw new VerilogError(t('The gate kit of this project has no gates to build this from.'), here)
   }
   const placeGate = (type: string, inputs: readonly Bits[], width: number): Bit[] =>
     part(
@@ -671,7 +709,7 @@ function buildModule(
   function product(expr: Extract<Expr, { kind: 'binary' }>, context: number, width: number): Bit[] {
     const each = Math.min(width, Math.max(digits(expr.left, context), digits(expr.right, context)))
     if (each > MAX_VERILOG_WIDTH / 2) {
-      throw new VerilogError(`A multiplier takes numbers of at most ${MAX_VERILOG_WIDTH / 2} bits.`, expr.at)
+      throw new VerilogError(t('A multiplier takes numbers of at most {max} bits.', { max: MAX_VERILOG_WIDTH / 2 }), expr.at)
     }
     const out = part('multiplier', { width: each }, { a: build(expr.left, context, each), b: build(expr.right, context, each) })
     return fit(out('p', 2 * each), width)
@@ -680,7 +718,7 @@ function buildModule(
   function shifted(left: 0 | 1, bits: Bits, by: Expr): Bit[] {
     const width = widthOf(by)
     const select = digits(by, width)
-    if (select > 4) throw new VerilogError('A shift by more than 15 places is not read.', by.at)
+    if (select > 4) throw new VerilogError(t('A shift by more than 15 places is not read.'), by.at)
     return part(
       'shifter',
       { width: bits.length, select, left, rotate: 0 },
@@ -766,7 +804,7 @@ function buildModule(
           case '/':
           case '%':
           case '**':
-            throw new VerilogError('No part divides or raises to a power. Only numbers known beforehand can be.', expr.at)
+            throw new VerilogError(t('No part divides or raises to a power. Only numbers known beforehand can be.'), expr.at)
           case '<<':
           case '<<<': {
             const by = constant(expr.right, widthOf(expr.right))
@@ -860,15 +898,15 @@ function buildModule(
       case 'concat':
         return [...expr.parts].reverse().flatMap(targets)
       default:
-        throw new VerilogError('A value is given to a signal, to bits of one, or to several in braces.', expr.at)
+        throw new VerilogError(t('A value is given to a signal, to bits of one, or to several in braces.'), expr.at)
     }
   }
   const drive = (to: readonly Target[], bits: Bits, at: number): void => {
     to.forEach((target, place) => {
       const { name, dir } = target.signal
-      if (dir === 'input') throw new VerilogError(`“${name}” is an input: nothing inside the module gives it a value.`, at)
+      if (dir === 'input') throw new VerilogError(t('“{name}” is an input: nothing inside the module gives it a value.', { name }), at)
       if (target.signal.bits[target.index] !== undefined) {
-        throw new VerilogError(`“${name}” is given a value in two places.`, at)
+        throw new VerilogError(t('“{name}” is given a value in two places.', { name }), at)
       }
       target.signal.bits[target.index] = bits[place] ?? 0
     })
@@ -904,7 +942,9 @@ function buildModule(
         if (values.every((value) => value === undefined)) continue
         if (values.some((value) => value === undefined) && !mode.clocked) {
           throw new VerilogError(
-            `“${to.name}” is not given a value on every path. It would have to remember one, and only a clock edge does that.`,
+            t('“{name}” is not given a value on every path. It would have to remember one, and only a clock edge does that.', {
+              name: to.name,
+            }),
             at,
           )
         }
@@ -935,7 +975,9 @@ function buildModule(
         to.forEach((target, place) => {
           if (!target.signal.reg) {
             throw new VerilogError(
-              `“${target.signal.name}” is given a value in an always block, so it has to be declared a reg.`,
+              t('“{name}” is given a value in an always block, so it has to be declared a reg.', {
+                name: target.signal.name,
+              }),
               stmt.at,
             )
           }
@@ -1039,7 +1081,7 @@ function buildModule(
       const found = first?.kind === 'if' ? edges.findIndex((edge) => asks(first.test, edge)) : -1
       if (first?.kind !== 'if' || found === -1) {
         throw new VerilogError(
-          'With more than one edge, the block has to start with an “if” on the signal that resets it, as in “if (rst) q <= 0; else …”.',
+          t('With more than one edge, the block has to start with an “if” on the signal that resets it, as in “if (rst) q <= 0; else …”.'),
           body?.at ?? item.at,
         )
       }
@@ -1064,7 +1106,7 @@ function buildModule(
     for (const to of kept) {
       here = to.at
       if (to.init !== undefined && constant(to.init, to.width) !== 0n) {
-        throw new VerilogError(`A register starts at 0, and “${to.name}” is said to start at something else.`, to.init.at)
+        throw new VerilogError(t('A register starts at 0, and “{name}” is said to start at something else.', { name: to.name }), to.init.at)
       }
       const next = env.get(to)
       let data: Bit[] = Array.from({ length: to.width }, (_, index) => next?.[index] ?? { signal: to, index })
@@ -1077,7 +1119,9 @@ function buildModule(
         else if (to.width === 1 && value[0] === 1) sets.push(force.active)
         else {
           throw new VerilogError(
-            `A register is reset to 0, and one of a single bit can also be set to 1. “${to.name}” is reset to something else.`,
+            t('A register is reset to 0, and one of a single bit can also be set to 1. “{name}” is reset to something else.', {
+              name: to.name,
+            }),
             to.at,
           )
         }
@@ -1117,14 +1161,14 @@ function buildModule(
 
   // ---- The module ----
   for (const param of module.params) {
-    if (params.has(param.name)) throw new VerilogError(`“${param.name}” is declared twice.`, param.at)
+    if (params.has(param.name)) throw new VerilogError(t('“{name}” is declared twice.', { name: param.name }), param.at)
     const size = param.range
       ? bounds(param.range).width
       : param.value.kind === 'num'
         ? param.value.size
         : undefined
     const value = constant(param.value, size ?? MAX_VERILOG_WIDTH)
-    if (value === undefined) throw new VerilogError(`“${param.name}” has to be a number.`, param.value.at)
+    if (value === undefined) throw new VerilogError(t('“{name}” has to be a number.', { name: param.name }), param.value.at)
     params.set(param.name, size === undefined ? { value } : { value, size })
   }
 
@@ -1133,9 +1177,9 @@ function buildModule(
   for (const decl of module.decls) {
     const known = declared.get(decl.name)
     if (known && ((known.dir && decl.dir) || (!decl.dir && !known.dir))) {
-      throw new VerilogError(`“${decl.name}” is declared twice.`, decl.at)
+      throw new VerilogError(t('“{name}” is declared twice.', { name: decl.name }), decl.at)
     }
-    if (params.has(decl.name)) throw new VerilogError(`“${decl.name}” is already the name of a number.`, decl.at)
+    if (params.has(decl.name)) throw new VerilogError(t('“{name}” is already the name of a number.', { name: decl.name }), decl.at)
     declared.set(decl.name, {
       at: known?.at ?? decl.at,
       dir: known?.dir ?? decl.dir,
@@ -1151,12 +1195,12 @@ function buildModule(
     const decl = declared.get(name)
     const inHeader = module.ports.includes(name)
     if (!decl?.dir && inHeader) {
-      throw new VerilogError(`“${name}” is a port, and nothing says whether it is an input or an output.`, decl?.at ?? module.at)
+      throw new VerilogError(t('“{name}” is a port, and nothing says whether it is an input or an output.', { name }), decl?.at ?? module.at)
     }
     if (!decl) continue
     here = decl.at
     const { low, width } = bounds(decl.range)
-    if (decl.dir === 'input' && decl.reg) throw new VerilogError(`An input cannot be a reg, and “${name}” is said to be both.`, decl.at)
+    if (decl.dir === 'input' && decl.reg) throw new VerilogError(t('An input cannot be a reg, and “{name}” is said to be both.', { name }), decl.at)
     const made: Signal = {
       name,
       at: decl.at,
@@ -1185,21 +1229,21 @@ function buildModule(
       }
       case 'gate': {
         item.pins.forEach(implicit)
-        if (item.pins.length < 2) throw new VerilogError('A gate has an output and at least one input.', item.at)
+        if (item.pins.length < 2) throw new VerilogError(t('A gate has an output and at least one input.'), item.at)
         const one = item.type === 'not' || item.type === 'buf'
         const outs = one ? item.pins.slice(0, -1) : item.pins.slice(0, 1)
         const ins = (one ? item.pins.slice(-1) : item.pins.slice(1)).map((pin) => build(pin, widthOf(pin), 1))
         const out = gate(item.type, ins, 1)
         for (const pin of outs) {
           const to = targets(pin)
-          if (to.length !== 1) throw new VerilogError('A gate gives one bit, and this signal is wider.', pin.at)
+          if (to.length !== 1) throw new VerilogError(t('A gate gives one bit, and this signal is wider.'), pin.at)
           drive(to, out, pin.at)
         }
         break
       }
       case 'instance': {
         const child = modules.get(item.module)
-        if (!child) throw new VerilogError(`No module is called “${item.module}”.`, item.at)
+        if (!child) throw new VerilogError(t('No module is called “{name}”.', { name: item.module }), item.at)
         room()
         const added = addSubcircuit(doc, subRefOf(child.circuit), spot())
         doc = added.doc
@@ -1207,16 +1251,20 @@ function buildModule(
         if (item.named) {
           for (const pin of item.named) {
             if (!child.ports.some((port) => port.name === pin.port)) {
-              throw new VerilogError(`“${item.module}” has no port called “${pin.port}”.`, pin.at)
+              throw new VerilogError(t('“{module}” has no port called “{port}”.', { module: item.module, port: pin.port }), pin.at)
             }
-            if (given.has(pin.port)) throw new VerilogError(`The port “${pin.port}” is attached twice.`, pin.at)
+            if (given.has(pin.port)) throw new VerilogError(t('The port “{port}” is attached twice.', { port: pin.port }), pin.at)
             given.set(pin.port, pin.value)
           }
         } else {
           const placed = item.placed ?? []
           if (placed.length > child.ports.length) {
             throw new VerilogError(
-              `“${item.module}” has ${child.ports.length} ports, and ${placed.length} are attached here.`,
+              t('“{module}” has {ports} ports, and {attached} are attached here.', {
+                module: item.module,
+                ports: child.ports.length,
+                attached: placed.length,
+              }),
               item.at,
             )
           }
@@ -1260,10 +1308,10 @@ function buildModule(
     const known = followed.get(from)?.[index]
     if (known !== undefined) return known
     const giver = from.bits[index]
-    if (giver === undefined) throw new VerilogError(`Nothing gives “${from.name}” a value.`, at)
+    if (giver === undefined) throw new VerilogError(t('Nothing gives “{name}” a value.', { name: from.name }), at)
     const key = `${from.name}.${index}`
     if (trail.has(key)) {
-      throw new VerilogError(`“${from.name}” is given its own value, with no part in between.`, from.at)
+      throw new VerilogError(t('“{name}” is given its own value, with no part in between.', { name: from.name }), from.at)
     }
     trail.add(key)
     const found = follow(giver, at, trail)
@@ -1354,18 +1402,20 @@ function buildModule(
  */
 export function verilogCircuits(text: string, options: VerilogOptions): VerilogBuilt | VerilogProblem {
   if (text.length > MAX_VERILOG_LENGTH) {
-    return { problem: `This text is longer than ${MAX_VERILOG_LENGTH.toLocaleString('en-US')} characters, the most that is read.` }
+    return { problem: t('This text is longer than {max} characters, the most that is read.', {
+        max: MAX_VERILOG_LENGTH.toLocaleString('en-US'),
+      }) }
   }
   try {
     const modules = parseVerilog(text)
-    if (modules.length === 0) return { problem: 'There is no module in this text. A circuit starts with “module”.' }
+    if (modules.length === 0) return { problem: t('There is no module in this text. A circuit starts with “module”.') }
     const byName = new Map<string, Module>()
     for (const module of modules) {
-      if (byName.has(module.name)) throw new VerilogError(`Two modules are called “${module.name}”.`, module.at)
+      if (byName.has(module.name)) throw new VerilogError(t('Two modules are called “{name}”.', { name: module.name }), module.at)
       byName.set(module.name, module)
     }
     if (Object.keys(options.circuits).length + modules.length > MAX_CIRCUITS) {
-      return { problem: `A project holds at most ${MAX_CIRCUITS} circuits, and these modules would go past that.` }
+      return { problem: t('A project holds at most {max} circuits, and these modules would go past that.', { max: MAX_CIRCUITS }) }
     }
 
     // A module is built after the modules it uses.
@@ -1373,12 +1423,12 @@ export function verilogCircuits(text: string, options: VerilogOptions): VerilogB
     const state = new Map<Module, 'open' | 'done'>()
     const visit = (module: Module, at: number): void => {
       if (state.get(module) === 'done') return
-      if (state.get(module) === 'open') throw new VerilogError(`“${module.name}” would contain itself.`, at)
+      if (state.get(module) === 'open') throw new VerilogError(t('“{name}” would contain itself.', { name: module.name }), at)
       state.set(module, 'open')
       for (const item of module.items) {
         if (item.kind !== 'instance') continue
         const child = byName.get(item.module)
-        if (!child) throw new VerilogError(`No module is called “${item.module}”.`, item.at)
+        if (!child) throw new VerilogError(t('No module is called “{name}”.', { name: item.module }), item.at)
         visit(child, item.at)
       }
       state.set(module, 'done')
@@ -1402,14 +1452,16 @@ export function verilogCircuits(text: string, options: VerilogOptions): VerilogB
     }
     const all = { ...options.circuits, ...Object.fromEntries(circuits.map((circuit) => [circuit.id, circuit])) }
     if (largestFlat(all) > MAX_FLAT_PARTS) {
-      return { problem: `Opened up, these modules come to more than ${MAX_FLAT_PARTS.toLocaleString('en-US')} parts.` }
+      return { problem: t('Opened up, these modules come to more than {max} parts.', {
+          max: MAX_FLAT_PARTS.toLocaleString('en-US'),
+        }) }
     }
     const used = new Set(modules.flatMap((module) => module.items.flatMap((item) => (item.kind === 'instance' ? [item.module] : []))))
     const top = [...modules].reverse().find((module) => !used.has(module.name)) ?? modules[modules.length - 1]
     return { circuits, top: built.get(top.name)!.circuit.id }
   } catch (error) {
     if (error instanceof VerilogError) return { problem: error.message, ...placeOf(text, error.offset) }
-    if (error instanceof RangeError) return { problem: 'This text is nested too deeply to read.' }
+    if (error instanceof RangeError) return { problem: t('This text is nested too deeply to read.') }
     throw error
   }
 }

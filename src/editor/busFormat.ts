@@ -1,4 +1,5 @@
 import type { Signal } from '../core/index.ts'
+import { t } from '../i18n/index.ts'
 import { terminalNets } from './connectivity.ts'
 import { terminalKey } from './document.ts'
 import type { BusFormat, CircuitDoc, DocWire, Terminal } from './document.ts'
@@ -16,13 +17,13 @@ export const BUS_FORMATS: readonly BusFormat[] = ['digits', 'decimal', 'balanced
 export function busFormatName(format: BusFormat, radix: number): string {
   switch (format) {
     case 'digits':
-      return `Digits in base ${radix}`
+      return t('Digits in base {radix}', { radix })
     case 'decimal':
-      return 'Decimal'
+      return t('Decimal')
     case 'balanced':
-      return 'Balanced, signed'
+      return t('Balanced, signed')
     case 'hex':
-      return 'Hexadecimal'
+      return t('Hexadecimal')
   }
 }
 

@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { t } from '../i18n/index.ts'
 import { stopPresenting } from './presentation.ts'
 
 /** How long the trail behind the laser lasts, in milliseconds. */
@@ -92,7 +93,7 @@ export function LaserPointer() {
     <>
       <canvas ref={ref} className="laser" aria-hidden="true" />
       <button type="button" className="button present-exit" onClick={stopPresenting}>
-        Exit presentation
+        {t('Exit presentation')}
         <kbd>Esc</kbd>
       </button>
     </>

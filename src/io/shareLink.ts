@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts'
 import { MAX_FILE_LENGTH, ProjectFileError } from './projectFile.ts'
 
 /*
@@ -42,13 +43,13 @@ function toBase64Url(bytes: Uint8Array): string {
 }
 
 function fromBase64Url(text: string): Uint8Array {
-  if (!/^[A-Za-z0-9_-]*$/.test(text)) throw new ProjectFileError('The link is damaged: it has characters a link never has.')
+  if (!/^[A-Za-z0-9_-]*$/.test(text)) throw new ProjectFileError(t('The link is damaged: it has characters a link never has.'))
   const padded = text.replace(/-/g, '+').replace(/_/g, '/') + '='.repeat((4 - (text.length % 4)) % 4)
   let binary: string
   try {
     binary = atob(padded)
   } catch {
-    throw new ProjectFileError('The link is damaged: it was cut or changed.')
+    throw new ProjectFileError(t('The link is damaged: it was cut or changed.'))
   }
   const bytes = new Uint8Array(binary.length)
   for (let index = 0; index < binary.length; index++) bytes[index] = binary.charCodeAt(index)
@@ -65,7 +66,9 @@ async function readAll(stream: ReadableStream<Uint8Array>, limit: number): Promi
     length += value.length
     if (length > limit) {
       await reader.cancel()
-      throw new ProjectFileError(`The link holds more than ${limit / 1_000_000} MB, more than a project can be.`)
+      throw new ProjectFileError(
+        t('The link holds more than {size} MB, more than a project can be.', { size: limit / 1_000_000 }),
+      )
     }
     chunks.push(value)
   }
@@ -92,7 +95,7 @@ export async function shareFragment(text: string, name: string): Promise<string>
 export function readShareFragment(fragment: string): SharedProject | null {
   const text = fragment.startsWith('#') ? fragment.slice(1) : fragment
   if (text.length > MAX_LINK_LENGTH) {
-    throw new ProjectFileError(`The link is longer than a project can be.`)
+    throw new ProjectFileError(t('The link is longer than a project can be.'))
   }
   const params = new URLSearchParams(text)
   const data = params.get(DATA_KEY)
@@ -110,11 +113,11 @@ export async function unpackShared(data: string): Promise<string> {
     raw = await readAll(unpacked, MAX_FILE_LENGTH)
   } catch (error) {
     if (error instanceof ProjectFileError) throw error
-    throw new ProjectFileError('The link is damaged: it was cut or changed.')
+    throw new ProjectFileError(t('The link is damaged: it was cut or changed.'))
   }
   try {
     return new TextDecoder('utf-8', { fatal: true }).decode(raw)
   } catch {
-    throw new ProjectFileError('The link is damaged: it does not hold text.')
+    throw new ProjectFileError(t('The link is damaged: it does not hold text.'))
   }
 }

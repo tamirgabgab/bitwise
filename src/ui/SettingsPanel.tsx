@@ -9,13 +9,16 @@ import {
 import type { GatePreset } from '../core/index.ts'
 import { CANVAS_LOOKS, useEditor, valueText } from '../editor/index.ts'
 import type { CanvasLook, GateStyle } from '../editor/index.ts'
+import { LANGUAGES, language, t } from '../i18n/index.ts'
+import type { Language } from '../i18n/index.ts'
 import { ask } from './dialogs.ts'
+import { chooseLanguage } from './language.ts'
 import { CloseIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { hasOwnColors, swatchStyle, usesClassicColors } from './swatch.ts'
 
 /** Why a kit cannot be picked at this radix. */
 function unavailableReason(preset: GatePreset): string {
-  return preset.needs === 'binary' ? 'Radix 2 only' : 'Prime radix only'
+  return preset.needs === 'binary' ? t('Radix 2 only') : t('Prime radix only')
 }
 
 function RadixSection() {
@@ -25,13 +28,13 @@ function RadixSection() {
 
   return (
     <section>
-      <h3 id="radix-heading">Values per wire</h3>
+      <h3 id="radix-heading">{t('Values per wire')}</h3>
       <div className="stepper" role="group" aria-labelledby="radix-heading">
         <button
           type="button"
           className="tool"
-          aria-label="Fewer values"
-          title="Fewer values"
+          aria-label={t('Fewer values')}
+          title={t('Fewer values')}
           disabled={radix <= MIN_RADIX}
           onClick={() => setRadix(radix - 1)}
         >
@@ -43,21 +46,22 @@ function RadixSection() {
         <button
           type="button"
           className="tool"
-          aria-label="More values"
-          title="More values"
+          aria-label={t('More values')}
+          title={t('More values')}
           disabled={radix >= MAX_RADIX}
           onClick={() => setRadix(radix + 1)}
         >
           <ZoomInIcon />
         </button>
         <span className="stepper-note">
-          {radix === 2 ? 'Binary: 0 and 1' : `Values 0 to ${valueTop(radix)}`}
+          {radix === 2 ? t('Binary: 0 and 1') : t('Values 0 to {top}', { top: valueTop(radix) })}
         </span>
       </div>
       {hasParts && (
         <p className="note">
-          Changing the radix restarts the circuit: inputs return to 0, and a value the new radix
-          lacks reads as unknown.
+          {t(
+            'Changing the radix restarts the circuit: inputs return to 0, and a value the new radix lacks reads as unknown.',
+          )}
         </p>
       )}
     </section>
@@ -76,7 +80,7 @@ function KitSection() {
 
   return (
     <section>
-      <h3 id="kit-heading">Gate kit</h3>
+      <h3 id="kit-heading">{t('Gate kit')}</h3>
       <div className="kits" role="radiogroup" aria-labelledby="kit-heading">
         {GATE_PRESETS.map((preset) => {
           const available = presetAvailable(preset, radix)
@@ -91,13 +95,13 @@ function KitSection() {
               />
               <span className="kit-text">
                 <span className="kit-name">
-                  {preset.name}
+                  {t(preset.name)}
                   {!available && <span className="tag">{unavailableReason(preset)}</span>}
                   {available && !presetUniversal(preset, radix) && (
-                    <span className="tag tag-warn">Not universal</span>
+                    <span className="tag tag-warn">{t('Not universal')}</span>
                   )}
                 </span>
-                <span className="kit-summary">{preset.summary}</span>
+                <span className="kit-summary">{t(preset.summary)}</span>
               </span>
             </label>
           )
@@ -109,7 +113,7 @@ function KitSection() {
           checked={sandbox}
           onChange={(event) => updateSettings({ sandbox: event.target.checked })}
         />
-        Sandbox: offer every gate, whatever the kit
+        {t('Sandbox: offer every gate, whatever the kit')}
       </label>
     </section>
   )
@@ -126,7 +130,7 @@ function ColorSection() {
 
   return (
     <section>
-      <h3>Wire colors</h3>
+      <h3>{t('Wire colors')}</h3>
       {radix === 2 && (
         <label className="check">
           <input
@@ -134,7 +138,7 @@ function ColorSection() {
             checked={classicColors}
             onChange={(event) => updateSettings({ classicColors: event.target.checked })}
           />
-          Classic colors: dark for 0, red for 1
+          {t('Classic colors: dark for 0, red for 1')}
         </label>
       )}
       <div className="swatches">
@@ -145,12 +149,12 @@ function ColorSection() {
               key={digit}
               className="swatch"
               style={swatchStyle(settings, digit)}
-              title={`Color of value ${text}`}
+              title={t('Color of value {value}', { value: text })}
             >
               {text}
               <input
                 type="color"
-                aria-label={`Color of value ${text}`}
+                aria-label={t('Color of value {value}', { value: text })}
                 value={palette[digit]}
                 onChange={(event) => setPaletteColor(digit, event.target.value)}
               />
@@ -164,29 +168,33 @@ function ColorSection() {
       </div>
       {editable && (
         <p className="note">
-          Click a color to change it.{' '}
+          {t('Click a color to change it.')}{' '}
           <button
             type="button"
             className="link"
             onClick={() => {
               // Settings are not part of undo, so the reset is asked about first.
               void ask({
-                title: 'Reset the wire colors?',
-                body: 'Every value goes back to its default color. The colors you picked cannot be brought back.',
-                confirm: 'Reset colors',
-                cancel: 'Keep my colors',
+                title: t('Reset the wire colors?'),
+                body: t(
+                  'Every value goes back to its default color. The colors you picked cannot be brought back.',
+                ),
+                confirm: t('Reset colors'),
+                cancel: t('Keep my colors'),
                 danger: true,
               }).then((yes) => {
                 if (yes) resetPalette()
               })
             }}
           >
-            Reset colors
+            {t('Reset colors')}
           </button>
         </p>
       )}
       {!classic && !editable && (
-        <p className="note">Above {palette.length} values the colors follow a gradient.</p>
+        <p className="note">
+          {t('Above {count} values the colors follow a gradient.', { count: palette.length })}
+        </p>
       )}
       <label className="check">
         <input
@@ -194,7 +202,7 @@ function ColorSection() {
           checked={settings.showDigits}
           onChange={(event) => updateSettings({ showDigits: event.target.checked })}
         />
-        Write each output&apos;s value next to its pin
+        {t("Write each output's value next to its pin")}
       </label>
       {radix % 2 === 1 && (
         <label className="check">
@@ -203,7 +211,7 @@ function ColorSection() {
             checked={settings.balanced}
             onChange={(event) => updateSettings({ balanced: event.target.checked })}
           />
-          Balanced digits: write values around zero (−1, 0, +1)
+          {t('Balanced digits: write values around zero (−1, 0, +1)')}
         </label>
       )}
     </section>
@@ -218,9 +226,9 @@ function LookSection() {
 
   return (
     <section>
-      <h3>Canvas</h3>
+      <h3>{t('Canvas')}</h3>
       <div className="field">
-        <label htmlFor="canvas-look">Look</label>
+        <label htmlFor="canvas-look">{t('Look')}</label>
         <select
           id="canvas-look"
           value={look}
@@ -228,26 +236,46 @@ function LookSection() {
         >
           {CANVAS_LOOKS.map((choice) => (
             <option key={choice.id} value={choice.id}>
-              {choice.name}
+              {t(choice.name)}
             </option>
           ))}
         </select>
       </div>
       <div className="field">
-        <label htmlFor="gate-style">Gates</label>
+        <label htmlFor="gate-style">{t('Gates')}</label>
         <select
           id="gate-style"
           value={gates}
           onChange={(event) => setGateStyle(event.target.value as GateStyle)}
         >
-          <option value="ansi">ANSI shapes</option>
-          <option value="iec">IEC boxes</option>
+          <option value="ansi">{t('ANSI shapes')}</option>
+          <option value="iec">{t('IEC boxes')}</option>
         </select>
       </div>
-      <p className="note">For every project in this browser. A picture keeps the plain look.</p>
+      <div className="field">
+        <label htmlFor="interface-language">{t('Language')}</label>
+        <select
+          id="interface-language"
+          value={language()}
+          onChange={(event) => void chooseLanguage(event.target.value as Language)}
+        >
+          {LANGUAGES.map((choice) => (
+            // Each language is named in itself.
+            <option key={choice} value={choice} lang={choice}>
+              {LANGUAGE_NAMES[choice]}
+            </option>
+          ))}
+        </select>
+      </div>
+      <p className="note">
+        {t('For every project in this browser. A picture keeps the plain look.')}
+      </p>
     </section>
   )
 }
+
+/** Each language of the interface by its own name. */
+const LANGUAGE_NAMES: Readonly<Record<Language, string>> = { en: 'English', he: 'עברית' }
 
 interface SettingsPanelProps {
   onClose: () => void
@@ -298,15 +326,15 @@ export function SettingsPanel({ onClose }: SettingsPanelProps) {
       id="logic-settings"
       className="settings"
       role="dialog"
-      aria-label="Logic settings"
+      aria-label={t('Logic settings')}
     >
       <header className="settings-head">
-        <h2>Logic settings</h2>
+        <h2>{t('Logic settings')}</h2>
         <button
           type="button"
           className="tool"
-          aria-label="Close settings"
-          title="Close settings (Esc)"
+          aria-label={t('Close settings')}
+          title={t('Close settings (Esc)')}
           onClick={onClose}
         >
           <CloseIcon />

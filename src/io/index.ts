@@ -31,7 +31,7 @@ export type {
   FileWire,
   ProjectFile,
 } from './projectFile.ts'
-export { downloadText, pickTextFile, safeFileName } from './files.ts'
+export { downloadText, fileHooks, pickTextFile, safeFileName } from './files.ts'
 export { LONG_LINK, readShareFragment, shareFragment, unpackShared } from './shareLink.ts'
 export type { SharedProject } from './shareLink.ts'
 export type { PickedFile } from './files.ts'

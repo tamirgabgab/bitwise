@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import type { KeyboardEvent } from 'react'
 import { describeEdit, useEditor } from '../editor/index.ts'
 import type { DocComponent } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon } from './icons.tsx'
 import { partName } from './parts.ts'
@@ -47,7 +48,7 @@ export function HistoryDialog() {
     if (!open) return []
     const steps = [...past, doc, ...future]
     return steps.map((step, index) =>
-      index === 0 ? 'Start' : describeEdit(steps[index - 1], step, nameOf),
+      index === 0 ? t('Start') : describeEdit(steps[index - 1], step, nameOf),
     )
   }, [open, past, doc, future])
   const now = past.length
@@ -57,20 +58,22 @@ export function HistoryDialog() {
       {open && (
         <div>
           <header className="overlay-head">
-            <h2 id="history-title">Edit history</h2>
+            <h2 id="history-title">{t('Edit history')}</h2>
             <button
               type="button"
               className="tool"
-              aria-label="Close the edit history"
-              title="Close the edit history (Esc)"
+              aria-label={t('Close the edit history')}
+              title={t('Close the edit history (Esc)')}
               onClick={close}
             >
               <CloseIcon />
             </button>
           </header>
           <p className="history-note">
-            {circuitName}: pick a step to go back to it. The later steps wait for redo until your next
-            edit.
+            {t(
+              '{name}: pick a step to go back to it. The later steps wait for redo until your next edit.',
+              { name: circuitName },
+            )}
           </p>
           <ol className="history-list" onKeyDown={walkRows}>
             {names.map((name, index) => (
@@ -87,7 +90,7 @@ export function HistoryDialog() {
                   onClick={() => jump(index)}
                 >
                   <span className="history-name">{name}</span>
-                  {index === now && <span className="history-now">Now</span>}
+                  {index === now && <span className="history-now">{t('Now')}</span>}
                 </button>
               </li>
             ))}

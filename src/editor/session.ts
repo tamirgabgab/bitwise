@@ -1,5 +1,6 @@
 import { Z, formatSignal } from '../core/index.ts'
 import type { CircuitCost, Digit, Probe, Signal } from '../core/index.ts'
+import { t } from '../i18n/index.ts'
 import { formatAt } from './busFormat.ts'
 import { terminalNets } from './connectivity.ts'
 import { terminalEnd, terminalKey } from './document.ts'
@@ -452,7 +453,7 @@ export function describeNode(terminal: Terminal): NodeInfo {
       signal: [Z],
       conflict: false,
       mixed: false,
-      name: 'Not connected',
+      name: t('Not connected'),
       drivers: [],
       readers: 0,
     }
@@ -471,7 +472,7 @@ export function describeNode(terminal: Terminal): NodeInfo {
     signal: reading.signal,
     conflict: reading.conflict,
     mixed: reading.mixed,
-    name: named?.label ?? (reading.net === undefined ? 'Not connected' : `Net ${reading.net}`),
+    name: named?.label ?? (reading.net === undefined ? t('Not connected') : t('Net {number}', { number: reading.net })),
     drivers: pins.filter((pin) => pin.drives),
     readers: pins.filter((pin) => !pin.drives).length,
     ...(reading.here ? { here: pins[reading.pins.indexOf(reading.here)] } : {}),

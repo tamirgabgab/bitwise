@@ -20,6 +20,7 @@ import {
   useSim,
 } from '../editor/index.ts'
 import type { Machine, MachineNode, MachineRule, Point } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon, DeleteIcon } from './icons.tsx'
 import { useModal } from './useModal.ts'
@@ -44,7 +45,7 @@ const hex = (digit: number): string => digit.toString(16).toUpperCase()
  */
 function conditionText(machine: Machine, rule: MachineRule): string {
   const parts = rule.when.flatMap((digit, input) => (digit === null ? [] : [`${machine.inputs[input]}=${hex(digit)}`]))
-  const when = parts.length === 0 ? 'always' : parts.join(' ')
+  const when = parts.length === 0 ? t('always') : parts.join(' ')
   if (!machine.mealy || machine.outputs.length === 0) return when
   return `${when} / ${ruleOutputs(machine, rule).map(hex).join(' ')}`
 }
@@ -125,7 +126,7 @@ function DigitSelect({
       {any !== undefined && <option value="">{any}</option>}
       {digits.map((digit) => (
         <option key={digit} value={digit}>
-          {digit >= radix ? `${hex(digit)} (no room)` : hex(digit)}
+          {digit >= radix ? t('{digit} (no room)', { digit: hex(digit) }) : hex(digit)}
         </option>
       ))}
     </select>
@@ -232,11 +233,11 @@ export function MachineEditor() {
       {shown && <MachineBody key={partId} partId={part.id} label={part.label} machine={part.machine!} onClose={close} />}
       {open && !shown && (
         <div className="dialog-box">
-          <h2 id="machine-title">State machine</h2>
-          <p>The part is gone from the open circuit.</p>
+          <h2 id="machine-title">{t('State machine')}</h2>
+          <p>{t('The part is gone from the open circuit.')}</p>
           <div className="dialog-actions">
             <button type="button" className="button button-main" data-first onClick={close}>
-              Close
+              {t('Close')}
             </button>
           </div>
         </div>
@@ -409,7 +410,7 @@ function MachineBody({
 
   const build = (): void => {
     const result = machineToCircuit(partId)
-    if ('problem' in result) setProblem(result.problem)
+    if ('problem' in result) setProblem(t(result.problem))
     else onClose()
   }
 
@@ -419,7 +420,7 @@ function MachineBody({
       {machine[side].map((name, index) => (
         <div key={`${index}:${name}`} className="machine-row">
           <NameInput
-            label={`${title}: name ${index + 1}`}
+            label={t('{title}: name {number}', { title, number: index + 1 })}
             value={name}
             longest={MAX_PIN_NAME}
             onName={(next) => renamePin(side, index, next)}
@@ -427,8 +428,8 @@ function MachineBody({
           <button
             type="button"
             className="tool"
-            aria-label={`Remove ${name}`}
-            title={`Remove ${name}`}
+            aria-label={t('Remove {name}', { name })}
+            title={t('Remove {name}', { name })}
             onClick={() => removePin(side, index)}
           >
             <DeleteIcon />
@@ -437,7 +438,7 @@ function MachineBody({
       ))}
       {machine[side].length < most && (
         <button type="button" className="button" onClick={() => addPin(side)}>
-          {side === 'inputs' ? 'Add input' : 'Add output'}
+          {side === 'inputs' ? t('Add input') : t('Add output')}
         </button>
       )}
     </section>
@@ -446,12 +447,12 @@ function MachineBody({
   return (
     <div className="machine-body">
       <header className="overlay-head">
-        <h2 id={titleId}>{label ? `State machine ${label}` : 'State machine'}</h2>
+        <h2 id={titleId}>{label ? t('State machine {label}', { label }) : t('State machine')}</h2>
         <button
           type="button"
           className="tool"
-          aria-label="Close the machine editor"
-          title="Close the machine editor (Esc)"
+          aria-label={t('Close the machine editor')}
+          title={t('Close the machine editor (Esc)')}
           onClick={onClose}
         >
           <CloseIcon />
@@ -463,7 +464,10 @@ function MachineBody({
           className="machine-drawing"
           viewBox={`${left} ${top} ${width} ${height}`}
           role="img"
-          aria-label={`${machine.states.length} states and ${machine.rules.length} rules. Double-click empty space to add a state.`}
+          aria-label={t('{states} states and {rules} rules. Double-click empty space to add a state.', {
+            states: machine.states.length,
+            rules: machine.rules.length,
+          })}
           onPointerDown={() => {
             setSelectedRule(null)
           }}
@@ -523,34 +527,36 @@ function MachineBody({
           })}
         </svg>
         <div className="machine-panel" id={panelId}>
-          <section className="machine-pins" aria-label="Kind of machine">
+          <section className="machine-pins" aria-label={t('Kind of machine')}>
             <div className="machine-row">
               <label className="field-label" htmlFor={kindId}>
-                Outputs on
+                {t('Outputs on')}
               </label>
               <select
                 id={kindId}
                 value={mealy ? 'mealy' : 'moore'}
-                title="A Moore machine gives its outputs by the state it is in. A Mealy machine gives them by the rule the inputs meet, at once."
+                title={t(
+                  'A Moore machine gives its outputs by the state it is in. A Mealy machine gives them by the rule the inputs meet, at once.',
+                )}
                 onChange={(event) => change(setMealy(machine, event.target.value === 'mealy'))}
               >
-                <option value="moore">States (Moore)</option>
-                <option value="mealy">Rules (Mealy)</option>
+                <option value="moore">{t('States (Moore)')}</option>
+                <option value="mealy">{t('Rules (Mealy)')}</option>
               </select>
             </div>
           </section>
-          {pinList('inputs', 'Inputs', MAX_MACHINE_INPUTS)}
-          {pinList('outputs', 'Outputs', MAX_MACHINE_OUTPUTS)}
+          {pinList('inputs', t('Inputs'), MAX_MACHINE_INPUTS)}
+          {pinList('outputs', t('Outputs'), MAX_MACHINE_OUTPUTS)}
           {state ? (
-            <section className="machine-state-panel" aria-label={`State ${state.name}`}>
+            <section className="machine-state-panel" aria-label={t('State {name}', { name: state.name })}>
               <h3>
-                State {machine.states[0].id === state.id && <span className="machine-tag">start</span>}
-                {state.id === liveId && <span className="machine-tag">now</span>}
+                {t('State')} {machine.states[0].id === state.id && <span className="machine-tag">{t('start')}</span>}
+                {state.id === liveId && <span className="machine-tag">{t('now')}</span>}
               </h3>
               <div className="machine-row">
                 <NameInput
                   key={state.id}
-                  label="State name"
+                  label={t('State name')}
                   value={state.name}
                   longest={MAX_STATE_NAME}
                   first
@@ -558,13 +564,17 @@ function MachineBody({
                 />
               </div>
               {mealy && machine.outputs.length > 0 && (
-                <p className="note">While no rule matches, {state.name} gives:</p>
+                <p className="note">{t('While no rule matches, {name} gives:', { name: state.name })}</p>
               )}
               {machine.outputs.map((name, output) => (
                 <div key={output} className="machine-row">
                   <span className="field-label">{name}</span>
                   <DigitSelect
-                    label={mealy ? `${name} in ${state.name} while no rule matches` : `${name} in ${state.name}`}
+                    label={
+                      mealy
+                        ? t('{output} in {state} while no rule matches', { output: name, state: state.name })
+                        : t('{output} in {state}', { output: name, state: state.name })
+                    }
                     value={state.outputs[output]}
                     radix={radix}
                     onDigit={(digit) =>
@@ -575,17 +585,19 @@ function MachineBody({
                   />
                 </div>
               ))}
-              <h3>Rules, the first that matches wins</h3>
-              {ownRules.length === 0 && <p className="note">No rules: the machine stays in {state.name}.</p>}
+              <h3>{t('Rules, the first that matches wins')}</h3>
+              {ownRules.length === 0 && (
+                <p className="note">{t('No rules: the machine stays in {name}.', { name: state.name })}</p>
+              )}
               <ol className="machine-rules">
                 {ownRules.map((index, place) => {
                   const rule = machine.rules[index]
                   return (
                     <li key={index} className={index === selectedRule ? 'chosen' : undefined}>
                       <div className="machine-row">
-                        <span className="field-label">Go to</span>
+                        <span className="field-label">{t('Go to')}</span>
                         <select
-                          aria-label={`Rule ${place + 1}: go to`}
+                          aria-label={t('Rule {number}: go to', { number: place + 1 })}
                           value={rule.to}
                           onFocus={() => setSelectedRule(index)}
                           onChange={(event) => putRule(index, { to: event.target.value })}
@@ -599,8 +611,8 @@ function MachineBody({
                         <button
                           type="button"
                           className="tool"
-                          aria-label={`Rule ${place + 1}: try it earlier`}
-                          title="Try it earlier"
+                          aria-label={t('Rule {number}: try it earlier', { number: place + 1 })}
+                          title={t('Try it earlier')}
                           disabled={place === 0}
                           onClick={() => moveRuleUp(index)}
                         >
@@ -609,8 +621,8 @@ function MachineBody({
                         <button
                           type="button"
                           className="tool"
-                          aria-label={`Delete rule ${place + 1}`}
-                          title="Delete rule"
+                          aria-label={t('Delete rule {number}', { number: place + 1 })}
+                          title={t('Delete rule')}
                           onClick={() => {
                             change({ ...machine, rules: machine.rules.filter((_rule, other) => other !== index) })
                             setSelectedRule(null)
@@ -621,12 +633,12 @@ function MachineBody({
                       </div>
                       {machine.inputs.map((name, input) => (
                         <div key={input} className="machine-row">
-                          <span className="field-label">when {name}</span>
+                          <span className="field-label">{t('when {name}', { name })}</span>
                           <DigitSelect
-                            label={`Rule ${place + 1}: ${name}`}
+                            label={t('Rule {number}: {name}', { number: place + 1, name })}
                             value={rule.when[input]}
                             radix={radix}
-                            any="any"
+                            any={t('any')}
                             onDigit={(digit) =>
                               putRule(index, { when: rule.when.map((old, other) => (other === input ? digit : old)) })
                             }
@@ -636,9 +648,9 @@ function MachineBody({
                       {mealy &&
                         machine.outputs.map((name, output) => (
                           <div key={`out${output}`} className="machine-row">
-                            <span className="field-label">gives {name}</span>
+                            <span className="field-label">{t('gives {name}', { name })}</span>
                             <DigitSelect
-                              label={`Rule ${place + 1}: gives ${name}`}
+                              label={t('Rule {number}: gives {name}', { number: place + 1, name })}
                               value={ruleOutputs(machine, rule)[output]}
                               radix={radix}
                               onDigit={(digit) =>
@@ -652,7 +664,7 @@ function MachineBody({
                           </div>
                         ))}
                       {shadowed.has(index) && (
-                        <p className="note">Never taken: a rule above it matches first.</p>
+                        <p className="note">{t('Never taken: a rule above it matches first.')}</p>
                       )}
                     </li>
                   )
@@ -660,7 +672,7 @@ function MachineBody({
               </ol>
               <div className="machine-actions">
                 <button type="button" className="button" disabled={machine.rules.length >= MAX_RULES} onClick={addRule}>
-                  Add rule
+                  {t('Add rule')}
                 </button>
                 {machine.states[0].id !== state.id && (
                   <button
@@ -670,44 +682,48 @@ function MachineBody({
                       change({ ...machine, states: [state, ...machine.states.filter((node) => node !== state)] })
                     }
                   >
-                    Start here
+                    {t('Start here')}
                   </button>
                 )}
                 {machine.states.length > 1 && !deleting && (
                   <button type="button" className="button" onClick={() => setDeleting(true)}>
-                    Delete state
+                    {t('Delete state')}
                   </button>
                 )}
               </div>
               {deleting && (
-                <div className="machine-confirm" role="group" aria-label="Delete the state">
+                <div className="machine-confirm" role="group" aria-label={t('Delete the state')}>
                   <p>
-                    Delete {state.name}
                     {(() => {
                       const count = machine.rules.filter((rule) => rule.from === state.id || rule.to === state.id).length
-                      return count > 0 ? ` and the ${count} ${count === 1 ? 'rule' : 'rules'} to and from it` : ''
+                      const name = state.name
+                      if (count === 0) return t('Delete {name}?', { name })
+                      if (count === 1) return t('Delete {name} and the 1 rule to and from it?', { name })
+                      return t('Delete {name} and the {count} rules to and from it?', { name, count })
                     })()}
-                    ?
                   </p>
                   <div className="machine-actions">
                     <button type="button" className="button button-danger" onClick={() => removeState(state.id)}>
-                      Delete {state.name}
+                      {t('Delete {name}', { name: state.name })}
                     </button>
                     <button type="button" className="button" onClick={() => setDeleting(false)}>
-                      Keep it
+                      {t('Keep it')}
                     </button>
                   </div>
                 </div>
               )}
             </section>
           ) : (
-            <p className="note">Pick a state to change it.</p>
+            <p className="note">{t('Pick a state to change it.')}</p>
           )}
         </div>
       </div>
       <footer className="machine-foot">
         <p className="note">
-          {machine.states.length} of {MAX_STATES} states. Double-click empty space to add one; drag a state to move it.
+          {t('{count} of {max} states. Double-click empty space to add one; drag a state to move it.', {
+            count: machine.states.length,
+            max: MAX_STATES,
+          })}
         </p>
         {problem && (
           <p className="note machine-problem" role="status">
@@ -716,15 +732,15 @@ function MachineBody({
         )}
         <div className="machine-actions">
           <button type="button" className="button" disabled={machine.states.length >= MAX_STATES} onClick={() => addState()}>
-            Add state
+            {t('Add state')}
           </button>
           <button
             type="button"
             className="button button-main"
-            title="Make a new circuit of D flip-flops and gates that does the same"
+            title={t('Make a new circuit of D flip-flops and gates that does the same')}
             onClick={build}
           >
-            Build from gates
+            {t('Build from gates')}
           </button>
         </div>
       </footer>

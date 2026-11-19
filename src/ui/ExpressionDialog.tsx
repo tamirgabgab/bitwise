@@ -1,9 +1,20 @@
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { MAX_EXPRESSION_LENGTH, MAX_LABEL, isExpressionError, parseExpression, useEditor } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon } from './icons.tsx'
 import { toast } from './toasts.ts'
 import { useModal } from './useModal.ts'
+
+/** `text` with each place `{name}` that `nodes` holds replaced by its node, such as a piece of code. */
+function withNodes(text: string, nodes: Readonly<Record<string, ReactNode>>): ReactNode[] {
+  return text
+    .split(/\{(\w+)\}/)
+    .map((piece, index) =>
+      index % 2 === 0 ? piece : <Fragment key={index}>{Object.hasOwn(nodes, piece) ? nodes[piece] : `{${piece}}`}</Fragment>,
+    )
+}
 
 /**
  * Builds a circuit from an expression the user types: a switch for each
@@ -25,7 +36,7 @@ export function ExpressionDialog() {
   const ready = parsed !== null && !isExpressionError(parsed)
 
   const showProblem = (message: string, column?: number): void => {
-    setProblem(column === undefined ? message : `Column ${column}: ${message}`)
+    setProblem(column === undefined ? t(message) : t('Column {column}: {problem}', { column, problem: t(message) }))
     if (column !== undefined && field.current) {
       field.current.focus()
       field.current.setSelectionRange(column - 1, column)
@@ -40,7 +51,7 @@ export function ExpressionDialog() {
     }
     setProblem(null)
     close()
-    toast(`Built “${useEditor.getState().circuits[result.circuit].name}” from the expression`)
+    toast(t('Built “{name}” from the expression', { name: useEditor.getState().circuits[result.circuit].name }))
   }
 
   const top = radix - 1
@@ -56,14 +67,14 @@ export function ExpressionDialog() {
           }}
         >
           <header className="overlay-head">
-            <h2 id="expression-title">Build from an expression</h2>
-            <button type="button" className="tool" aria-label="Close" title="Close (Esc)" onClick={close}>
+            <h2 id="expression-title">{t('Build from an expression')}</h2>
+            <button type="button" className="tool" aria-label={t('Close')} title={t('Close (Esc)')} onClick={close}>
               <CloseIcon />
             </button>
           </header>
           <div className="expression-body">
             <label htmlFor="expression-text" className="expression-label">
-              Expression at radix {radix}
+              {t('Expression at radix {radix}', { radix })}
             </label>
             <textarea
               id="expression-text"
@@ -84,7 +95,8 @@ export function ExpressionDialog() {
               }}
               onBlur={() => {
                 // The caret is not moved back into the field the user left.
-                if (parsed !== null && isExpressionError(parsed)) setProblem(`Column ${parsed.column}: ${parsed.message}`)
+                if (parsed !== null && isExpressionError(parsed))
+                  setProblem(t('Column {column}: {problem}', { column: parsed.column, problem: t(parsed.message) }))
               }}
               onKeyDown={(event) => {
                 if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
@@ -94,24 +106,38 @@ export function ExpressionDialog() {
               }}
             />
             <p id="expression-help" className="expression-help">
-              OR <code>|</code> or <code>+</code>, XOR <code>^</code>, AND <code>&amp;</code>, <code>·</code> or side by
-              side, NOT <code>~a</code> or <code>a'</code>
-              {radix > 2 && (
-                <>
-                  , a value <code>a={top}</code>. At radix {radix} AND is the smaller value, OR the larger, NOT is{' '}
-                  {top}−a and XOR the sum modulo {radix}
-                </>
+              {withNodes(
+                radix > 2
+                  ? t(
+                      "OR {or} or {plus}, XOR {xor}, AND {and}, {dot} or side by side, NOT {not} or {prime}, a value {value}. At radix {radix} AND is the smaller value, OR the larger, NOT is {top}−a and XOR the sum modulo {radix}.",
+                      { radix, top },
+                    )
+                  : t("OR {or} or {plus}, XOR {xor}, AND {and}, {dot} or side by side, NOT {not} or {prime}."),
+                {
+                  or: <code>|</code>,
+                  plus: <code>+</code>,
+                  xor: <code>^</code>,
+                  and: <code>&amp;</code>,
+                  dot: <code>·</code>,
+                  not: <code>~a</code>,
+                  prime: <code>a&apos;</code>,
+                  value: <code>a={top}</code>,
+                },
               )}
-              .
             </p>
             <p id="expression-problem" className="expression-problem" aria-live="polite">
               {problem ??
                 (ready
-                  ? `${parsed.variables.length === 1 ? '1 input' : `${parsed.variables.length} inputs`}: ${parsed.variables.join(', ') || 'none'}`
+                  ? parsed.variables.length === 1
+                    ? t('1 input: {names}', { names: parsed.variables[0] })
+                    : t('{count} inputs: {names}', {
+                        count: parsed.variables.length,
+                        names: parsed.variables.join(', ') || t('none'),
+                      })
                   : '')}
             </p>
             <div className="field">
-              <label htmlFor="expression-output">Name of the output</label>
+              <label htmlFor="expression-output">{t('Name of the output')}</label>
               <input
                 id="expression-output"
                 value={output}
@@ -123,10 +149,10 @@ export function ExpressionDialog() {
           </div>
           <footer className="dialog-actions">
             <button type="button" className="button" onClick={close}>
-              Cancel
+              {t('Cancel')}
             </button>
             <button type="submit" className="button button-main" disabled={text.trim() === ''}>
-              Build circuit
+              {t('Build circuit')}
             </button>
           </footer>
         </form>

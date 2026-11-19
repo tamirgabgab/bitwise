@@ -1,5 +1,6 @@
 import { formatSignal, packWord, parseSignal, unpackWord } from '../core/index.ts'
 import type { Digit } from '../core/index.ts'
+import { t } from '../i18n/index.ts'
 
 /*
  * The words of a ROM or RAM as the inspector writes and reads them: digits
@@ -50,14 +51,20 @@ export function wordsFromText(
   count: number,
 ): readonly number[] | string {
   const pieces = text.split(/[\s,;]+/).filter((piece) => piece !== '')
-  if (pieces.length === 0) return 'Write at least one word.'
-  if (pieces.length > count) return `This memory holds ${count} words; the text has ${pieces.length}.`
+  if (pieces.length === 0) return t('Write at least one word.')
+  if (pieces.length > count) {
+    return t('This memory holds {count} words; the text has {given}.', { count, given: pieces.length })
+  }
   const words: number[] = []
   for (const piece of pieces) {
     const word = typedWord(piece, width, radix)
     if (word === undefined) {
       const shown = piece.length > 12 ? `${piece.slice(0, 11)}…` : piece
-      return `“${shown}” is not a word of up to ${width} digits from 0 to ${(radix - 1).toString(16).toUpperCase()}.`
+      return t('“{word}” is not a word of up to {width} digits from 0 to {top}.', {
+        word: shown,
+        width,
+        top: (radix - 1).toString(16).toUpperCase(),
+      })
     }
     words.push(word)
   }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { fromProjectData, projectSvg, readCanvasTheme, useEditor } from '../editor/index.ts'
 import type { ProjectData } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 
 /*
  * Small pictures of projects, for the home screen and the versions. Each is
@@ -68,7 +69,7 @@ export function Thumbnail({ cacheKey, data }: ThumbnailProps) {
   const url = known ? (pictures.get(full) ?? null) : undefined
   return (
     <span className="thumb" aria-hidden="true">
-      {url ? <img src={url} alt="" /> : url === null ? <span className="thumb-none">No picture</span> : null}
+      {url ? <img src={url} alt="" /> : url === null ? <span className="thumb-none">{t('No picture')}</span> : null}
     </span>
   )
 }

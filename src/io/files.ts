@@ -11,8 +11,22 @@ export function safeFileName(name: string, fallback: string): string {
   return cleaned === '' ? fallback : cleaned
 }
 
+/**
+ * Where files go and come from instead of downloads and the browser's file
+ * picker: the desktop app sets these to the system's own dialogs and real
+ * files (`src/ui/desktop.ts`).
+ */
+export const fileHooks: {
+  save: ((fileName: string, text: string, type: string) => void) | null
+  pick: ((accept: string, maxBytes: number) => Promise<PickedFile | null>) | null
+} = { save: null, pick: null }
+
 /** Hands `text` to the browser as a file download. */
 export function downloadText(fileName: string, text: string, type = 'application/json'): void {
+  if (fileHooks.save) {
+    fileHooks.save(fileName, text, type)
+    return
+  }
   const url = URL.createObjectURL(new Blob([text], { type }))
   const link = document.createElement('a')
   link.href = url
@@ -37,6 +51,7 @@ export interface PickedFile {
  * without picking.
  */
 export function pickTextFile(accept: string, maxBytes: number): Promise<PickedFile | null> {
+  if (fileHooks.pick) return fileHooks.pick(accept, maxBytes)
   return new Promise((resolve) => {
     const input = document.createElement('input')
     input.type = 'file'

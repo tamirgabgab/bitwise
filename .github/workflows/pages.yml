@@ -1,7 +1,7 @@
 name: Pages
 
 # Publishes the built site to GitHub Pages after every push to main, once
-# lint, tests and build pass. Pages must be switched on once in the
+# lint, tests, build and the end-to-end tests pass. Pages must be switched on once in the
 # repository settings: Settings > Pages > Source: GitHub Actions.
 
 on:
@@ -35,8 +35,21 @@ jobs:
         with:
           path: dist
 
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run build:e2e
+      - run: npm run e2e
+
   deploy:
-    needs: build
+    needs: [build, e2e]
     runs-on: ubuntu-latest
     environment:
       name: github-pages

@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts'
 import { CloseIcon } from './icons.tsx'
 import { dismissToast, useToasts } from './toasts.ts'
 
@@ -10,11 +11,23 @@ export function ToastHost() {
       {toasts.map((item) => (
         <div key={item.id} className="toast">
           <span>{item.message}</span>
+          {item.offer && (
+            <button
+              type="button"
+              className="button toast-action"
+              onClick={() => {
+                dismissToast(item.id)
+                item.offer?.run()
+              }}
+            >
+              {item.offer.action}
+            </button>
+          )}
           <button
             type="button"
             className="tool"
-            aria-label="Dismiss this message"
-            title="Dismiss this message"
+            aria-label={t('Dismiss this message')}
+            title={t('Dismiss this message')}
             onClick={() => dismissToast(item.id)}
           >
             <CloseIcon />

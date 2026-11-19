@@ -1,5 +1,6 @@
 import { Z, builtinComponents, filled, formatSignal } from '../core/index.ts'
 import type { Signal } from '../core/index.ts'
+import { msg, t } from '../i18n/index.ts'
 import { SUB_TYPE, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent } from './document.ts'
 import { flatten } from './flatten.ts'
@@ -79,14 +80,17 @@ export function rowOf(values: readonly Signal[], radix: number): number | undefi
 function tooLong(columns: readonly TruthColumn[], radix: number): TruthTable | undefined {
   const digits = columns.reduce((sum, column) => sum + column.width, 0)
   if (radix ** digits <= MAX_TRUTH_ROWS) return undefined
-  const what = digits === 1 ? '1 input digit' : `${digits} input digits`
+  const values = { count: digits, radix, rows: radix ** digits, most: MAX_TRUTH_ROWS }
   return {
     kind: 'none',
-    reason: `With ${what} at radix ${radix} the table has ${radix ** digits} rows, more than ${MAX_TRUTH_ROWS}.`,
+    reason:
+      digits === 1
+        ? t('With 1 input digit at radix {radix} the table has {rows} rows, more than {most}.', values)
+        : t('With {count} input digits at radix {radix} the table has {rows} rows, more than {most}.', values),
   }
 }
 
-const KEEPS_VALUE = 'It keeps a value, so its outputs depend on more than its inputs.'
+const KEEPS_VALUE = msg('It keeps a value, so its outputs depend on more than its inputs.')
 
 function builtinTable(part: DocComponent, radix: number): TruthTable | undefined {
   const def = builtinComponents.get(part.type)
@@ -94,7 +98,7 @@ function builtinTable(part: DocComponent, radix: number): TruthTable | undefined
   const ins = ports.filter((port) => port.direction === 'in')
   const outs = ports.filter((port) => port.direction === 'out')
   if (ins.length === 0 || outs.length === 0) return undefined
-  if (def.initialState) return { kind: 'none', reason: KEEPS_VALUE }
+  if (def.initialState) return { kind: 'none', reason: t(KEEPS_VALUE) }
 
   const inputs = ins.map((port) => ({ port: port.name, name: port.name, width: port.width }))
   const outputs = outs.map((port) => ({ port: port.name, name: port.name, width: port.width }))
@@ -134,7 +138,10 @@ function circuitTable(part: DocComponent, circuits: Circuits, radix: number): Tr
   const netlist = flatten(doc, circuits)
   for (const flat of netlist.parts.values()) {
     if (keepsValue(flat.type)) {
-      return { kind: 'none', reason: 'A part inside keeps a value, so its outputs depend on more than its inputs.' }
+      return {
+        kind: 'none',
+        reason: t('A part inside keeps a value, so its outputs depend on more than its inputs.'),
+      }
     }
   }
   const refused = tooLong(inputs, radix)
@@ -152,7 +159,7 @@ function circuitTable(part: DocComponent, circuits: Circuits, radix: number): Tr
       bridge.setInput(column.port, column.width === 1 ? value[0] : formatSignal(value))
     })
     if (!bridge.sim.settle()) {
-      return { kind: 'none', reason: 'It does not settle: some of its wires keep changing.' }
+      return { kind: 'none', reason: t('It does not settle: some of its wires keep changing.') }
     }
     rows.push({
       inputs: values,

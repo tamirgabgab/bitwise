@@ -1,0 +1,13 @@
+{
+  "identifier": "default",
+  "description": "What the window may do: pick a file to open or save, and read or write the file picked.",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "dialog:allow-open",
+    "dialog:allow-save",
+    "fs:allow-read-text-file",
+    "fs:allow-stat",
+    "fs:allow-write-text-file"
+  ]
+}

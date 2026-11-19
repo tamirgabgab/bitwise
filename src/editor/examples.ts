@@ -1,3 +1,4 @@
+import { msg } from '../i18n/index.ts'
 import {
   addComponent,
   addJunction,
@@ -406,38 +407,38 @@ function busCounter(): ProjectData {
 export const EXAMPLES: readonly Example[] = [
   {
     id: 'binary-adder',
-    name: 'Two-bit adder',
-    summary: 'Radix 2. A half adder, used in a full adder, used in an adder',
+    name: msg('Two-bit adder'),
+    summary: msg('Radix 2. A half adder, used in a full adder, used in an adder'),
     build: binaryAdder,
   },
   {
     id: 'ternary-gates',
-    name: 'Ternary gates',
-    summary: 'Radix 3. Max, Is zero and Equal, built from NOT, AND and Shift',
+    name: msg('Ternary gates'),
+    summary: msg('Radix 3. Max, Is zero and Equal, built from NOT, AND and Shift'),
     build: ternaryGates,
   },
   {
     id: 'binary-counter',
-    name: 'Four-bit counter',
-    summary: 'Radix 2. Four JK flip-flops and a clock count from 0 to 15',
+    name: msg('Four-bit counter'),
+    summary: msg('Radix 2. Four JK flip-flops and a clock count from 0 to 15'),
     build: binaryCounter,
   },
   {
     id: 'ternary-counter',
-    name: 'Ternary counter',
-    summary: 'Radix 3. Two T flip-flops count from 0 to 8, one ternary digit each',
+    name: msg('Ternary counter'),
+    summary: msg('Radix 3. Two T flip-flops count from 0 to 8, one ternary digit each'),
     build: ternaryCounter,
   },
   {
     id: 'bus-adder',
-    name: 'Adder on a bus',
-    summary: 'Radix 2. Two four-bit numbers, an adder and a comparator',
+    name: msg('Adder on a bus'),
+    summary: msg('Radix 2. Two four-bit numbers, an adder and a comparator'),
     build: busAdder,
   },
   {
     id: 'bus-counter',
-    name: 'Ternary bus counter',
-    summary: 'Radix 3. A counter counts from 00 to 22, and a register keeps a copy',
+    name: msg('Ternary bus counter'),
+    summary: msg('Radix 3. A counter counts from 00 to 22, and a register keeps a copy'),
     build: busCounter,
   },
 ]

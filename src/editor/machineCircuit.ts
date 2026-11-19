@@ -1,4 +1,5 @@
 import { builtinComponents, machineOutputs, nextState, resolveParams } from '../core/index.ts'
+import { t } from '../i18n/index.ts'
 import type { CircuitDoc } from './document.ts'
 import { autoLayout } from './layout.ts'
 import { MACHINE_TYPE, compileMachine, ruleOutputs } from './machine.ts'
@@ -43,7 +44,12 @@ export function machineCircuit(machine: Machine, radix: number): CircuitDoc | st
   for (const state of machine.states) {
     const output = state.outputs.findIndex((digit) => digit > top)
     if (output !== -1) {
-      return `State “${state.name}” gives ${machine.outputs[output]} the digit ${hex(state.outputs[output])}, which radix ${radix} has no room for.`
+      return t('State “{state}” gives {output} the digit {digit}, which radix {radix} has no room for.', {
+        state: state.name,
+        output: machine.outputs[output],
+        digit: hex(state.outputs[output]),
+        radix,
+      })
     }
   }
   if (machine.mealy) {
@@ -52,14 +58,20 @@ export function machineCircuit(machine: Machine, radix: number): CircuitDoc | st
       const output = digits.findIndex((digit) => digit > top)
       if (output === -1) continue
       const name = (id: string): string => machine.states.find((state) => state.id === id)?.name ?? id
-      return `A rule from “${name(rule.from)}” to “${name(rule.to)}” gives ${machine.outputs[output]} the digit ${hex(digits[output])}, which radix ${radix} has no room for.`
+      return t(
+        'A rule from “{from}” to “{to}” gives {output} the digit {digit}, which radix {radix} has no room for.',
+        { from: name(rule.from), to: name(rule.to), output: machine.outputs[output], digit: hex(digits[output]), radix },
+      )
     }
   }
   const inputs = machine.inputs.length
   const digits = stateDigits(machine.states.length, radix)
   const variables = inputs + digits
   if (radix ** variables > MAX_MACHINE_ROWS) {
-    return `This machine has ${radix ** variables} rows of inputs and states, and gates are built for at most ${MAX_MACHINE_ROWS}. Give it fewer inputs or states.`
+    return t(
+      'This machine has {rows} rows of inputs and states, and gates are built for at most {most}. Give it fewer inputs or states.',
+      { rows: radix ** variables, most: MAX_MACHINE_ROWS },
+    )
   }
   const params = resolveParams(builtinComponents.get(MACHINE_TYPE), compileMachine(machine))
 

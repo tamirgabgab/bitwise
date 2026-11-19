@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import {
   SUB_TYPE,
   canPlace,
@@ -11,7 +12,8 @@ import { useChrome } from './chrome.ts'
 import { GateTable } from './GateTable.tsx'
 import { ChevronIcon, ChipIcon, SearchIcon } from './icons.tsx'
 import { matchesQuery, paletteSections, recentIn, searchSections } from './paletteModel.ts'
-import { hasGateTable, partHint, partName } from './parts.ts'
+import { msg, t } from '../i18n/index.ts'
+import { hasGateTable, inputCount, outputCount, partHint, partName } from './parts.ts'
 import { beginPlacing, placeAtCenter } from './placing.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
@@ -43,8 +45,14 @@ function SymbolIcon({ type }: { type: string }) {
   return <canvas ref={ref} aria-hidden="true" />
 }
 
-function count(amount: number, noun: string): string {
-  return `${amount} ${noun}${amount === 1 ? '' : 's'}`
+/**
+ * A translated sentence with parts of the page, such as buttons, in its
+ * places: `{search}` in the text is where `nodes.search` goes.
+ */
+function withNodes(text: string, nodes: Readonly<Record<string, ReactNode>>): ReactNode {
+  return text.split(/\{(\w+)\}/).map((piece, index) =>
+    index % 2 === 0 ? piece : <Fragment key={piece}>{Object.hasOwn(nodes, piece) ? nodes[piece] : `{${piece}}`}</Fragment>,
+  )
 }
 
 /** The other circuits of the project, each ready to be used as a part. */
@@ -63,7 +71,7 @@ function CircuitParts({ query }: { query: string }) {
     <section>
       <h2>
         {searching ? (
-          'Circuits'
+          t('Circuits')
         ) : (
           <button
             type="button"
@@ -73,16 +81,16 @@ function CircuitParts({ query }: { query: string }) {
             onClick={() => useChrome.getState().toggleSection('circuits')}
           >
             <ChevronIcon />
-            <span className="palette-title">Circuits</span>
+            <span className="palette-title">{t('Circuits')}</span>
             <span className="palette-count">{others.length}</span>
           </button>
         )}
       </h2>
       {folded && !searching ? null : others.length === 0 ? (
         <p className="palette-note">
-          Circuits you add show up here as parts you can use.{' '}
+          {t('Circuits you add show up here as parts you can use.')}{' '}
           <button type="button" className="link" onClick={() => useEditor.getState().addCircuit()}>
-            Add a circuit
+            {t('Add a circuit')}
           </button>
         </p>
       ) : (
@@ -91,7 +99,10 @@ function CircuitParts({ query }: { query: string }) {
             const circuit = circuits[id]
             const pins = interfaceOf(circuit.doc)
             const allowed = canPlace(circuits, active, id)
-            const shape = `${count(pins.inputs.length, 'input')}, ${count(pins.outputs.length, 'output')}`
+            const shape = t('{inputs}, {outputs}', {
+              inputs: inputCount(pins.inputs.length),
+              outputs: outputCount(pins.outputs.length),
+            })
             return (
               <button
                 key={id}
@@ -101,8 +112,11 @@ function CircuitParts({ query }: { query: string }) {
                 aria-disabled={!allowed}
                 title={
                   allowed
-                    ? `${circuit.name}: ${shape}. Drag onto the canvas, or click.`
-                    : `${circuit.name} has ${circuits[active].name} inside it, so it cannot go in here.`
+                    ? t('{name}: {shape}. Drag onto the canvas, or click.', { name: circuit.name, shape })
+                    : t('{name} has {open} inside it, so it cannot go in here.', {
+                        name: circuit.name,
+                        open: circuits[active].name,
+                      })
                 }
                 onPointerDown={(event) => {
                   if (allowed) beginPlacing(SUB_TYPE, event, id)
@@ -134,7 +148,7 @@ function PartButton({ type, radix, onShowTable, onHideTable }: PartButtonProps) 
     <button
       type="button"
       className="part"
-      title={`${partName(type)}: ${partHint(type, radix)}. Drag onto the canvas, or click.`}
+      title={t('{name}: {shape}. Drag onto the canvas, or click.', { name: partName(type), shape: partHint(type, radix) })}
       onPointerDown={(event) => {
         onHideTable()
         beginPlacing(type, event)
@@ -165,7 +179,7 @@ export function Palette() {
   const lately = recentIn(recent, all)
   const sections = searching
     ? searchSections(all, query, radix)
-    : [...(lately.length > 0 ? [{ id: 'recent', title: 'Used lately', types: lately }] : []), ...all]
+    : [...(lately.length > 0 ? [{ id: 'recent', title: msg('Used lately'), types: lately }] : []), ...all]
 
   const showTable = (type: string, button: HTMLElement): void => {
     if (!hasGateTable(type)) return
@@ -175,13 +189,13 @@ export function Palette() {
   const hideTable = (): void => setTip(null)
 
   return (
-    <nav className="palette" aria-label="Parts">
+    <nav className="palette" aria-label={t('Parts')}>
       <label className="palette-search">
         <SearchIcon />
-        <span className="visually-hidden">Search parts</span>
+        <span className="visually-hidden">{t('Search parts')}</span>
         <input
           type="search"
-          placeholder="Search parts"
+          placeholder={t('Search parts')}
           autoComplete="off"
           spellCheck={false}
           value={query}
@@ -203,7 +217,7 @@ export function Palette() {
           <section key={section.id}>
             <h2>
               {searching ? (
-                section.title
+                t(section.title)
               ) : (
                 <button
                   type="button"
@@ -213,7 +227,7 @@ export function Palette() {
                   onClick={() => useChrome.getState().toggleSection(section.id)}
                 >
                   <ChevronIcon />
-                  <span className="palette-title">{section.title}</span>
+                  <span className="palette-title">{t(section.title)}</span>
                   <span className="palette-count">{section.types.length}</span>
                 </button>
               )}
@@ -235,19 +249,23 @@ export function Palette() {
       <CircuitParts query={query} />
       {searching && sections.length === 0 && (
         <p className="palette-note palette-none">
-          No built-in part matches “{query.trim()}”.{' '}
-          <button
-            type="button"
-            className="link"
-            onClick={() => useChrome.getState().openCommands(query.trim())}
-          >
-            Search all actions
-          </button>{' '}
-          or{' '}
-          <button type="button" className="link" onClick={() => setQuery('')}>
-            clear the search
-          </button>
-          .
+          {t('No built-in part matches “{query}”.', { query: query.trim() })}{' '}
+          {withNodes(t('{search} or {clear}.'), {
+            search: (
+              <button
+                type="button"
+                className="link"
+                onClick={() => useChrome.getState().openCommands(query.trim())}
+              >
+                {t('Search all actions')}
+              </button>
+            ),
+            clear: (
+              <button type="button" className="link" onClick={() => setQuery('')}>
+                {t('clear the search')}
+              </button>
+            ),
+          })}
         </p>
       )}
       {tip && <GateTable type={tip.type} anchor={tip} />}

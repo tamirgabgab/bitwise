@@ -11,6 +11,7 @@ import {
   valueText,
 } from '../editor/index.ts'
 import type { DocComponent } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { nextAnswer, typedAnswer } from './tableAnswers.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
@@ -97,10 +98,10 @@ export function TableEditor({ component }: { component: DocComponent }) {
   const [focusRow, focusColumn] = [Math.min(focus[0], rows - 1), Math.min(focus[1], radix - 1)]
 
   return (
-    <section className="table-editor" aria-label="Table">
-      <h3>Table</h3>
+    <section className="table-editor" aria-label={t('Table')}>
+      <h3>{t('Table')}</h3>
       <div className="table-editor-scroll" style={{ ['--cell' as string]: `${size}px` }}>
-        <table ref={grid} role="grid" aria-label={inputs === 2 ? 'Answers by in0 and in1' : 'Answers by in0'}>
+        <table ref={grid} role="grid" aria-label={inputs === 2 ? t('Answers by in0 and in1') : t('Answers by in0')}>
           <thead>
             <tr>
               <th className="table-editor-corner" scope="col">
@@ -131,7 +132,7 @@ export function TableEditor({ component }: { component: DocComponent }) {
                         style={look(digit)}
                         tabIndex={row === focusRow && column === focusColumn ? 0 : -1}
                         aria-label={`${at}: ${shown}`}
-                        title={`${at} gives ${shown}`}
+                        title={t('{at} gives {answer}', { at, answer: shown })}
                         onClick={(event) => step(event, row, column, 1)}
                         onContextMenu={(event) => step(event, row, column, -1)}
                         onKeyDown={(event) => onKeyDown(event, row, column)}
@@ -147,7 +148,9 @@ export function TableEditor({ component }: { component: DocComponent }) {
           </tbody>
         </table>
       </div>
-      <p className="note">Click an answer to step it, or type a digit. X leaves it unknown.</p>
+      <p className="note">
+        {t('Click an answer to step it, or type a digit.')} {t('X leaves it unknown.')}
+      </p>
     </section>
   )
 }

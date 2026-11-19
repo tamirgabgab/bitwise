@@ -11,6 +11,7 @@ import {
   presetAvailable,
   resolveParams,
 } from '../core/index.ts'
+import { msg, t } from '../i18n/index.ts'
 
 /*
  * The project file: a whole project as JSON. `parseProject` checks a text
@@ -251,7 +252,7 @@ const isWhole = (value: unknown): value is number =>
 
 function listOf(value: unknown, what: string): unknown[] {
   if (value === undefined) return []
-  if (!Array.isArray(value)) fail(`${what} must be a list.`)
+  if (!Array.isArray(value)) fail(t('{what} must be a list.', { what }))
   return value
 }
 
@@ -263,17 +264,17 @@ function pointOf(value: unknown, what: string): FilePoint {
     !Number.isFinite(value.x) ||
     !Number.isFinite(value.y)
   ) {
-    fail(`${what} has no valid position.`)
+    fail(t('{what} has no valid position.', { what }))
   }
   if (Math.abs(value.x) > MAX_COORD || Math.abs(value.y) > MAX_COORD) {
-    fail(`${what} lies more than ${MAX_COORD} grid units from the middle.`)
+    fail(t('{what} lies more than {most} grid units from the middle.', { what, most: MAX_COORD }))
   }
   return { x: value.x, y: value.y }
 }
 
 function idOf(value: unknown, what: string): string {
-  if (typeof value !== 'string' || value === '') fail(`${what} has no id.`)
-  if (!isSafeId(value)) fail(`${what} has the id "${shown(value)}", which this app cannot use.`)
+  if (typeof value !== 'string' || value === '') fail(t('{what} has no id.', { what }))
+  if (!isSafeId(value)) fail(t('{what} has the id "{id}", which this app cannot use.', { what, id: shown(value) }))
   return value
 }
 
@@ -282,7 +283,7 @@ function settingsOf(value: unknown): FileSettings {
   let radix = 2
   if (given.radix !== undefined) {
     if (!isWhole(given.radix) || given.radix < MIN_RADIX || given.radix > MAX_RADIX) {
-      fail(`The radix must be a whole number from ${MIN_RADIX} to ${MAX_RADIX}.`)
+      fail(t('The radix must be a whole number from {min} to {max}.', { min: MIN_RADIX, max: MAX_RADIX }))
     }
     radix = given.radix
   }
@@ -310,69 +311,82 @@ function settingsOf(value: unknown): FileSettings {
 }
 
 function machineOf(value: unknown, what: string): FileMachine {
-  if (!isObject(value)) fail(`${what} is a state machine with no machine.`)
+  if (!isObject(value)) fail(t('{what} is a state machine with no machine.', { what }))
   const isDigit = (digit: unknown): digit is number => isWhole(digit) && digit >= 0 && digit < MAX_RADIX
-  const names = (list: unknown, most: number, kind: string): string[] => {
-    if (!Array.isArray(list) || list.length > most) fail(`${what} must have a list of up to ${most} ${kind}.`)
+  // The messages for a list of names that is too long, and for a name that does not fit.
+  const names = (list: unknown, most: number, tooMany: string, badName: string): string[] => {
+    if (!Array.isArray(list) || list.length > most) fail(t(tooMany, { what, most }))
     return list.map((name) => {
       if (typeof name !== 'string' || name.trim() === '' || name.length > MAX_PIN_NAME) {
-        fail(`${what} has ${kind} whose names are not 1 to ${MAX_PIN_NAME} characters.`)
+        fail(t(badName, { what, most: MAX_PIN_NAME }))
       }
       return name
     })
   }
-  const inputs = names(value.inputs, MAX_MACHINE_INPUTS, 'inputs')
-  const outputs = names(value.outputs, MAX_MACHINE_OUTPUTS, 'outputs')
+  const inputs = names(
+    value.inputs,
+    MAX_MACHINE_INPUTS,
+    msg('{what} must have a list of up to {most} inputs.'),
+    msg('{what} has inputs whose names are not 1 to {most} characters.'),
+  )
+  const outputs = names(
+    value.outputs,
+    MAX_MACHINE_OUTPUTS,
+    msg('{what} must have a list of up to {most} outputs.'),
+    msg('{what} has outputs whose names are not 1 to {most} characters.'),
+  )
 
   const stateList = value.states
   if (!Array.isArray(stateList) || stateList.length === 0 || stateList.length > MAX_STATES) {
-    fail(`${what} must have from 1 to ${MAX_STATES} states.`)
+    fail(t('{what} must have from 1 to {most} states.', { what, most: MAX_STATES }))
   }
   const ids = new Set<string>()
   const states = stateList.map((state) => {
     if (!isObject(state) || typeof state.id !== 'string' || !/^[A-Za-z]\w{0,15}$/.test(state.id)) {
-      fail(`${what} has a state without a usable id.`)
+      fail(t('{what} has a state without a usable id.', { what }))
     }
-    if (ids.has(state.id)) fail(`${what} has two states with the id ${state.id}.`)
+    if (ids.has(state.id)) fail(t('{what} has two states with the id {id}.', { what, id: state.id }))
     ids.add(state.id)
     const name = state.name
     if (typeof name !== 'string' || name.trim() === '' || name.length > MAX_STATE_NAME) {
-      fail(`${what} has a state whose name is not 1 to ${MAX_STATE_NAME} characters.`)
+      fail(t('{what} has a state whose name is not 1 to {most} characters.', { what, most: MAX_STATE_NAME }))
     }
     const pos = pointOf(state.pos, what)
     if (pos.x < 0 || pos.y < 0 || pos.x > MACHINE_SPACE || pos.y > MACHINE_SPACE) {
-      fail(`${what} has a state outside the machine editor.`)
+      fail(t('{what} has a state outside the machine editor.', { what }))
     }
     const digits = state.outputs
     if (!Array.isArray(digits) || digits.length !== outputs.length || !digits.every(isDigit)) {
-      fail(`${what}: state "${shown(name)}" must give a digit from 0 to F on each output.`)
+      fail(t('{what}: state "{name}" must give a digit from 0 to F on each output.', { what, name: shown(name) }))
     }
     return { id: state.id, name, pos, outputs: digits as number[] }
   })
 
   if (value.mealy !== undefined && typeof value.mealy !== 'boolean') {
-    fail(`${what} must say true or false for whether it is a Mealy machine.`)
+    fail(t('{what} must say true or false for whether it is a Mealy machine.', { what }))
   }
   const mealy = value.mealy === true
   const ruleList = value.rules
-  if (!Array.isArray(ruleList) || ruleList.length > MAX_RULES) fail(`${what} must have a list of up to ${MAX_RULES} rules.`)
+  if (!Array.isArray(ruleList) || ruleList.length > MAX_RULES) {
+    fail(t('{what} must have a list of up to {most} rules.', { what, most: MAX_RULES }))
+  }
   const rules = ruleList.map((rule) => {
     if (!isObject(rule) || typeof rule.from !== 'string' || typeof rule.to !== 'string') {
-      fail(`${what} has a rule that does not say where it goes.`)
+      fail(t('{what} has a rule that does not say where it goes.', { what }))
     }
-    if (!ids.has(rule.from) || !ids.has(rule.to)) fail(`${what} has a rule to or from a state it does not have.`)
+    if (!ids.has(rule.from) || !ids.has(rule.to)) fail(t('{what} has a rule to or from a state it does not have.', { what }))
     const when = rule.when
     if (
       !Array.isArray(when) ||
       when.length !== inputs.length ||
       !when.every((digit) => digit === null || isDigit(digit))
     ) {
-      fail(`${what} has a rule that does not ask each input for a digit from 0 to F or any.`)
+      fail(t('{what} has a rule that does not ask each input for a digit from 0 to F or any.', { what }))
     }
     const digits = rule.outputs
     if (digits === undefined && !mealy) return { from: rule.from, to: rule.to, when: when as (number | null)[] }
     if (!Array.isArray(digits) || digits.length !== outputs.length || !digits.every(isDigit)) {
-      fail(`${what} has a rule that does not give a digit from 0 to F on each output.`)
+      fail(t('{what} has a rule that does not give a digit from 0 to F on each output.', { what }))
     }
     return { from: rule.from, to: rule.to, when: when as (number | null)[], outputs: digits as number[] }
   })
@@ -380,18 +394,19 @@ function machineOf(value: unknown, what: string): FileMachine {
 }
 
 function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<string>): FileComponent {
-  if (!isObject(value)) fail(`${where}: a part is not an object.`)
-  const id = idOf(value.id, `${where}: a part`)
-  const what = `${where}: part ${id}`
+  const some = t('{where}: a part', { where })
+  if (!isObject(value)) fail(t('{what} is not an object.', { what: some }))
+  const id = idOf(value.id, some)
+  const what = t('{where}: part {id}', { where, id })
   const pos = pointOf(value.pos, what)
   const rotation = value.rotation ?? 0
-  if (!isWhole(rotation) || rotation < 0 || rotation > 3) fail(`${what} has an invalid rotation.`)
+  if (!isWhole(rotation) || rotation < 0 || rotation > 3) fail(t('{what} has an invalid rotation.', { what }))
   const delay = value.delay ?? 1
   if (!isWhole(delay) || delay < 1 || delay > MAX_FILE_DELAY) {
-    fail(`${what} must have a delay from 1 to ${MAX_FILE_DELAY}.`)
+    fail(t('{what} must have a delay from 1 to {most}.', { what, most: MAX_FILE_DELAY }))
   }
   if (value.label !== undefined && typeof value.label !== 'string') {
-    fail(`${what} has a label that is not text.`)
+    fail(t('{what} has a label that is not text.', { what }))
   }
   const label = typeof value.label === 'string' && value.label.trim() !== '' ? value.label : undefined
   const named = label === undefined ? {} : { label }
@@ -400,46 +415,46 @@ function componentOf(value: unknown, where: string, circuitIds: ReadonlySet<stri
     const fits =
       typeof key === 'string' && /^(Key[A-Z]|Digit[0-9])$/.test(key) && key !== 'KeyR'
     if (!fits || (value.type !== 'input' && value.type !== 'button')) {
-      fail(`${what} has a keyboard key it cannot have.`)
+      fail(t('{what} has a keyboard key it cannot have.', { what }))
     }
   }
   const keyed = typeof key === 'string' ? { key } : {}
 
   if (value.type === CIRCUIT_PART) {
     if (typeof value.circuit !== 'string' || !circuitIds.has(value.circuit)) {
-      fail(`${what} stands for a circuit that is not in the file.`)
+      fail(t('{what} stands for a circuit that is not in the file.', { what }))
     }
     return { id, type: CIRCUIT_PART, params: {}, delay: 1, pos, rotation, circuit: value.circuit }
   }
   if (value.type === TEXT_PART) {
     if (typeof value.text !== 'string' || value.text.trim() === '') {
-      fail(`${what} is a text label with nothing written on it.`)
+      fail(t('{what} is a text label with nothing written on it.', { what }))
     }
     return { id, type: TEXT_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text }
   }
   if (value.type === NET_PART) {
-    if (label === undefined) fail(`${what} is a net label with no name.`)
+    if (label === undefined) fail(t('{what} is a net label with no name.', { what }))
     return { id, type: NET_PART, params: {}, delay: 1, pos, rotation, label }
   }
   if (value.type === FRAME_PART) {
-    if (typeof value.text !== 'string' || value.text.trim() === '') fail(`${what} is a frame with no title.`)
+    if (typeof value.text !== 'string' || value.text.trim() === '') fail(t('{what} is a frame with no title.', { what }))
     const size = pointOf(value.size, what)
-    if (size.x <= 0 || size.y <= 0) fail(`${what} is a frame with no size.`)
+    if (size.x <= 0 || size.y <= 0) fail(t('{what} is a frame with no size.', { what }))
     return { id, type: FRAME_PART, params: {}, delay: 1, pos, rotation: 0, text: value.text, size }
   }
   const machine = value.type === MACHINE_PART ? { machine: machineOf(value.machine, what) } : {}
   if (typeof value.type !== 'string' || !builtinComponents.has(value.type)) {
-    fail(`${what} has the unknown type "${shown(String(value.type))}".`)
+    fail(t('{what} has the unknown type "{type}".', { what, type: shown(String(value.type)) }))
   }
   const given = value.params ?? {}
   if (!isObject(given) || !Object.values(given).every((item) => typeof item === 'number')) {
-    fail(`${what} has parameters that are not numbers.`)
+    fail(t('{what} has parameters that are not numbers.', { what }))
   }
   let params: Readonly<Record<string, number>>
   try {
     params = resolveParams(builtinComponents.get(value.type), given as Record<string, number>)
   } catch (error) {
-    fail(`${what}: ${error instanceof Error ? error.message : 'invalid parameters'}.`)
+    fail(t('{what}: {problem}.', { what, problem: error instanceof Error ? error.message : t('invalid parameters') }))
   }
   return { id, type: value.type, params, delay, pos, rotation, ...named, ...keyed, ...machine }
 }
@@ -452,18 +467,18 @@ function terminalOf(
 ): FileTerminal {
   if (isObject(value) && value.kind === 'pin') {
     if (typeof value.component !== 'string' || !parts.has(value.component)) {
-      fail(`${what} ends on a part that is not in the circuit.`)
+      fail(t('{what} ends on a part that is not in the circuit.', { what }))
     }
-    if (typeof value.port !== 'string' || value.port === '') fail(`${what} ends on no pin.`)
+    if (typeof value.port !== 'string' || value.port === '') fail(t('{what} ends on no pin.', { what }))
     return { kind: 'pin', component: value.component, port: value.port }
   }
   if (isObject(value) && value.kind === 'junction') {
     if (typeof value.junction !== 'string' || !junctions.has(value.junction)) {
-      fail(`${what} ends on a junction that is not in the circuit.`)
+      fail(t('{what} ends on a junction that is not in the circuit.', { what }))
     }
     return { kind: 'junction', junction: value.junction }
   }
-  return fail(`${what} has an end that is neither a pin nor a junction.`)
+  return fail(t('{what} has an end that is neither a pin nor a junction.', { what }))
 }
 
 function viewOf(value: unknown): FileView | undefined {
@@ -478,39 +493,41 @@ function viewOf(value: unknown): FileView | undefined {
 
 function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): FileCircuit {
   const name = typeof value.name === 'string' ? value.name.trim() : ''
-  if (name === '') fail(`Circuit ${id} has no name.`)
-  const where = `Circuit "${shown(name)}"`
+  if (name === '') fail(t('Circuit {id} has no name.', { id }))
+  const where = t('Circuit "{name}"', { name: shown(name) })
   const count = [value.components, value.junctions, value.wires]
     .map((list) => (Array.isArray(list) ? list.length : 0))
     .reduce((sum, length) => sum + length, 0)
-  if (count > MAX_ITEMS) fail(`${where} has more than ${MAX_ITEMS} parts, junctions and wires.`)
+  if (count > MAX_ITEMS) fail(t('{what} has more than {most} parts, junctions and wires.', { what: where, most: MAX_ITEMS }))
 
   const taken = new Set<string>()
   const claim = (itemId: string): void => {
-    if (taken.has(itemId)) fail(`${where}: the id ${itemId} is used twice.`)
+    if (taken.has(itemId)) fail(t('{what}: the id {id} is used twice.', { what: where, id: itemId }))
     taken.add(itemId)
   }
 
-  const components = listOf(value.components, `${where}: the parts`).map((item) =>
+  const components = listOf(value.components, t('{where}: the parts', { where })).map((item) =>
     componentOf(item, where, circuitIds),
   )
   for (const component of components) claim(component.id)
   const parts = new Set(taken)
 
-  const junctions = listOf(value.junctions, `${where}: the junctions`).map((item): FileJunction => {
-    if (!isObject(item)) fail(`${where}: a junction is not an object.`)
-    const junctionId = idOf(item.id, `${where}: a junction`)
-    return { id: junctionId, pos: pointOf(item.pos, `${where}: junction ${junctionId}`) }
+  const junctions = listOf(value.junctions, t('{where}: the junctions', { where })).map((item): FileJunction => {
+    const some = t('{where}: a junction', { where })
+    if (!isObject(item)) fail(t('{what} is not an object.', { what: some }))
+    const junctionId = idOf(item.id, some)
+    return { id: junctionId, pos: pointOf(item.pos, t('{where}: junction {id}', { where, id: junctionId })) }
   })
   for (const junction of junctions) claim(junction.id)
   const junctionIds = new Set(junctions.map((junction) => junction.id))
 
-  const wires = listOf(value.wires, `${where}: the wires`).map((item): FileWire => {
-    if (!isObject(item)) fail(`${where}: a wire is not an object.`)
-    const wireId = idOf(item.id, `${where}: a wire`)
-    const what = `${where}: wire ${wireId}`
+  const wires = listOf(value.wires, t('{where}: the wires', { where })).map((item): FileWire => {
+    const some = t('{where}: a wire', { where })
+    if (!isObject(item)) fail(t('{what} is not an object.', { what: some }))
+    const wireId = idOf(item.id, some)
+    const what = t('{where}: wire {id}', { where, id: wireId })
     if (item.format !== undefined && !WIRE_FORMATS.includes(item.format as string)) {
-      fail(`${what} is written in a way this app does not know.`)
+      fail(t('{what} is written in a way this app does not know.', { what }))
     }
     return {
       id: wireId,
@@ -526,7 +543,9 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
     const number = Number(itemId.slice(1))
     if (Number.isInteger(number)) highest = Math.max(highest, number)
   }
-  if (highest >= MAX_ID_NUMBER) fail(`${where} has an id with a number of ${MAX_ID_NUMBER} or more.`)
+  if (highest >= MAX_ID_NUMBER) {
+    fail(t('{what} has an id with a number of {most} or more.', { what: where, most: MAX_ID_NUMBER }))
+  }
   const nextId =
     isWhole(value.nextId) && value.nextId < MAX_ID_NUMBER
       ? Math.max(value.nextId, highest + 1)
@@ -540,10 +559,11 @@ function circuitOf(value: Json, id: string, circuitIds: ReadonlySet<string>): Fi
   }
   const steps: FileStep[] = []
   if (value.steps !== undefined) {
-    for (const item of listOf(value.steps, `${where}: the steps`)) {
-      if (!isObject(item)) fail(`${where}: a step is not an object.`)
+    const some = t('{where}: a step', { where })
+    for (const item of listOf(value.steps, t('{where}: the steps', { where }))) {
+      if (!isObject(item)) fail(t('{what} is not an object.', { what: some }))
       if (item.note !== undefined && typeof item.note !== 'string') {
-        fail(`${where}: a step has a note that is not text.`)
+        fail(t('{what} has a note that is not text.', { what: some }))
       }
       const shown: Record<string, FileInput> = {}
       if (isObject(item.inputs)) {
@@ -592,14 +612,14 @@ function checkNesting(circuits: readonly FileCircuit[]): void {
     const known = size.get(id)
     if (known !== undefined) return known
     const name = shown(names.get(id) ?? id)
-    if (open.has(id)) fail(`Circuit "${name}" contains itself.`)
+    if (open.has(id)) fail(t('Circuit "{name}" contains itself.', { name }))
     open.add(id)
     const used = uses.get(id) ?? []
     let parts = (partCount.get(id) ?? 0) - used.length
     for (const inner of used) parts += visit(inner)
     open.delete(id)
     if (parts > MAX_FLAT_PARTS) {
-      fail(`Circuit "${name}" comes to more than ${MAX_FLAT_PARTS} parts with its circuits opened up.`)
+      fail(t('Circuit "{name}" comes to more than {most} parts with its circuits opened up.', { name, most: MAX_FLAT_PARTS }))
     }
     size.set(id, parts)
     return parts
@@ -614,40 +634,41 @@ function checkNesting(circuits: readonly FileCircuit[]): void {
  */
 export function parseProject(text: string): ProjectFile {
   if (text.length > MAX_FILE_LENGTH) {
-    fail(`The file is larger than ${MAX_FILE_LENGTH / 1_000_000} MB, more than a project can be.`)
+    fail(t('The file is larger than {size} MB, more than a project can be.', { size: MAX_FILE_LENGTH / 1_000_000 }))
   }
   let data: unknown
   try {
     data = JSON.parse(text)
   } catch {
-    fail('This is not a Bitwise project: the file is not valid JSON.')
+    fail(t('This is not a Bitwise project: the file is not valid JSON.'))
   }
   if (!isObject(data) || data.format !== FILE_FORMAT) {
-    fail('This is not a Bitwise project file.')
+    fail(t('This is not a Bitwise project file.'))
   }
   const version = data.version
-  if (!isWhole(version) || version < 1) fail('The project file has no valid format version.')
+  if (!isWhole(version) || version < 1) fail(t('The project file has no valid format version.'))
   if (version > FILE_FORMAT_VERSION) {
     fail(
-      `This project was saved by a newer version of Bitwise (file format ${version}). ` +
-        'Update the app to open it.',
+      t('This project was saved by a newer version of Bitwise (file format {version}). Update the app to open it.', {
+        version,
+      }),
     )
   }
   let current: Json = data
   for (let from = version; from < FILE_FORMAT_VERSION; from++) {
     const migrate = MIGRATIONS[from]
-    if (!migrate) fail(`File format ${from} can no longer be opened.`)
+    if (!migrate) fail(t('File format {version} can no longer be opened.', { version: from }))
     current = migrate(current)
   }
 
-  const items = listOf(current.circuits, 'The circuits')
-  if (items.length === 0) fail('The project file has no circuits.')
-  if (items.length > MAX_CIRCUITS) fail(`The project has more than ${MAX_CIRCUITS} circuits.`)
+  const items = listOf(current.circuits, t('The circuits'))
+  if (items.length === 0) fail(t('The project file has no circuits.'))
+  if (items.length > MAX_CIRCUITS) fail(t('The project has more than {most} circuits.', { most: MAX_CIRCUITS }))
   const ids = new Set<string>()
   for (const item of items) {
-    if (!isObject(item)) fail('A circuit is not an object.')
-    const id = idOf(item.id, 'A circuit')
-    if (ids.has(id)) fail(`The circuit id ${id} is used twice.`)
+    if (!isObject(item)) fail(t('{what} is not an object.', { what: t('A circuit') }))
+    const id = idOf(item.id, t('A circuit'))
+    if (ids.has(id)) fail(t('The circuit id {id} is used twice.', { id }))
     ids.add(id)
   }
   const circuits = items.map((item) => circuitOf(item as Json, (item as Json).id as string, ids))

@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts'
 import type { CircuitDoc } from './document.ts'
 import { autoLayout } from './layout.ts'
 import { gateBuilder, sumOfProducts } from './sumOfProducts.ts'
@@ -84,7 +85,10 @@ function tokenize(text: string): Token[] {
       while (at < text.length && /[A-Za-z0-9_]/.test(text[at])) at++
       const name = text.slice(start, at)
       if (name.length > MAX_VARIABLE_NAME) {
-        throw new Mistake(`The name “${name.slice(0, 8)}…” is longer than ${MAX_VARIABLE_NAME} letters.`, start + 1)
+        throw new Mistake(
+          t('The name “{name}…” is longer than {most} letters.', { name: name.slice(0, 8), most: MAX_VARIABLE_NAME }),
+          start + 1,
+        )
       }
       tokens.push({ kind: 'name', text: name, at: start + 1 })
     } else if (/[0-9]/.test(char)) {
@@ -98,7 +102,7 @@ function tokenize(text: string): Token[] {
       tokens.push({ kind: 'op', text: char === '’' ? "'" : char, at: at + 1 })
       at++
     } else {
-      throw new Mistake(`“${char}” is not part of an expression.`, at + 1)
+      throw new Mistake(t('“{char}” is not part of an expression.', { char }), at + 1)
     }
   }
   tokens.push({ kind: 'end', at: text.length + 1 })
@@ -108,7 +112,10 @@ function tokenize(text: string): Token[] {
 /** Reads an expression at `radix`, or says what is wrong with it and where. */
 export function parseExpression(text: string, radix: number): Parsed | ExpressionError {
   if (text.length > MAX_EXPRESSION_LENGTH) {
-    return { message: `An expression is at most ${MAX_EXPRESSION_LENGTH} characters long.`, column: MAX_EXPRESSION_LENGTH + 1 }
+    return {
+      message: t('An expression is at most {most} characters long.', { most: MAX_EXPRESSION_LENGTH }),
+      column: MAX_EXPRESSION_LENGTH + 1,
+    }
   }
   try {
     const tokens = tokenize(text)
@@ -119,17 +126,21 @@ export function parseExpression(text: string, radix: number): Parsed | Expressio
     const isOp = (token: Token, set: ReadonlySet<string>): boolean => token.kind === 'op' && set.has(token.text)
     const startsTerm = (token: Token): boolean =>
       token.kind === 'name' || token.kind === 'number' || isOp(token, NOT) || (token.kind === 'op' && token.text === '(')
-    const describe = (token: Token): string =>
-      token.kind === 'end' ? 'the end' : token.kind === 'name' ? `“${token.text}”` : token.kind === 'number' ? `“${token.value}”` : `“${token.text}”`
+    // What a token is written as. The end never reaches a message: it has messages of its own.
+    const shown = (token: Token): string =>
+      token.kind === 'end' ? '' : token.kind === 'number' ? String(token.value) : token.text
     const digit = (token: Token): number => {
-      if (token.kind !== 'number') throw new Mistake(`A value is missing after “=”.`, token.at)
+      if (token.kind !== 'number') throw new Mistake(t('A value is missing after “=”.'), token.at)
       if (token.value >= radix) {
-        throw new Mistake(`Radix ${radix} has no value ${token.value}; the values are 0 to ${radix - 1}.`, token.at)
+        throw new Mistake(
+          t('Radix {radix} has no value {value}; the values are 0 to {top}.', { radix, value: token.value, top: radix - 1 }),
+          token.at,
+        )
       }
       return token.value
     }
     const deeper = (at: number): void => {
-      if (++depth > MAX_DEPTH) throw new Mistake(`The expression nests more than ${MAX_DEPTH} deep.`, at)
+      if (++depth > MAX_DEPTH) throw new Mistake(t('The expression nests more than {most} deep.', { most: MAX_DEPTH }), at)
     }
 
     const list = (kind: 'and' | 'or' | 'xor', args: Expr[]): Expr => (args.length === 1 ? args[0] : { kind, args })
@@ -195,26 +206,31 @@ export function parseExpression(text: string, radix: number): Parsed | Expressio
         const inner = orExpr()
         depth--
         const close = peek()
-        if (!(close.kind === 'op' && close.text === ')')) throw new Mistake('A “)” is missing here.', close.at)
+        if (!(close.kind === 'op' && close.text === ')')) throw new Mistake(t('A “)” is missing here.'), close.at)
         index++
         return inner
       }
-      if (token.kind === 'end') throw new Mistake('The expression ends where a name or value should come.', token.at)
-      throw new Mistake(`${describe(token)} cannot start a term here.`, token.at)
+      if (token.kind === 'end') throw new Mistake(t('The expression ends where a name or value should come.'), token.at)
+      throw new Mistake(t('“{token}” cannot start a term here.', { token: shown(token) }), token.at)
     }
 
-    if (peek().kind === 'end') return { message: 'Type an expression, such as a & ~b | c.', column: 1 }
+    if (peek().kind === 'end') return { message: t('Type an expression, such as a & ~b | c.'), column: 1 }
     const expr = orExpr()
     const rest = peek()
     if (rest.kind !== 'end') {
       const message =
-        rest.kind === 'op' && rest.text === ')' ? 'This “)” has no “(” to close.' : `${describe(rest)} is not expected here.`
+        rest.kind === 'op' && rest.text === ')'
+          ? t('This “)” has no “(” to close.')
+          : t('“{token}” is not expected here.', { token: shown(rest) })
       throw new Mistake(message, rest.at)
     }
     const variables = [...names].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
     if (radix ** variables.length > MAX_EXPRESSION_ROWS) {
       return {
-        message: `With ${variables.length} variables at radix ${radix} the table has ${radix ** variables.length} rows, and circuits are built for at most ${MAX_EXPRESSION_ROWS}.`,
+        message: t(
+          'With {count} variables at radix {radix} the table has {rows} rows, and circuits are built for at most {most}.',
+          { count: variables.length, radix, rows: radix ** variables.length, most: MAX_EXPRESSION_ROWS },
+        ),
         column: 1,
       }
     }
@@ -322,11 +338,11 @@ export function tableExpression(
   names: readonly string[] = table.inputs.map((column) => column.name),
 ): TableExpression {
   if (table.inputs.some((column) => column.width !== 1) || table.outputs[output].width !== 1) {
-    return { kind: 'none', reason: 'Only a part whose inputs and output are single wires has an expression.' }
+    return { kind: 'none', reason: t('Only a part whose inputs and output are single wires has an expression.') }
   }
   const values = table.rows.map((row) => row.outputs[output][0])
   if (values.some((value) => !(value >= 0 && value < radix))) {
-    return { kind: 'none', reason: 'Some rows give X or Z, which an expression cannot.' }
+    return { kind: 'none', reason: t('Some rows give X or Z, which an expression cannot.') }
   }
   const count = table.inputs.length
   const rowIndex = (row: readonly number[]): number => row.reduce((sum, digit) => sum * radix + digit, 0)
@@ -370,11 +386,11 @@ export type KarnaughMap =
  * that touch differ in one input.
  */
 export function karnaughMap(inputs: number, radix: number): KarnaughMap {
-  if (inputs < 2 || inputs > 4) return { kind: 'none', reason: 'A Karnaugh map is drawn for 2 to 4 inputs.' }
+  if (inputs < 2 || inputs > 4) return { kind: 'none', reason: t('A Karnaugh map is drawn for 2 to 4 inputs.') }
   const rowInputs = Math.floor(inputs / 2)
   const columnInputs = inputs - rowInputs
   if (radix ** columnInputs > MAX_MAP_SIDE) {
-    return { kind: 'none', reason: `At radix ${radix} the map of ${inputs} inputs is too wide to draw here.` }
+    return { kind: 'none', reason: t('At radix {radix} the map of {count} inputs is too wide to draw here.', { radix, count: inputs }) }
   }
   const rows = grayCode(rowInputs, radix)
   const columns = grayCode(columnInputs, radix)

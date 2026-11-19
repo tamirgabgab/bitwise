@@ -1,16 +1,17 @@
 import { canvasRuntime, centerOn, currentProblems, useEditor, useSim } from '../editor/index.ts'
 import type { Problem } from '../editor/index.ts'
+import { msg, t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon } from './icons.tsx'
 import { problemName } from './parts.ts'
 
 const KIND_NAMES: Readonly<Record<Problem['kind'], string>> = {
-  conflict: 'Conflict',
-  mixed: 'Widths',
-  floating: 'Floating',
-  undriven: 'Floating',
-  loop: 'Loop',
-  unused: 'Unused',
+  conflict: msg('Conflict'),
+  mixed: msg('Widths'),
+  floating: msg('Floating'),
+  undriven: msg('Floating'),
+  loop: msg('Loop'),
+  unused: msg('Unused'),
 }
 
 /** Selects what a problem is about and brings it to the middle of the canvas. */
@@ -36,17 +37,21 @@ export function ProblemsPanel() {
   const close = (): void => useChrome.getState().setProblemsOpen(false)
 
   return (
-    <section className="problems" aria-label="Problems">
+    <section className="problems" aria-label={t('Problems')}>
       <header className="problems-head">
-        <h2>Problems</h2>
+        <h2>{t('Problems')}</h2>
         <span className="problems-count">
-          {problems.length === 0 ? 'None found' : `${problems.length} found`}
+          {problems.length === 0
+            ? t('None found')
+            : problems.length === 1
+              ? t('1 found')
+              : t('{count} found', { count: problems.length })}
         </span>
         <button
           type="button"
           className="tool"
-          aria-label="Close the problems"
-          title="Close the problems"
+          aria-label={t('Close the problems')}
+          title={t('Close the problems')}
           onClick={close}
         >
           <CloseIcon />
@@ -54,15 +59,15 @@ export function ProblemsPanel() {
       </header>
       {problems.length === 0 ? (
         <p className="problems-empty">
-          Every input is connected, no wire is in conflict and nothing is left over.
+          {t('Every input is connected, no wire is in conflict and nothing is left over.')}
         </p>
       ) : (
         <ul className="problems-list">
           {problems.map((problem, index) => (
             <li key={`${problem.kind}:${problem.ids.join(',')}:${index}`}>
               <button type="button" className="problems-row" onClick={() => show(problem)}>
-                <span className="problems-kind">{KIND_NAMES[problem.kind]}</span>
-                <span>{problem.text}</span>
+                <span className="problems-kind">{t(KIND_NAMES[problem.kind])}</span>
+                <span>{t(problem.text)}</span>
               </button>
             </li>
           ))}

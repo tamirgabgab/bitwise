@@ -21,6 +21,9 @@ import './App.css'
 
 const closeSettings = (): void => useChrome.getState().setSettingsOpen(false)
 
+/** Whether this page has already greeted the user with the tour or the home screen. */
+let greeted = false
+
 export function App() {
   const settingsOpen = useChrome((state) => state.settingsOpen)
   const presenting = useChrome((state) => state.presenting)
@@ -35,7 +38,10 @@ export function App() {
   }, [])
   useEffect(() => {
     // A first visit starts with the tour; every later one at the home
-    // screen. Neither when something else is open already.
+    // screen. Neither when something else is open already, nor when the
+    // app is drawn again in another language.
+    if (greeted) return
+    greeted = true
     const { tourDone, overlay, startTour, openHome } = useChrome.getState()
     if (overlay !== null || document.querySelector('dialog[open]')) return
     if (tourDone) openHome()

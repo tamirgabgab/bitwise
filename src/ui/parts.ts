@@ -1,8 +1,12 @@
 import { builtinComponents, gateTable } from '../core/index.ts'
 import type { DocComponent } from '../editor/index.ts'
+import { msg, t } from '../i18n/index.ts'
 
-/** What a part is called in the palette and the inspector. */
-const NAMES: Readonly<Record<string, string>> = {
+/**
+ * Names that stay as they are in every language: the gates, written as
+ * symbols, and the names of standards.
+ */
+const FIXED_NAMES: Readonly<Record<string, string>> = {
   and: 'AND',
   or: 'OR',
   not: 'NOT',
@@ -10,199 +14,236 @@ const NAMES: Readonly<Record<string, string>> = {
   nor: 'NOR',
   xor: 'XOR',
   xnor: 'XNOR',
-  buffer: 'Buffer',
   shift: 'Shift',
   add: 'ADD',
   mul: 'MUL',
   is: 'IS',
-  table: 'Table',
-  const: 'Constant',
-  input: 'Input',
-  button: 'Button',
-  output: 'Output',
-  display: 'Number',
-  clock: 'Clock',
-  sr: 'SR latch',
-  dff: 'D flip-flop',
-  tff: 'T flip-flop',
-  jkff: 'JK flip-flop',
-  cycle: 'Cycle',
-  tobits: 'To bits',
-  frombits: 'From bits',
-  split: 'Splitter',
-  merge: 'Merger',
-  mux: 'Multiplexer',
-  demux: 'Demultiplexer',
-  decoder: 'Decoder',
-  adder: 'Adder',
-  subtractor: 'Subtractor',
-  multiplier: 'Multiplier',
   alu: 'ALU',
-  shifter: 'Shifter',
-  compare: 'Comparator',
-  register: 'Register',
-  counter: 'Counter',
   rom: 'ROM',
   ram: 'RAM',
-  fsm: 'State machine',
-  text: 'Text',
-  frame: 'Frame',
-  net: 'Net label',
+}
+
+/** What a part is called in the palette and the inspector, translated where it is shown. */
+const NAMES: Readonly<Record<string, string>> = {
+  buffer: msg('Buffer'),
+  table: msg('Table'),
+  const: msg('Constant'),
+  input: msg('Input'),
+  button: msg('Button'),
+  output: msg('Output'),
+  display: msg('Number'),
+  clock: msg('Clock'),
+  sr: msg('SR latch'),
+  dff: msg('D flip-flop'),
+  tff: msg('T flip-flop'),
+  jkff: msg('JK flip-flop'),
+  cycle: msg('Cycle'),
+  tobits: msg('To bits'),
+  frombits: msg('From bits'),
+  split: msg('Splitter'),
+  merge: msg('Merger'),
+  mux: msg('Multiplexer'),
+  demux: msg('Demultiplexer'),
+  decoder: msg('Decoder'),
+  adder: msg('Adder'),
+  subtractor: msg('Subtractor'),
+  multiplier: msg('Multiplier'),
+  shifter: msg('Shifter'),
+  compare: msg('Comparator'),
+  register: msg('Register'),
+  counter: msg('Counter'),
+  fsm: msg('State machine'),
+  text: msg('Text'),
+  frame: msg('Frame'),
+  net: msg('Net label'),
 }
 
 /** What each part does, in one line. Binary first, then the general rule. */
 const HINTS: Readonly<Record<string, readonly [binary: string, general: string]>> = {
-  and: ['1 when every input is 1', 'The smallest of its inputs (min)'],
-  or: ['1 when any input is 1', 'The largest of its inputs (max)'],
-  not: ['Inverts its input', 'Mirrors its input: x becomes (n − 1) − x'],
-  nand: ['0 only when every input is 1', 'The smallest input plus 1, wrapping around'],
-  nor: ['1 only when every input is 0', 'The largest input plus 1, wrapping around'],
-  xor: ['1 when an odd number of inputs are 1', 'The sum of its inputs modulo n'],
-  xnor: ['1 when an even number of inputs are 1', 'The mirrored sum of its inputs modulo n'],
-  buffer: ['Passes its input through', 'Passes its input through'],
+  and: [msg('1 when every input is 1'), msg('The smallest of its inputs (min)')],
+  or: [msg('1 when any input is 1'), msg('The largest of its inputs (max)')],
+  not: [msg('Inverts its input'), msg('Mirrors its input: x becomes (n − 1) − x')],
+  nand: [msg('0 only when every input is 1'), msg('The smallest input plus 1, wrapping around')],
+  nor: [msg('1 only when every input is 0'), msg('The largest input plus 1, wrapping around')],
+  xor: [msg('1 when an odd number of inputs are 1'), msg('The sum of its inputs modulo n')],
+  xnor: [msg('1 when an even number of inputs are 1'), msg('The mirrored sum of its inputs modulo n')],
+  buffer: [msg('Passes its input through'), msg('Passes its input through')],
   shift: [
-    'Adds 1, wrapping around. With two values this is NOT',
-    'Adds 1, wrapping around: n − 1 becomes 0',
+    msg('Adds 1, wrapping around. With two values this is NOT'),
+    msg('Adds 1, wrapping around: n − 1 becomes 0'),
   ],
-  add: ['The sum of its inputs modulo 2, which is XOR', 'The sum of its inputs modulo n'],
-  mul: ['The product of its inputs, which is AND', 'The product of its inputs modulo n'],
+  add: [msg('The sum of its inputs modulo 2, which is XOR'), msg('The sum of its inputs modulo n')],
+  mul: [msg('The product of its inputs, which is AND'), msg('The product of its inputs modulo n')],
   is: [
-    'Gives 1 when its input is the chosen value, otherwise 0',
-    'Gives the top value when its input is the chosen value, otherwise 0',
+    msg('Gives 1 when its input is the chosen value, otherwise 0'),
+    msg('Gives the top value when its input is the chosen value, otherwise 0'),
   ],
   table: [
-    'Gives what you write in its table for each input',
-    'Gives what you write in its table for each input, at any radix',
+    msg('Gives what you write in its table for each input'),
+    msg('Gives what you write in its table for each input, at any radix'),
   ],
-  const: ['Always gives the chosen value', 'Always gives the chosen value'],
+  const: [msg('Always gives the chosen value'), msg('Always gives the chosen value')],
   input: [
-    'Click it to switch between 0 and 1',
-    'Click it to step through the values. Shift-click or right-click steps back',
+    msg('Click it to switch between 0 and 1'),
+    msg('Click it to step through the values. Shift-click or right-click steps back'),
   ],
-  button: ['Gives 1 while you hold it down', 'Gives the top value while you hold it down'],
-  output: ['Shows the value that reaches it', 'Shows the value that reaches it'],
+  button: [msg('Gives 1 while you hold it down'), msg('Gives the top value while you hold it down')],
+  output: [msg('Shows the value that reaches it'), msg('Shows the value that reaches it')],
   display: [
-    'Shows its inputs as one binary number, and what it is worth in decimal',
-    'Shows its inputs as one number in base n, and what it is worth in decimal',
+    msg('Shows its inputs as one binary number, and what it is worth in decimal'),
+    msg('Shows its inputs as one number in base n, and what it is worth in decimal'),
   ],
   clock: [
-    'Switches between 0 and 1 on its own, at a steady pace',
-    'Switches between 0 and the top value on its own, at a steady pace',
+    msg('Switches between 0 and 1 on its own, at a steady pace'),
+    msg('Switches between 0 and the top value on its own, at a steady pace'),
   ],
   sr: [
-    'Remembers one bit: S sets it to 1, R clears it to 0',
-    'Remembers a value: S at the top value sets it to the top value, R at the top value clears it to 0',
+    msg('Remembers one bit: S sets it to 1, R clears it to 0'),
+    msg('Remembers a value: S at the top value sets it to the top value, R at the top value clears it to 0'),
   ],
   dff: [
-    'Takes the value of D each time the clock rises, and keeps it until the next',
-    'Takes the value of D each time the clock rises past the middle, and keeps it until the next',
+    msg('Takes the value of D each time the clock rises, and keeps it until the next'),
+    msg('Takes the value of D each time the clock rises past the middle, and keeps it until the next'),
   ],
   tff: [
-    'Flips each time the clock rises while T is 1',
-    'Adds the value of T, wrapping around, each time the clock rises past the middle',
+    msg('Flips each time the clock rises while T is 1'),
+    msg('Adds the value of T, wrapping around, each time the clock rises past the middle'),
   ],
   jkff: [
-    'When the clock rises: J sets it to 1, K clears it to 0, and both together flip it',
-    'When the clock rises past the middle: J at the top value sets it to the top value, K clears it to 0, and both together add 1',
+    msg('When the clock rises: J sets it to 1, K clears it to 0, and both together flip it'),
+    msg('When the clock rises past the middle: J at the top value sets it to the top value, K clears it to 0, and both together add 1'),
   ],
   cycle: [
-    'Switches between 0 and 1 on its own, like a slow clock',
-    'Steps through every value from 0 to the top on its own, then starts again',
+    msg('Switches between 0 and 1 on its own, like a slow clock'),
+    msg('Steps through every value from 0 to the top on its own, then starts again'),
   ],
   tobits: [
-    'Writes a number in binary. With two values a digit is one bit already',
-    'Writes a digit in binary, one wire per bit. A bit is 0 or the top value',
+    msg('Writes a number in binary. With two values a digit is one bit already'),
+    msg('Writes a digit in binary, one wire per bit. A bit is 0 or the top value'),
   ],
   frombits: [
-    'Reads bits as one number. With two values a digit is one bit already',
-    'Reads bits as one digit. A bit is 0 or the top value',
+    msg('Reads bits as one number. With two values a digit is one bit already'),
+    msg('Reads bits as one digit. A bit is 0 or the top value'),
   ],
   split: [
-    'Takes a bus apart into its wires. Set the width of a part in its settings to make a bus',
-    'Takes a bus apart into its wires. Set the width of a part in its settings to make a bus',
+    msg('Takes a bus apart into its wires. Set the width of a part in its settings to make a bus'),
+    msg('Takes a bus apart into its wires. Set the width of a part in its settings to make a bus'),
   ],
   merge: [
-    'Puts wires together into one bus, the lowest digit on top',
-    'Puts wires together into one bus, the lowest digit on top',
+    msg('Puts wires together into one bus, the lowest digit on top'),
+    msg('Puts wires together into one bus, the lowest digit on top'),
   ],
   mux: [
-    'Passes on input 0 or input 1, whichever Sel names',
-    'Passes on the input that Sel names. One select digit chooses among n inputs',
+    msg('Passes on input 0 or input 1, whichever Sel names'),
+    msg('Passes on the input that Sel names. One select digit chooses among n inputs'),
   ],
   demux: [
-    'Sends its input to output 0 or output 1, whichever Sel names. The other gives 0',
-    'Sends its input to the output that Sel names. The others give 0',
+    msg('Sends its input to output 0 or output 1, whichever Sel names. The other gives 0'),
+    msg('Sends its input to the output that Sel names. The others give 0'),
   ],
   decoder: [
-    'Gives 1 on the output that Sel names and 0 on the others',
-    'Gives the top value on the output that Sel names and 0 on the others',
+    msg('Gives 1 on the output that Sel names and 0 on the others'),
+    msg('Gives the top value on the output that Sel names and 0 on the others'),
   ],
   adder: [
-    'Adds two binary numbers on buses, with a carry in and a carry out',
-    'Adds two numbers in base n on buses. A carry is 0 or the top value',
+    msg('Adds two binary numbers on buses, with a carry in and a carry out'),
+    msg('Adds two numbers in base n on buses. A carry is 0 or the top value'),
   ],
   subtractor: [
-    'Takes B and a borrow in from A, on buses. Bout is 1 when B was more',
-    'Takes B and a borrow in from A, in base n on buses. Bout is the top value when B was more',
+    msg('Takes B and a borrow in from A, on buses. Bout is 1 when B was more'),
+    msg('Takes B and a borrow in from A, in base n on buses. Bout is the top value when B was more'),
   ],
   multiplier: [
-    'Multiplies two binary numbers on buses. The product is twice as wide',
-    'Multiplies two numbers in base n on buses. The product is twice as wide',
+    msg('Multiplies two binary numbers on buses. The product is twice as wide'),
+    msg('Multiplies two numbers in base n on buses. The product is twice as wide'),
   ],
   alu: [
-    'Op picks what to do with A and B: add, subtract, AND, OR, XOR, NOT, shift up or down',
-    'Op picks what to do with A and B in base n: add, subtract, AND, OR, XOR, NOT, shift up or down',
+    msg('Op picks what to do with A and B: add, subtract, AND, OR, XOR, NOT, shift up or down'),
+    msg('Op picks what to do with A and B in base n: add, subtract, AND, OR, XOR, NOT, shift up or down'),
   ],
   shifter: [
-    'Moves the bits of its input by as many places as Amt says, bringing in zeros or wrapping around',
-    'Moves the digits of its input by as many places as Amt says, bringing in zeros or wrapping around',
+    msg('Moves the bits of its input by as many places as Amt says, bringing in zeros or wrapping around'),
+    msg('Moves the digits of its input by as many places as Amt says, bringing in zeros or wrapping around'),
   ],
   compare: [
-    'Compares two numbers on buses: less, equal or greater',
-    'Compares two numbers in base n on buses. The answer that holds gives the top value',
+    msg('Compares two numbers on buses: less, equal or greater'),
+    msg('Compares two numbers in base n on buses. The answer that holds gives the top value'),
   ],
   register: [
-    'Takes the bus at D each time the clock rises while En is 1, and keeps it',
-    'Takes the bus at D each time the clock rises past the middle while En is at the top value',
+    msg('Takes the bus at D each time the clock rises while En is 1, and keeps it'),
+    msg('Takes the bus at D each time the clock rises past the middle while En is at the top value'),
   ],
   counter: [
-    'Goes one up each time the clock rises. Load takes D instead, R clears it',
-    'Goes one up in base n each time the clock rises past the middle. Load takes D instead, R clears it',
+    msg('Goes one up each time the clock rises. Load takes D instead, R clears it'),
+    msg('Goes one up in base n each time the clock rises past the middle. Load takes D instead, R clears it'),
   ],
   rom: [
-    'Gives the word kept at the address on A. The words are filled in the inspector',
-    'Gives the word kept at the address on A, in base n. The words are filled in the inspector',
+    msg('Gives the word kept at the address on A. The words are filled in the inspector'),
+    msg('Gives the word kept at the address on A, in base n. The words are filled in the inspector'),
   ],
   ram: [
-    'Gives the word at the address on A, and writes D there when the clock rises while WE is 1',
-    'Gives the word at the address on A, and writes D there when the clock rises past the middle while WE is at the top value',
+    msg('Gives the word at the address on A, and writes D there when the clock rises while WE is 1'),
+    msg('Gives the word at the address on A, and writes D there when the clock rises past the middle while WE is at the top value'),
   ],
   fsm: [
-    'Moves between the states you draw when the clock rises, Moore or Mealy. Double-click it to draw them',
-    'Moves between the states you draw when the clock rises past the middle, Moore or Mealy. Double-click it to draw them',
+    msg('Moves between the states you draw when the clock rises, Moore or Mealy. Double-click it to draw them'),
+    msg('Moves between the states you draw when the clock rises past the middle, Moore or Mealy. Double-click it to draw them'),
   ],
   text: [
-    'Writing on the canvas. It is not part of the circuit',
-    'Writing on the canvas. It is not part of the circuit',
+    msg('Writing on the canvas. It is not part of the circuit'),
+    msg('Writing on the canvas. It is not part of the circuit'),
   ],
   frame: [
-    'A titled box around part of the drawing. What lies inside moves with it',
-    'A titled box around part of the drawing. What lies inside moves with it',
+    msg('A titled box around part of the drawing. What lies inside moves with it'),
+    msg('A titled box around part of the drawing. What lies inside moves with it'),
   ],
   net: [
-    'Labels with the same name are connected, with no wire between them',
-    'Labels with the same name are connected, with no wire between them',
+    msg('Labels with the same name are connected, with no wire between them'),
+    msg('Labels with the same name are connected, with no wire between them'),
   ],
 }
 
-export function partName(type: string): string {
-  return NAMES[type] ?? type
+/** The name of a part in English, the language of the code. */
+function englishName(type: string): string {
+  return FIXED_NAMES[type] ?? NAMES[type] ?? type
 }
 
-export function partHint(type: string, radix: number): string {
+/** The line that says what a part does, in English. */
+function englishHint(type: string, radix: number): string {
   const hint = HINTS[type]
   if (!hint) return ''
   return radix === 2 ? hint[0] : hint[1]
+}
+
+/** What a part is called, in the language of the interface. */
+export function partName(type: string): string {
+  return Object.hasOwn(NAMES, type) ? t(NAMES[type]) : englishName(type)
+}
+
+/** What a part does, in one line in the language of the interface. */
+export function partHint(type: string, radix: number): string {
+  const hint = englishHint(type, radix)
+  return hint === '' ? '' : t(hint)
+}
+
+/**
+ * Everything a search may find a part by: its name and what it does, in the
+ * language of the interface and in English, so both languages find it.
+ */
+export function partWords(type: string, radix: number): string {
+  const shown = `${partName(type)} ${partHint(type, radix)}`
+  const english = `${englishName(type)} ${englishHint(type, radix)}`
+  return shown === english ? shown : `${shown} ${english}`
+}
+
+/** "1 input" or "3 inputs", in the language of the interface. */
+export function inputCount(count: number): string {
+  return count === 1 ? t('1 input') : t('{count} inputs', { count })
+}
+
+/** "1 output" or "3 outputs", in the language of the interface. */
+export function outputCount(count: number): string {
+  return count === 1 ? t('1 output') : t('{count} outputs', { count })
 }
 
 /** True for a part the palette can show a table for. */

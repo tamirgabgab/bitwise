@@ -14,6 +14,7 @@ import {
   variableNames,
 } from '../editor/index.ts'
 import type { DocComponent, TruthTable } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { portLabel } from './probeText.ts'
 
 /** What the inputs of `part` carry right now, column by column. */
@@ -64,8 +65,8 @@ export function TruthTablePanel({ part }: { part: DocComponent }) {
     part.type === SUB_TYPE ? column.name : portLabel(column.name)
 
   return (
-    <section className="truth-table" aria-label="Truth table">
-      <h3>Truth table</h3>
+    <section className="truth-table" aria-label={t('Truth table')}>
+      <h3>{t('Truth table')}</h3>
       {table.kind === 'none' ? (
         <p className="note">{table.reason}</p>
       ) : (
@@ -142,7 +143,7 @@ function TableLogic({
 
   return (
     <>
-      <h3>Expression</h3>
+      <h3>{t('Expression')}</h3>
       {written.every((item) => item.kind === 'none') ? (
         <p className="note">{(written[0] as { reason: string }).reason}</p>
       ) : (
@@ -158,10 +159,10 @@ function TableLogic({
       )}
       {map?.kind === 'map' && (
         <details className="karnaugh">
-          <summary>Karnaugh map</summary>
+          <summary>{t('Karnaugh map')}</summary>
           {table.outputs.length > 1 && (
             <div className="field">
-              <label htmlFor="karnaugh-output">Output</label>
+              <label htmlFor="karnaugh-output">{t('Output')}</label>
               <select id="karnaugh-output" value={output} onChange={(event) => setChosen(Number(event.target.value))}>
                 {table.outputs.map((column, index) =>
                   column.width === 1 ? (
@@ -173,7 +174,7 @@ function TableLogic({
               </select>
             </div>
           )}
-          <table aria-label={`Karnaugh map of ${outputName(output)}`}>
+          <table aria-label={t('Karnaugh map of {output}', { output: outputName(output) })}>
             <thead>
               <tr>
                 <th scope="col" className="karnaugh-corner">

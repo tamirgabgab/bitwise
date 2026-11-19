@@ -1,4 +1,5 @@
 import { useEditor, valueText } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { swatchStyle } from './swatch.ts'
 
 /**
@@ -13,7 +14,7 @@ export function ValueLegend() {
   if (settings.radix <= 2 || !hasParts) return null
 
   return (
-    <aside className="legend" aria-label="Wire colors">
+    <aside className="legend" aria-label={t('Wire colors')}>
       <ul className="legend-values">
         {Array.from({ length: settings.radix }, (_, digit) => (
           <li key={digit} className="legend-chip" style={swatchStyle(settings, digit)}>
@@ -24,15 +25,15 @@ export function ValueLegend() {
       <ul className="legend-lines">
         <li>
           <span className="legend-line legend-floating" />
-          Floating
+          {t('Floating')}
         </li>
         <li>
           <span className="legend-line legend-unknown" />
-          Unknown
+          {t('Unknown')}
         </li>
         <li>
           <span className="legend-line legend-conflict" />
-          Conflict
+          {t('Conflict')}
         </li>
       </ul>
     </aside>

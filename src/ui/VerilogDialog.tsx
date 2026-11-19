@@ -1,12 +1,23 @@
-import { useRef, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
+import type { ReactNode } from 'react'
 import { findPreset, sandboxGates } from '../core/index.ts'
 import { useEditor } from '../editor/index.ts'
 import { MAX_VERILOG_LENGTH, verilogCircuits } from '../editor/verilogImport.ts'
 import { pickTextFile } from '../io/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon } from './icons.tsx'
 import { toast } from './toasts.ts'
 import { useModal } from './useModal.ts'
+
+/** `text` with each place `{name}` that `nodes` holds replaced by its node, such as a piece of code. */
+function withNodes(text: string, nodes: Readonly<Record<string, ReactNode>>): ReactNode[] {
+  return text
+    .split(/\{(\w+)\}/)
+    .map((piece, index) =>
+      index % 2 === 0 ? piece : <Fragment key={index}>{Object.hasOwn(nodes, piece) ? nodes[piece] : `{${piece}}`}</Fragment>,
+    )
+}
 
 /** Where the text of the window is kept between visits. It is not part of the project. */
 const KEY = 'cedar-logic.verilog'
@@ -60,14 +71,22 @@ export function VerilogDialog() {
     const state = useEditor.getState()
     const { settings } = state
     if (settings.radix !== 2) {
-      setProblem(`Verilog is read only at radix 2, where a digit is a bit. This project is at radix ${settings.radix}.`)
+      setProblem(
+        t('Verilog is read only at radix 2, where a digit is a bit. This project is at radix {radix}.', {
+          radix: settings.radix,
+        }),
+      )
       return
     }
     const gates = new Set(settings.sandbox ? sandboxGates(2) : (findPreset(settings.preset)?.gates ?? []))
     const built = verilogCircuits(text, { gates, circuits: state.circuits, nextCircuit: state.nextCircuit })
     if ('problem' in built) {
       const { line, column } = built
-      setProblem(line === undefined || column === undefined ? built.problem : `Line ${line}, column ${column}: ${built.problem}`)
+      setProblem(
+        line === undefined || column === undefined
+          ? t(built.problem)
+          : t('Line {line}, column {column}: {problem}', { line, column, problem: t(built.problem) }),
+      )
       if (line !== undefined && column !== undefined && field.current) {
         const at = offsetOf(text, line, column)
         field.current.focus()
@@ -77,15 +96,15 @@ export function VerilogDialog() {
     }
     const refused = state.addBuiltCircuits(built.circuits, built.top)
     if (refused) {
-      setProblem(refused.problem)
+      setProblem(t(refused.problem))
       return
     }
     setProblem(null)
     close()
     toast(
       built.circuits.length === 1
-        ? `Built “${built.circuits[0].name}” from the Verilog`
-        : `Built ${built.circuits.length} circuits from the Verilog`,
+        ? t('Built “{name}” from the Verilog', { name: built.circuits[0].name })
+        : t('Built {count} circuits from the Verilog', { count: built.circuits.length }),
     )
   }
 
@@ -93,7 +112,12 @@ export function VerilogDialog() {
     const file = await pickTextFile('.v,.sv,.vh,.txt,text/plain', MAX_VERILOG_LENGTH)
     if (!file) return
     if (file.text === undefined) {
-      setProblem(`“${file.name}” is longer than ${MAX_VERILOG_LENGTH.toLocaleString('en-US')} characters, the most that is read.`)
+      setProblem(
+        t('“{name}” is longer than {max} characters, the most that is read.', {
+          name: file.name,
+          max: MAX_VERILOG_LENGTH.toLocaleString('en-US'),
+        }),
+      )
       return
     }
     // A text field counts a line end as one character, whatever the file used.
@@ -113,14 +137,14 @@ export function VerilogDialog() {
           }}
         >
           <header className="overlay-head">
-            <h2 id="verilog-title">Build from Verilog</h2>
-            <button type="button" className="tool" aria-label="Close" title="Close (Esc)" onClick={close}>
+            <h2 id="verilog-title">{t('Build from Verilog')}</h2>
+            <button type="button" className="tool" aria-label={t('Close')} title={t('Close (Esc)')} onClick={close}>
               <CloseIcon />
             </button>
           </header>
           <div className="expression-body">
             <label htmlFor="verilog-text" className="expression-label">
-              Verilog, one circuit for each module
+              {t('Verilog, one circuit for each module')}
             </label>
             <textarea
               id="verilog-text"
@@ -150,9 +174,14 @@ export function VerilogDialog() {
               }}
             />
             <p id="verilog-help" className="expression-help">
-              Read: gates, modules used as parts, <code>assign</code> with operators, and <code>always</code> on a
-              clock edge or <code>@(*)</code>. Each operator becomes a part, and the open circuit stays as it is.
-              {radix !== 2 && ` Verilog is read only at radix 2, and this project is at radix ${radix}.`}
+              {withNodes(
+                t(
+                  'Read: gates, modules used as parts, {assign} with operators, and {always} on a clock edge or {star}. Each operator becomes a part, and the open circuit stays as it is.',
+                ),
+                { assign: <code>assign</code>, always: <code>always</code>, star: <code>@(*)</code> },
+              )}
+              {radix !== 2 && ' '}
+              {radix !== 2 && t('Verilog is read only at radix 2, and this project is at radix {radix}.', { radix })}
             </p>
             <p id="verilog-problem" className="expression-problem" aria-live="polite">
               {problem ?? ''}
@@ -160,13 +189,13 @@ export function VerilogDialog() {
           </div>
           <footer className="dialog-actions">
             <button type="button" className="button verilog-open" onClick={() => void openFile()}>
-              Open a .v file
+              {t('Open a .v file')}
             </button>
             <button type="button" className="button" onClick={close}>
-              Cancel
+              {t('Cancel')}
             </button>
             <button type="submit" className="button button-main" disabled={text.trim() === ''}>
-              Build circuits
+              {t('Build circuits')}
             </button>
           </footer>
         </form>

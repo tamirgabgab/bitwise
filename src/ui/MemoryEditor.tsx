@@ -3,6 +3,7 @@ import type { KeyboardEvent } from 'react'
 import { addressOf, formatSignal, memoryCell, wordCount } from '../core/index.ts'
 import { readPart, useEditor, useSim } from '../editor/index.ts'
 import type { DocComponent } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { addressText, typedWord, wordText, wordsFromText } from './memoryWords.ts'
 
 /** One word to type over. It takes the word when it loses focus or on Enter; Esc puts it back. */
@@ -77,7 +78,7 @@ export function MemoryEditor({ component }: { component: DocComponent }) {
   const put = (place: number, text: string): boolean => {
     const word = typedWord(text, width, radix)
     if (word === undefined) {
-      setProblem(`Type up to ${width} digits from 0 to ${(radix - 1).toString(16).toUpperCase()}.`)
+      setProblem(t('Type up to {width} digits from 0 to {top}.', { width, top: (radix - 1).toString(16).toUpperCase() }))
       return false
     }
     setProblem(null)
@@ -100,17 +101,17 @@ export function MemoryEditor({ component }: { component: DocComponent }) {
   }
 
   return (
-    <section className="memory-editor" aria-label="Contents">
+    <section className="memory-editor" aria-label={t('Contents')}>
       <h3>
-        Contents <span className="memory-count">{count} words</span>
+        {t('Contents')} <span className="memory-count">{t('{count} words', { count })}</span>
       </h3>
       <div className="memory-scroll">
         <table>
           <thead>
             <tr>
-              <th scope="col">Address</th>
-              <th scope="col">{now ? 'Starts as' : 'Word'}</th>
-              {now && <th scope="col">Now</th>}
+              <th scope="col">{t('Address')}</th>
+              <th scope="col">{now ? t('Starts as') : t('Word')}</th>
+              {now && <th scope="col">{t('Now')}</th>}
             </tr>
           </thead>
           <tbody>
@@ -121,7 +122,7 @@ export function MemoryEditor({ component }: { component: DocComponent }) {
                   <th scope="row">{name}</th>
                   <td>
                     <WordField
-                      label={`Word at ${name}`}
+                      label={t('Word at {address}', { address: name })}
                       shown={wordText(component.params[memoryCell(place)], width, radix)}
                       width={width}
                       onWord={(text) => put(place, text)}
@@ -141,7 +142,7 @@ export function MemoryEditor({ component }: { component: DocComponent }) {
       )}
       {pasting ? (
         <div className="memory-paste">
-          <label htmlFor={pasteId}>Words from address {addressText(0, address, radix)}</label>
+          <label htmlFor={pasteId}>{t('Words from address {address}', { address: addressText(0, address, radix) })}</label>
           <textarea
             id={pasteId}
             rows={3}
@@ -150,10 +151,13 @@ export function MemoryEditor({ component }: { component: DocComponent }) {
             placeholder="0101 1100 0011"
             onChange={(event) => setPasted(event.target.value)}
           />
-          <p className="note">Words apart by spaces, commas or lines. The rest become 0; Undo brings back the old words.</p>
+          <p className="note">
+            {t('Words apart by spaces, commas or lines.')}{' '}
+            {t('The rest become 0; Undo brings back the old words.')}
+          </p>
           <div className="memory-paste-actions">
             <button type="button" className="button button-main" onClick={fill}>
-              Fill the words
+              {t('Fill the words')}
             </button>
             <button
               type="button"
@@ -163,13 +167,13 @@ export function MemoryEditor({ component }: { component: DocComponent }) {
                 setProblem(null)
               }}
             >
-              Cancel
+              {t('Cancel')}
             </button>
           </div>
         </div>
       ) : (
         <button type="button" className="button memory-fill" onClick={() => setPasting(true)}>
-          Fill from text
+          {t('Fill from text')}
         </button>
       )}
     </section>

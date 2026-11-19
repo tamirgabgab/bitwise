@@ -1,3 +1,4 @@
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon } from './icons.tsx'
 import { Keys } from './Keys.tsx'
@@ -15,12 +16,12 @@ export function ShortcutsSheet() {
       {open && (
         <div className="shortcuts-box">
           <header className="overlay-head">
-            <h2 id="shortcuts-title">Keyboard shortcuts</h2>
+            <h2 id="shortcuts-title">{t('Keyboard shortcuts')}</h2>
             <button
               type="button"
               className="tool"
-              aria-label="Close the shortcuts"
-              title="Close the shortcuts (Esc)"
+              aria-label={t('Close the shortcuts')}
+              title={t('Close the shortcuts (Esc)')}
               onClick={close}
             >
               <CloseIcon />
@@ -29,7 +30,7 @@ export function ShortcutsSheet() {
           <div className="shortcuts-groups">
             {SHORTCUTS.map((group) => (
               <section key={group.title}>
-                <h3>{group.title}</h3>
+                <h3>{t(group.title)}</h3>
                 <dl>
                   {group.items.map((item) => (
                     <div key={item.does} className="shortcut">
@@ -38,7 +39,7 @@ export function ShortcutsSheet() {
                           <Keys key={combo} combo={combo} />
                         ))}
                       </dt>
-                      <dd>{item.does}</dd>
+                      <dd>{t(item.does)}</dd>
                     </div>
                   ))}
                 </dl>

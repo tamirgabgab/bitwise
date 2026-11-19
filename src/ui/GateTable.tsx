@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { builtinComponents, gateTable } from '../core/index.ts'
 import { digitColor, inkOn, readCanvasTheme, useEditor, valueText } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { partName } from './parts.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
@@ -39,7 +40,7 @@ export function GateTable({ type, anchor }: GateTableProps) {
   return (
     <div className="gate-table" style={style} aria-hidden="true">
       <p className="gate-table-title">
-        {partName(type)} at radix {settings.radix}
+        {t('{name} at radix {radix}', { name: partName(type), radix: settings.radix })}
       </p>
       <table>
         <thead>

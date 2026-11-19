@@ -1,4 +1,6 @@
 import { builtinComponents } from '../core/index.ts'
+import { language, t } from '../i18n/index.ts'
+import type { Language } from '../i18n/index.ts'
 import { partGraph } from './cone.ts'
 import { terminalNets } from './connectivity.ts'
 import { NET_TYPE, isAnnotation, terminalEnd, terminalKey } from './document.ts'
@@ -107,7 +109,8 @@ function loopsOf(doc: CircuitDoc, parts: readonly DocComponent[]): string[][] {
   return loops
 }
 
-const staticOf = new WeakMap<CircuitDoc, readonly Problem[]>()
+/** The problems of each drawing, in the language they were written in. */
+const staticOf = new WeakMap<CircuitDoc, { readonly language: Language; readonly problems: readonly Problem[] }>()
 
 /**
  * The problems that can be read off the drawing itself: inputs left
@@ -116,7 +119,7 @@ const staticOf = new WeakMap<CircuitDoc, readonly Problem[]>()
  */
 export function drawingProblems(doc: CircuitDoc, nameOf: PartNamer): readonly Problem[] {
   const cached = staticOf.get(doc)
-  if (cached) return cached
+  if (cached?.language === language()) return cached.problems
   const problems: Problem[] = []
   const nets = terminalNets(doc)
   const graph = partGraph(doc)
@@ -130,7 +133,7 @@ export function drawingProblems(doc: CircuitDoc, nameOf: PartNamer): readonly Pr
       if (nets.has(terminalKey(terminal))) continue
       problems.push({
         kind: 'floating',
-        text: `Input ${pinLabel(part, pin.name)} of ${nameOf(part)} is not connected`,
+        text: t('Input {pin} of {part} is not connected', { pin: pinLabel(part, pin.name), part: nameOf(part) }),
         ids: [part.id],
         at: placeOf(doc, terminal, part),
       })
@@ -142,7 +145,7 @@ export function drawingProblems(doc: CircuitDoc, nameOf: PartNamer): readonly Pr
     ) {
       problems.push({
         kind: 'unused',
-        text: `${nameOf(part)} drives nothing`,
+        text: t('{part} drives nothing', { part: nameOf(part) }),
         ids: [part.id],
         at: part.pos,
       })
@@ -165,7 +168,7 @@ export function drawingProblems(doc: CircuitDoc, nameOf: PartNamer): readonly Pr
       .map((other) => other.id)
     problems.push({
       kind: 'undriven',
-      text: `Nothing drives the wire into ${nameOf(doc.components[readers[0]])}`,
+      text: t('Nothing drives the wire into {part}', { part: nameOf(doc.components[readers[0]]) }),
       ids: wires,
       at: terminalEnd(doc, wire.from)?.pos ?? doc.components[readers[0]].pos,
     })
@@ -173,17 +176,20 @@ export function drawingProblems(doc: CircuitDoc, nameOf: PartNamer): readonly Pr
 
   for (const loop of loopsOf(doc, parts)) {
     const names = loop.map((id) => nameOf(doc.components[id]))
-    const listed = names.length <= 3 ? names.join(', ') : `${names.slice(0, 3).join(', ')} and ${names.length - 3} more`
+    const listed =
+      names.length <= 3
+        ? names.join(', ')
+        : t('{parts} and {count} more', { parts: names.slice(0, 3).join(', '), count: names.length - 3 })
     problems.push({
       kind: 'loop',
-      text: `A loop with no memory runs through ${listed}: it may hold a value or oscillate`,
+      text: t('A loop with no memory runs through {parts}: it may hold a value or oscillate', { parts: listed }),
       ids: loop,
       at: doc.components[loop[0]].pos,
     })
   }
 
   const sorted = sortProblems(problems)
-  staticOf.set(doc, sorted)
+  staticOf.set(doc, { language: language(), problems: sorted })
   return sorted
 }
 
@@ -216,8 +222,8 @@ export function circuitProblems(
     const at = terminalEnd(doc, wire.from)?.pos ?? { x: 0, y: 0 }
     problems.push(
       value.mixed
-        ? { kind: 'mixed', text: 'Pins of different widths are wired together', ids: wires, at }
-        : { kind: 'conflict', text: 'Two outputs drive a wire to different values', ids: wires, at },
+        ? { kind: 'mixed', text: t('Pins of different widths are wired together'), ids: wires, at }
+        : { kind: 'conflict', text: t('Two outputs drive a wire to different values'), ids: wires, at },
     )
   }
   return sortProblems(problems)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { describeCircuit, useEditor } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon } from './icons.tsx'
 import { problemName } from './parts.ts'
@@ -31,12 +32,12 @@ export function DescribeDialog() {
       {open && (
         <div>
           <header className="overlay-head">
-            <h2 id="describe-title">The circuit in words</h2>
+            <h2 id="describe-title">{t('The circuit in words')}</h2>
             <button
               type="button"
               className="tool"
-              aria-label="Close the description"
-              title="Close (Esc)"
+              aria-label={t('Close the description')}
+              title={t('Close (Esc)')}
               onClick={() => {
                 setCopied(false)
                 close()
@@ -48,10 +49,10 @@ export function DescribeDialog() {
           <p className="describe-text">{text}</p>
           <footer className="describe-foot">
             <span className="describe-note" aria-live="polite">
-              {copied ? 'Copied.' : 'A screen reader hears the same on the canvas.'}
+              {copied ? t('Copied.') : t('A screen reader hears the same on the canvas.')}
             </span>
             <button type="button" className="button" onClick={copy}>
-              Copy the text
+              {t('Copy the text')}
             </button>
           </footer>
         </div>

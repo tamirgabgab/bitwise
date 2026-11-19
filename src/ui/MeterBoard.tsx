@@ -1,4 +1,5 @@
 import { meterReadings, signalText, unpinMeter, useEditor, useSim } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { CloseIcon } from './icons.tsx'
 
 /**
@@ -18,7 +19,7 @@ export function MeterBoard() {
   if (readings.length === 0) return null
 
   return (
-    <section className="meters" aria-label="Meter board">
+    <section className="meters" aria-label={t('Meter board')}>
       {readings.map((meter) => (
         <div key={meter.key} className="meter" data-conflict={meter.conflict || undefined}>
           <div className="meter-head">
@@ -26,8 +27,8 @@ export function MeterBoard() {
             <button
               type="button"
               className="tool meter-close"
-              aria-label={`Take ${meter.name} off the meter board`}
-              title="Take off the board"
+              aria-label={t('Take {name} off the meter board', { name: meter.name })}
+              title={t('Take off the board')}
               onClick={() => unpinMeter(meter.key)}
             >
               <CloseIcon />
@@ -36,7 +37,7 @@ export function MeterBoard() {
           <output className="meter-value" aria-live="off">
             {signalText(meter.signal, settings, meter.format)}
           </output>
-          {meter.conflict && <span className="meter-note">In conflict</span>}
+          {meter.conflict && <span className="meter-note">{t('In conflict')}</span>}
         </div>
       ))}
     </section>

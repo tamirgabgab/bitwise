@@ -36,7 +36,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin: 0 10px 0 0;
+  margin-block: 0;
+  margin-inline: 0 10px;
   font-size: var(--text-lg);
   font-weight: 600;
   white-space: nowrap;
@@ -51,7 +52,7 @@
 }
 
 .tool-group:last-child {
-  padding-right: 0;
+  padding-inline-end: 0;
 }
 
 .tool {
@@ -89,7 +90,7 @@
 
 .speed {
   height: 28px;
-  margin-left: 4px;
+  margin-inline-start: 4px;
   padding: 0 4px;
   border: 1px solid var(--border);
   border-radius: 3px;
@@ -183,7 +184,7 @@
   border: 0;
   border-radius: var(--radius-control);
   background: transparent;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -220,7 +221,8 @@
   display: flex;
   gap: 5px;
   width: auto;
-  padding: 0 8px 0 10px;
+  padding-block: 0;
+  padding-inline: 10px 8px;
   font-weight: 500;
 }
 
@@ -243,7 +245,7 @@
 }
 
 .transport > * + * {
-  border-left: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
 }
 
 .transport .tool {
@@ -258,7 +260,8 @@
   gap: 4px;
   min-width: 78px;
   height: 30px;
-  padding: 0 12px 0 8px;
+  padding-block: 0;
+  padding-inline: 8px 12px;
   border: 0;
   background: transparent;
   color: var(--text);
@@ -285,7 +288,7 @@
   margin: 0;
   padding: 0 6px;
   border: 0;
-  border-left: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
   border-radius: 0;
   background: transparent;
 }
@@ -328,7 +331,8 @@
 
 .shortcut .keys + .keys::before {
   content: 'or';
-  margin: 0 3px 0 1px;
+  margin-block: 0;
+  margin-inline: 1px 3px;
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -354,7 +358,8 @@ kbd {
   gap: 6px;
   width: auto;
   height: 28px;
-  padding: 0 6px 0 8px;
+  padding-block: 0;
+  padding-inline: 8px 6px;
   border: 1px solid var(--border);
   background: var(--canvas-bg);
   color: var(--text-muted);
@@ -367,7 +372,7 @@ kbd {
 }
 
 .search-label {
-  margin-right: 10px;
+  margin-inline-end: 10px;
 }
 
 .visually-hidden {
@@ -448,7 +453,8 @@ kbd {
   place-items: center;
   width: 24px;
   height: 24px;
-  margin: 0 2px 0 -6px;
+  margin-block: 0;
+  margin-inline: -6px 2px;
   padding: 0;
   border: 0;
   border-radius: var(--radius-control);
@@ -472,7 +478,7 @@ kbd {
   align-self: center;
   width: 26px;
   height: 26px;
-  margin-left: 2px;
+  margin-inline-start: 2px;
 }
 
 /* ---- Workspace ---- */
@@ -489,7 +495,7 @@ kbd {
   padding: 12px 10px;
   overflow-y: auto;
   background: var(--surface);
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
 }
 
 .palette h2 {
@@ -553,7 +559,7 @@ kbd {
   background: transparent;
   color: inherit;
   font-weight: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -642,7 +648,7 @@ kbd {
   flex-direction: row;
   gap: 6px;
   padding: 6px 8px;
-  text-align: left;
+  text-align: start;
 }
 
 .part-circuit svg {
@@ -759,7 +765,7 @@ kbd {
 
 .stepper-label {
   flex: 1;
-  margin-right: 4px;
+  margin-inline-end: 4px;
   color: var(--text-muted);
 }
 
@@ -807,7 +813,7 @@ kbd {
 }
 
 .stepper-note {
-  margin-left: 8px;
+  margin-inline-start: 8px;
   color: var(--text-muted);
 }
 
@@ -820,27 +826,27 @@ kbd {
   padding: 12px 14px 14px;
   overflow-y: auto;
   background: var(--surface);
-  border-left: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
   animation: inspector-in 140ms ease-out;
 }
 
 @keyframes inspector-in {
   from {
     opacity: 0;
-    transform: translateX(8px);
+    transform: translateX(calc(8px * var(--inline-sign, 1)));
   }
 }
 
 /* The settings panel floats in the same corner: it steps aside. */
 .workspace:has(> .inspector) .settings {
-  right: 264px;
+  inset-inline-end: 264px;
 }
 
 /* ---- Overview map in the corner of the canvas ---- */
 
 .minimap {
   position: absolute;
-  right: 10px;
+  inset-inline-end: 10px;
   bottom: 10px;
   z-index: 2;
   background: var(--surface);
@@ -876,7 +882,8 @@ kbd {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 3px 4px 3px 14px;
+  padding-block: 3px;
+  padding-inline: 14px 4px;
   border: 1px solid var(--border);
   background: var(--text);
   border-radius: var(--radius-panel);
@@ -885,6 +892,13 @@ kbd {
   font-weight: 500;
   pointer-events: auto;
   animation: toast-in 140ms ease-out;
+}
+
+/* The one thing a message offers, on the dark of the message. */
+.toast .toast-action {
+  border-color: color-mix(in srgb, currentColor 40%, transparent);
+  background: transparent;
+  color: inherit;
 }
 
 .toast .tool {
@@ -1048,7 +1062,7 @@ kbd {
 
 .gate-table .gate-table-corner {
   width: auto;
-  padding-right: 4px;
+  padding-inline-end: 4px;
   font-size: var(--text-sm);
   white-space: nowrap;
 }
@@ -1090,7 +1104,7 @@ kbd {
 
 .table-editor .table-editor-corner {
   width: auto;
-  padding-right: 4px;
+  padding-inline-end: 4px;
   white-space: nowrap;
 }
 
@@ -1153,7 +1167,7 @@ kbd {
 
 /* A rule between the inputs and the outputs. */
 .truth-table .last-in {
-  border-right: 1px solid var(--border);
+  border-inline-end: 1px solid var(--border);
 }
 
 .truth-table .truth-out {
@@ -1174,7 +1188,7 @@ kbd {
 }
 
 .truth-expression-name {
-  margin-right: 4px;
+  margin-inline-end: 4px;
   color: var(--text-muted);
   font-family: var(--font-mono);
 }
@@ -1222,7 +1236,7 @@ kbd {
 /* ---- The words of a ROM or RAM ---- */
 
 .memory-count {
-  margin-left: 4px;
+  margin-inline-start: 4px;
   font-weight: 400;
   font-variant-numeric: tabular-nums;
 }
@@ -1246,7 +1260,7 @@ kbd {
   padding: 2px 6px;
   color: var(--text-muted);
   font-weight: 500;
-  text-align: left;
+  text-align: start;
   white-space: nowrap;
 }
 
@@ -1491,7 +1505,7 @@ kbd {
 .settings {
   position: absolute;
   top: 8px;
-  right: 8px;
+  inset-inline-end: 8px;
   z-index: 5;
   width: 348px;
   max-width: calc(100% - 16px);
@@ -1690,7 +1704,8 @@ label.swatch:focus-within {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 2px 6px 2px 12px;
+  padding-block: 2px;
+  padding-inline: 12px 6px;
   background: var(--surface);
   border-bottom: 1px solid var(--border);
 }
@@ -1890,7 +1905,7 @@ label.swatch:focus-within {
   }
 
   .brand {
-    margin-right: 8px;
+    margin-inline-end: 8px;
   }
 
   /* Out of sight to make room for the tools, still read out as the heading. */
@@ -1916,7 +1931,7 @@ label.swatch:focus-within {
     width: auto;
     padding: 8px 12px;
     overflow-x: auto;
-    border-right: 0;
+    border-inline-end: 0;
     border-bottom: 1px solid var(--border);
   }
 
@@ -1927,19 +1942,19 @@ label.swatch:focus-within {
 
   .inspector {
     position: absolute;
-    right: 0;
+    inset-inline-end: 0;
     bottom: 0;
-    left: 0;
+    inset-inline-start: 0;
     z-index: 4;
     width: auto;
     max-height: 45%;
     border-top: 1px solid var(--border);
-    border-left: 0;
+    border-inline-start: 0;
     box-shadow: var(--shadow-float);
   }
 
   .workspace:has(> .inspector) .settings {
-    right: 8px;
+    inset-inline-end: 8px;
   }
 
   .minimap {
@@ -2016,14 +2031,16 @@ label.swatch:focus-within {
   align-items: center;
   gap: 6px;
   min-width: 0;
-  padding: 4px 6px 4px 12px;
+  padding-block: 4px;
+  padding-inline: 12px 6px;
   background: var(--surface);
   border-top: 1px solid var(--border);
   overflow-x: auto;
 }
 
 .steps h2 {
-  margin: 0 6px 0 0;
+  margin-block: 0;
+  margin-inline: 0 6px;
   font-size: var(--text-sm);
   font-weight: 600;
 }
@@ -2037,7 +2054,7 @@ label.swatch:focus-within {
 }
 
 .steps-label {
-  margin-left: 6px;
+  margin-inline-start: 6px;
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
@@ -2081,7 +2098,8 @@ label.swatch:focus-within {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 4px 6px 4px 12px;
+  padding-block: 4px;
+  padding-inline: 12px 6px;
 }
 
 .problems-head h2 {
@@ -2120,7 +2138,7 @@ label.swatch:focus-within {
   color: inherit;
   font: inherit;
   font-size: var(--text-sm);
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -2302,7 +2320,7 @@ label.swatch:focus-within {
 }
 
 .home-count {
-  margin-left: 4px;
+  margin-inline-start: 4px;
   color: var(--text-muted);
   font-weight: 400;
   font-variant-numeric: tabular-nums;
@@ -2344,7 +2362,7 @@ label.swatch:focus-within {
   background: none;
   color: inherit;
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -2572,7 +2590,7 @@ label.swatch:focus-within {
 .present-exit {
   position: absolute;
   top: 12px;
-  right: 12px;
+  inset-inline-end: 12px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -2651,7 +2669,7 @@ label.swatch:focus-within {
   background: none;
   color: var(--text);
   font: inherit;
-  text-align: left;
+  text-align: start;
   cursor: pointer;
 }
 
@@ -2792,8 +2810,9 @@ label.swatch:focus-within {
 
 .calc-results th,
 .calc-results td {
-  padding: 4px 12px 4px 0;
-  text-align: left;
+  padding-block: 4px;
+  padding-inline: 0 12px;
+  text-align: start;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2817,7 +2836,8 @@ label.swatch:focus-within {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 10px 10px 20px;
+  padding-block: 10px;
+  padding-inline: 20px 10px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -2872,7 +2892,7 @@ label.swatch:focus-within {
 
 .legend {
   position: absolute;
-  left: 10px;
+  inset-inline-start: 10px;
   bottom: 10px;
   z-index: 2;
   display: flex;
@@ -3010,7 +3030,7 @@ label.swatch:focus-within {
 .meters {
   position: absolute;
   top: 10px;
-  right: 10px;
+  inset-inline-end: 10px;
   z-index: 2;
   display: flex;
   flex-direction: column;
@@ -3186,7 +3206,7 @@ label.swatch:focus-within {
   flex-shrink: 0;
   padding: 4px 16px 12px;
   overflow-y: auto;
-  border-left: 1px solid var(--border);
+  border-inline-start: 1px solid var(--border);
 }
 
 .machine-panel h3 {
@@ -3251,7 +3271,7 @@ label.swatch:focus-within {
 
 .machine-rules li.chosen {
   box-shadow: inset 2px 0 0 var(--accent);
-  padding-left: 8px;
+  padding-inline-start: 8px;
 }
 
 .machine-actions {
@@ -3279,7 +3299,8 @@ label.swatch:focus-within {
   align-items: center;
   justify-content: space-between;
   gap: 8px 16px;
-  padding: 10px 16px 12px 20px;
+  padding-block: 10px 12px;
+  padding-inline: 20px 16px;
   border-top: 1px solid var(--border);
 }
 
@@ -3327,7 +3348,7 @@ label.swatch:focus-within {
   .machine-panel {
     width: auto;
     flex: 1;
-    border-left: none;
+    border-inline-start: none;
     border-top: 1px solid var(--border);
   }
 }
@@ -3407,4 +3428,14 @@ label.swatch:focus-within {
   .memory-word {
     min-height: 40px;
   }
+}
+
+/* ---- Right to left ---- */
+
+/*
+ * A circuit reads from left to right in every language, and so do the
+ * canvases: their text is drawn the way it always is.
+ */
+canvas {
+  direction: ltr;
 }

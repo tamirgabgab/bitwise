@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { MAX_VERSION_NAME, deleteVersion, listVersions, parseProject } from '../io/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon, DeleteIcon } from './icons.tsx'
 import { goBackTo, saveVersion, useStorage } from './persistence.ts'
@@ -14,7 +15,9 @@ function VersionsBox({ close }: { close: () => void }) {
   // Bumped after each change, so the list is read again from storage.
   const [revision, setRevision] = useState(0)
   const versions = project ? listVersions(project.id) : []
-  const [name, setName] = useState(() => `Version ${versions.filter((v) => !v.auto).length + 1}`)
+  const [name, setName] = useState(() =>
+    t('Version {number}', { number: versions.filter((v) => !v.auto).length + 1 }),
+  )
   const [deleting, setDeleting] = useState<string | null>(null)
   const [now] = useState(() => Date.now())
 
@@ -22,13 +25,15 @@ function VersionsBox({ close }: { close: () => void }) {
     <div className="versions-box" data-revision={revision}>
       <header className="overlay-head">
         <h2 id="versions-title">
-          {project ? `Versions of “${project.name}”` : 'Versions of this project'}
+          {project
+            ? t('Versions of “{name}”', { name: project.name })
+            : t('Versions of this project')}
         </h2>
         <button
           type="button"
           className="tool"
-          aria-label="Close the versions"
-          title="Close the versions (Esc)"
+          aria-label={t('Close the versions')}
+          title={t('Close the versions (Esc)')}
           onClick={close}
         >
           <CloseIcon />
@@ -39,12 +44,12 @@ function VersionsBox({ close }: { close: () => void }) {
         onSubmit={(event) => {
           event.preventDefault()
           if (saveVersion(name)) {
-            setName(`Version ${versions.filter((v) => !v.auto).length + 2}`)
+            setName(t('Version {number}', { number: versions.filter((v) => !v.auto).length + 2 }))
             setRevision(revision + 1)
           }
         }}
       >
-        <label htmlFor="version-name">Name</label>
+        <label htmlFor="version-name">{t('Name')}</label>
         <input
           id="version-name"
           value={name}
@@ -52,15 +57,16 @@ function VersionsBox({ close }: { close: () => void }) {
           onChange={(event) => setName(event.target.value)}
         />
         <button type="submit" className="button button-main">
-          Save a version
+          {t('Save a version')}
         </button>
       </form>
       <p className="versions-note">
-        Kept in this browser, not in the project file. A version is also kept each time the project
-        is opened, and before you go back to an older one.
+        {t(
+          'Kept in this browser, not in the project file. A version is also kept each time the project is opened, and before you go back to an older one.',
+        )}
       </p>
       {versions.length === 0 ? (
-        <p className="versions-note">No versions yet.</p>
+        <p className="versions-note">{t('No versions yet.')}</p>
       ) : (
         <ol className="versions-list">
           {versions.map((version) => (
@@ -70,10 +76,10 @@ function VersionsBox({ close }: { close: () => void }) {
                 data={() => parseProject(version.text)}
               />
               {deleting === version.id ? (
-                <div className="version-confirm" role="group" aria-label={`Delete ${version.name}`}>
-                  <p>Delete the version “{version.name}”? It cannot be brought back.</p>
+                <div className="version-confirm" role="group" aria-label={t('Delete {name}', { name: version.name })}>
+                  <p>{t('Delete the version “{name}”? It cannot be brought back.', { name: version.name })}</p>
                   <button type="button" className="button" autoFocus onClick={() => setDeleting(null)}>
-                    Keep it
+                    {t('Keep it')}
                   </button>
                   <button
                     type="button"
@@ -84,7 +90,7 @@ function VersionsBox({ close }: { close: () => void }) {
                       setRevision(revision + 1)
                     }}
                   >
-                    Delete version
+                    {t('Delete version')}
                   </button>
                 </div>
               ) : (
@@ -92,8 +98,9 @@ function VersionsBox({ close }: { close: () => void }) {
                   <span className="version-text">
                     <span className="version-name">{version.name}</span>
                     <span className="version-meta">
-                      {version.auto ? 'Kept on its own, ' : ''}
-                      {savedWhen(version.saved, now)}
+                      {version.auto
+                        ? t('Kept on its own, {when}', { when: savedWhen(version.saved, now) })
+                        : savedWhen(version.saved, now)}
                     </span>
                   </span>
                   <button
@@ -104,13 +111,13 @@ function VersionsBox({ close }: { close: () => void }) {
                       goBackTo(version.id)
                     }}
                   >
-                    Go back to this
+                    {t('Go back to this')}
                   </button>
                   <button
                     type="button"
                     className="tool"
-                    aria-label={`Delete the version ${version.name}`}
-                    title="Delete"
+                    aria-label={t('Delete the version {name}', { name: version.name })}
+                    title={t('Delete')}
                     onClick={() => setDeleting(version.id)}
                   >
                     <DeleteIcon />

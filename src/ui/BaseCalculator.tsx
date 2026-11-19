@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { MAX_RADIX, MIN_RADIX } from '../core/index.ts'
 import { useEditor } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { calcLines, readNumber, writeBalanced, writeInRadix } from './calculator.ts'
 import type { Written } from './calculator.ts'
 import { useChrome } from './chrome.ts'
@@ -13,7 +14,7 @@ const RADIXES = Array.from({ length: MAX_RADIX - MIN_RADIX + 1 }, (_, index) => 
 function allowed(radix: number, written: Written): string {
   const base = written === 'decimal' ? 10 : radix
   const top = '0123456789ABCDEF'[base - 1]
-  return `Use the digits 0 to ${top}, with a minus sign in front if you need one.`
+  return t('Use the digits 0 to {top}, with a minus sign in front if you need one.', { top })
 }
 
 interface OperandProps {
@@ -87,12 +88,12 @@ export function BaseCalculator() {
       {open && (
         <div>
           <header className="overlay-head">
-            <h2 id="calculator-title">Base calculator</h2>
+            <h2 id="calculator-title">{t('Base calculator')}</h2>
             <button
               type="button"
               className="tool"
-              aria-label="Close the calculator"
-              title="Close the calculator (Esc)"
+              aria-label={t('Close the calculator')}
+              title={t('Close the calculator (Esc)')}
               onClick={close}
             >
               <CloseIcon />
@@ -100,7 +101,7 @@ export function BaseCalculator() {
           </header>
           <div className="calc-body">
             <div className="field">
-              <label htmlFor="calc-radix">Radix</label>
+              <label htmlFor="calc-radix">{t('Radix')}</label>
               <select
                 id="calc-radix"
                 value={radix}
@@ -108,20 +109,20 @@ export function BaseCalculator() {
               >
                 {RADIXES.map((value) => (
                   <option key={value} value={value}>
-                    {value === projectRadix ? `${value}, the project's` : value}
+                    {value === projectRadix ? t("{radix}, the project's", { radix: value }) : value}
                   </option>
                 ))}
               </select>
             </div>
             <div className="field">
-              <label htmlFor="calc-written">Type numbers in</label>
+              <label htmlFor="calc-written">{t('Type numbers in')}</label>
               <select
                 id="calc-written"
                 value={written}
                 onChange={(event) => setWritten(event.target.value as Written)}
               >
-                <option value="radix">Base {radix}</option>
-                <option value="decimal">Decimal</option>
+                <option value="radix">{t('Base {radix}', { radix })}</option>
+                <option value="decimal">{t('Decimal')}</option>
               </select>
             </div>
             <div className="calc-operands">
@@ -132,9 +133,9 @@ export function BaseCalculator() {
               <thead>
                 <tr>
                   <th scope="col" />
-                  <th scope="col">Base {radix}</th>
-                  <th scope="col">Decimal</th>
-                  {balanced && <th scope="col">Balanced</th>}
+                  <th scope="col">{t('Base {radix}', { radix })}</th>
+                  <th scope="col">{t('Decimal')}</th>
+                  {balanced && <th scope="col">{t('Balanced')}</th>}
                 </tr>
               </thead>
               <tbody>
@@ -148,7 +149,7 @@ export function BaseCalculator() {
                 ))}
               </tbody>
             </table>
-            {!balanced && <p className="note">Balanced form needs an odd radix.</p>}
+            {!balanced && <p className="note">{t('Balanced form needs an odd radix.')}</p>}
           </div>
         </div>
       )}

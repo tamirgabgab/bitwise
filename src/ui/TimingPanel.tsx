@@ -28,6 +28,7 @@ import {
 } from '../editor/index.ts'
 import type { CanvasTheme, ScopeMarkers, ScopeView, ValueStyle } from '../editor/index.ts'
 import { downloadText, safeFileName } from '../io/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon, PauseIcon, PictureIcon, PlayIcon, SaveIcon, ZoomInIcon, ZoomOutIcon } from './icons.tsx'
 import { clampPanelHeight } from './panelSize.ts'
@@ -45,7 +46,7 @@ function exportTimingSvg(view: ScopeView, width: number): void {
   const svg = scopeSvg(currentScope(), view, width, theme, makeValueStyle(useEditor.getState().settings, theme))
   const name = `${fileBase()}.svg`
   downloadText(name, svg, 'image/svg+xml')
-  toast(`Exported the timing diagram as ${name}`)
+  toast(t('Exported the timing diagram as {name}', { name }))
 }
 
 /** Saves everything the timing diagram recorded as a VCD file, for GTKWave and the like. */
@@ -53,12 +54,12 @@ function exportTimingVcd(): void {
   const { circuits, active } = useEditor.getState()
   const vcd = scopeVcd(currentScope(), circuits[active].name)
   if (typeof vcd !== 'string') {
-    toast(vcd.problem)
+    toast(t(vcd.problem))
     return
   }
   const name = `${fileBase()}.vcd`
   downloadText(name, vcd, 'text/plain')
-  toast(`Exported the timing diagram as ${name}`)
+  toast(t('Exported the timing diagram as {name}', { name }))
 }
 
 /** How far one press of an arrow key moves the edge of the panel. */
@@ -96,10 +97,10 @@ function PanelGrip({ height }: { height: number | null }) {
       className="panel-grip"
       role="separator"
       aria-orientation="horizontal"
-      aria-label="Height of the timing diagram"
+      aria-label={t('Height of the timing diagram')}
       aria-valuenow={height ?? undefined}
       tabIndex={0}
-      title="Drag to resize. Double-click for the height the rows need"
+      title={t('Drag to resize. Double-click for the height the rows need')}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={() => (drag.current = null)}
@@ -171,8 +172,8 @@ export function TimingPanel() {
         const from = scopeStart(scene.time, width, view)
         spanRef.current.textContent =
           end === null
-            ? `The last ${shown} ticks`
-            : `Frozen at ticks ${from} to ${Math.min(from + shown, end)}`
+            ? t('The last {count} ticks', { count: shown })
+            : t('Frozen at ticks {from} to {to}', { from, to: Math.min(from + shown, end) })
       }
     }
     const request = (): void => {
@@ -257,9 +258,9 @@ export function TimingPanel() {
     const onMarker = dragging !== null || markerAt(x, markers, time, canvas.clientWidth, view) !== null
     canvas.style.cursor = removable ? 'pointer' : onMarker ? 'ew-resize' : ''
     canvas.title = removable
-      ? 'Click to take this wire out of the diagram'
+      ? t('Click to take this wire out of the diagram')
       : x >= SCOPE_NAMES
-        ? 'Click to put down marker A, then B. Drag a marker to move it'
+        ? t('Click to put down marker A, then B. Drag a marker to move it')
         : ''
     if (tick !== cursorRef.current) {
       cursorRef.current = tick
@@ -298,12 +299,12 @@ export function TimingPanel() {
   return (
     <section
       className="timing"
-      aria-label="Timing diagram"
+      aria-label={t('Timing diagram')}
       style={height === null ? undefined : { height, maxHeight: '70vh' }}
     >
       <PanelGrip height={height} />
       <header className="timing-head">
-        <h2>Timing</h2>
+        <h2>{t('Timing')}</h2>
         <span ref={spanRef} className="timing-span" />
         {markerText(markers) !== '' && (
           <>
@@ -311,8 +312,8 @@ export function TimingPanel() {
             <button
               type="button"
               className="tool"
-              aria-label="Take the markers away"
-              title="Take the markers away"
+              aria-label={t('Take the markers away')}
+              title={t('Take the markers away')}
               onClick={() => setMarkers(NO_MARKERS)}
             >
               <CloseIcon />
@@ -322,8 +323,8 @@ export function TimingPanel() {
         <button
           type="button"
           className="tool"
-          aria-label="Zoom the timing diagram out"
-          title="Zoom out (Ctrl+wheel)"
+          aria-label={t('Zoom the timing diagram out')}
+          title={t('Zoom out (Ctrl+wheel)')}
           disabled={tickWidth === SCOPE_ZOOMS[0]}
           onClick={() => setTickWidth((was) => scopeZoom(was, -1))}
         >
@@ -332,8 +333,8 @@ export function TimingPanel() {
         <button
           type="button"
           className="tool"
-          aria-label="Zoom the timing diagram in"
-          title="Zoom in (Ctrl+wheel)"
+          aria-label={t('Zoom the timing diagram in')}
+          title={t('Zoom in (Ctrl+wheel)')}
           disabled={tickWidth === SCOPE_ZOOMS[SCOPE_ZOOMS.length - 1]}
           onClick={() => setTickWidth((was) => scopeZoom(was, 1))}
         >
@@ -343,11 +344,11 @@ export function TimingPanel() {
           type="button"
           className="tool"
           aria-pressed={frozen}
-          aria-label="Freeze the timing diagram"
+          aria-label={t('Freeze the timing diagram')}
           title={
             frozen
-              ? 'Follow the run again'
-              : 'Freeze: the run goes on and the diagram stays put. Shift+wheel looks back'
+              ? t('Follow the run again')
+              : t('Freeze: the run goes on and the diagram stays put. Shift+wheel looks back')
           }
           onClick={() => setEnd(frozen ? null : useSim.getState().time)}
         >
@@ -356,8 +357,8 @@ export function TimingPanel() {
         <button
           type="button"
           className="tool"
-          aria-label="Export the timing diagram as an SVG picture"
-          title="Export as an SVG picture, as it is on screen"
+          aria-label={t('Export the timing diagram as an SVG picture')}
+          title={t('Export as an SVG picture, as it is on screen')}
           disabled={rows === 0}
           onClick={() =>
             exportTimingSvg({ tickWidth, end, cursor: null, markers }, canvasRef.current?.clientWidth ?? 640)
@@ -368,11 +369,11 @@ export function TimingPanel() {
         <button
           type="button"
           className="tool"
-          aria-label="Export the timing diagram as a VCD file"
+          aria-label={t('Export the timing diagram as a VCD file')}
           title={
             settings.radix === 2
-              ? 'Export as a VCD file, for GTKWave: every change recorded'
-              : 'VCD holds only 0, 1, X and Z: export it at radix 2'
+              ? t('Export as a VCD file, for GTKWave: every change recorded')
+              : t('VCD holds only 0, 1, X and Z: export it at radix 2')
           }
           disabled={rows === 0 || settings.radix !== 2}
           onClick={exportTimingVcd}
@@ -382,8 +383,8 @@ export function TimingPanel() {
         <button
           type="button"
           className="tool"
-          aria-label="Close the timing diagram"
-          title="Close the timing diagram"
+          aria-label={t('Close the timing diagram')}
+          title={t('Close the timing diagram')}
           onClick={() => useSim.getState().setScopeOpen(false)}
         >
           <CloseIcon />
@@ -391,15 +392,20 @@ export function TimingPanel() {
       </header>
       {rows === 0 ? (
         <p className="timing-empty">
-          Nothing to follow yet. Add a clock, an input or an output, or right-click a wire, and it
-          gets a row here.
+          {t(
+            'Nothing to follow yet. Add a clock, an input or an output, or right-click a wire, and it gets a row here.',
+          )}
         </p>
       ) : (
         <div className="timing-body">
           <canvas
             ref={canvasRef}
             role="img"
-            aria-label={`Values of ${rows} signal${rows === 1 ? '' : 's'} over the last ticks`}
+            aria-label={
+              rows === 1
+                ? t('Values of 1 signal over the last ticks')
+                : t('Values of {count} signals over the last ticks', { count: rows })
+            }
             onPointerMove={onPointerMove}
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}

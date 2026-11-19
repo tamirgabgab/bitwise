@@ -6,6 +6,8 @@
  * a circuit is not built from half of what was written.
  */
 
+import { msg, t } from '../i18n/index.ts'
+
 /** A mistake in the text, or something this reader does not take, with its place. */
 export class VerilogError extends Error {
   readonly offset: number
@@ -128,26 +130,26 @@ const DIGIT_BITS: Readonly<Record<string, number>> = { b: 1, o: 3, h: 4 }
 
 function readNumber(match: RegExpExecArray, at: number): Token {
   const [text, sized, signed, baseLetter, digits, plain, fraction] = match
-  if (fraction !== undefined) throw new VerilogError('Only whole numbers are read.', at)
+  if (fraction !== undefined) throw new VerilogError(t('Only whole numbers are read.'), at)
   if (plain !== undefined) return { kind: 'num', text, at, value: BigInt(plain.replaceAll('_', '')) }
-  if (signed !== '') throw new VerilogError('Signed numbers are not read.', at)
+  if (signed !== '') throw new VerilogError(t('Signed numbers are not read.'), at)
   const size = sized === undefined ? undefined : Number(sized.replaceAll('_', ''))
   if (size !== undefined && (size < 1 || size > MAX_VERILOG_WIDTH)) {
-    throw new VerilogError(`A number is 1 to ${MAX_VERILOG_WIDTH} bits wide.`, at)
+    throw new VerilogError(t('A number is 1 to {max} bits wide.', { max: MAX_VERILOG_WIDTH }), at)
   }
   const base = baseLetter.toLowerCase()
   const clean = digits.replaceAll('_', '').toLowerCase()
-  if (/[z?]/.test(clean)) throw new VerilogError('A bit left floating (z) is not read.', at)
+  if (/[z?]/.test(clean)) throw new VerilogError(t('A bit left floating (z) is not read.'), at)
   let value = 0n
   if (base === 'd') {
     // A decimal number is unknown as a whole or not at all, and unknown reads as 0.
-    if (!/^\d+$/.test(clean) && clean !== 'x') throw new VerilogError('This is not a decimal number.', at)
+    if (!/^\d+$/.test(clean) && clean !== 'x') throw new VerilogError(t('This is not a decimal number.'), at)
     value = clean === 'x' ? 0n : BigInt(clean)
   } else {
     const each = DIGIT_BITS[base]
     for (const digit of clean) {
       const worth = digit === 'x' ? 0 : Number.parseInt(digit, 16)
-      if (Number.isNaN(worth) || worth >= 2 ** each) throw new VerilogError('This digit does not belong to the base of the number.', at)
+      if (Number.isNaN(worth) || worth >= 2 ** each) throw new VerilogError(t('This digit does not belong to the base of the number.'), at)
       value = (value << BigInt(each)) | BigInt(worth)
     }
   }
@@ -168,29 +170,29 @@ function tokensOf(text: string): Token[] {
       at = stop === -1 ? end : stop
     } else if (text.startsWith('/*', at)) {
       const stop = text.indexOf('*/', at + 2)
-      if (stop === -1) throw new VerilogError('This comment is never closed.', at)
+      if (stop === -1) throw new VerilogError(t('This comment is never closed.'), at)
       at = stop + 2
     } else if (text.startsWith('(*', at) && text[at + 2] !== ')') {
       // An attribute says nothing about the circuit.
       const stop = text.indexOf('*)', at + 2)
-      if (stop === -1) throw new VerilogError('This attribute is never closed.', at)
+      if (stop === -1) throw new VerilogError(t('This attribute is never closed.'), at)
       at = stop + 2
     } else if (char === '`') {
       // A directive such as `timescale. A macro would change the text, so it is refused.
       if (/^`(define|include|ifdef|ifndef|else|endif|undef)\b/.test(text.slice(at, at + 9))) {
-        throw new VerilogError('Macros and included files are not read. Write the text out in full.', at)
+        throw new VerilogError(t('Macros and included files are not read. Write the text out in full.'), at)
       }
       const stop = text.indexOf('\n', at)
       at = stop === -1 ? end : stop
     } else if ((char >= '0' && char <= '9') || char === "'") {
       NUMBER.lastIndex = at
       const match = NUMBER.exec(text)
-      if (!match) throw new VerilogError('This number is not understood.', at)
+      if (!match) throw new VerilogError(t('This number is not understood.'), at)
       tokens.push(readNumber(match, at))
       at += match[0].length
     } else if (char === '$' || char === '\\') {
       throw new VerilogError(
-        char === '$' ? 'System tasks such as $display are not read.' : 'Escaped names are not read.',
+        char === '$' ? t('System tasks such as $display are not read.') : t('Escaped names are not read.'),
         at,
       )
     } else {
@@ -202,7 +204,7 @@ function tokensOf(text: string): Token[] {
         continue
       }
       const op = OPERATORS.find((item) => text.startsWith(item, at))
-      if (!op) throw new VerilogError(`“${char}” is not understood here.`, at)
+      if (!op) throw new VerilogError(t('“{char}” is not understood here.', { char }), at)
       tokens.push({ kind: 'op', text: op, at })
       at += op.length
     }
@@ -213,34 +215,73 @@ function tokensOf(text: string): Token[] {
 
 const GATES = new Set(['and', 'or', 'xor', 'nand', 'nor', 'xnor', 'not', 'buf'])
 
-/** Words of the language that are understood nowhere, each with why. */
+/** Words of the language that are understood nowhere, each with why, shown with `t`. */
 const REFUSED: Readonly<Record<string, string>> = {
-  inout: 'A port that is both an input and an output is not read.',
-  signed: 'Signed numbers are not read.',
-  integer: 'Only wires and regs are read, not integers.',
-  real: 'Only wires and regs are read, not real numbers.',
-  time: 'Only wires and regs are read.',
-  genvar: 'Generated code is not read. Write each part out.',
-  generate: 'Generated code is not read. Write each part out.',
-  for: 'Loops are not read. Write each part out.',
-  while: 'Loops are not read.',
-  repeat: 'Loops are not read.',
-  forever: 'Loops are not read.',
-  function: 'Functions are not read. Write the expression where it is used.',
-  task: 'Tasks are not read.',
-  initial: 'An initial block is not read. A register starts at 0.',
-  always_latch: 'A latch is not read. Give the value on a clock edge.',
-  casez: 'Only a plain case is read.',
-  casex: 'Only a plain case is read.',
-  defparam: 'Give a module its numbers where it is written.',
-  specify: 'Timing is not read.',
-  primitive: 'Only the built-in gates are read.',
-  tri: 'Only wires and regs are read.',
-  wand: 'Only wires and regs are read.',
-  wor: 'Only wires and regs are read.',
-  supply0: 'Write 1\'b0 where the value is used.',
-  supply1: 'Write 1\'b1 where the value is used.',
+  inout: msg('A port that is both an input and an output is not read.'),
+  signed: msg('Signed numbers are not read.'),
+  integer: msg('Only wires and regs are read, not integers.'),
+  real: msg('Only wires and regs are read, not real numbers.'),
+  time: msg('Only wires and regs are read.'),
+  genvar: msg('Generated code is not read. Write each part out.'),
+  generate: msg('Generated code is not read. Write each part out.'),
+  for: msg('Loops are not read. Write each part out.'),
+  while: msg('Loops are not read.'),
+  repeat: msg('Loops are not read.'),
+  forever: msg('Loops are not read.'),
+  function: msg('Functions are not read. Write the expression where it is used.'),
+  task: msg('Tasks are not read.'),
+  initial: msg('An initial block is not read. A register starts at 0.'),
+  always_latch: msg('A latch is not read. Give the value on a clock edge.'),
+  casez: msg('Only a plain case is read.'),
+  casex: msg('Only a plain case is read.'),
+  defparam: msg('Give a module its numbers where it is written.'),
+  specify: msg('Timing is not read.'),
+  primitive: msg('Only the built-in gates are read.'),
+  tri: msg('Only wires and regs are read.'),
+  wand: msg('Only wires and regs are read.'),
+  wor: msg('Only wires and regs are read.'),
+  supply0: msg('Write 1\'b0 where the value is used.'),
+  supply1: msg('Write 1\'b1 where the value is used.'),
 }
+
+/**
+ * What a missing name belongs to, with what is said when something else
+ * stands in its place (`{found}`) and when the text ends there. Shown with `t`.
+ */
+const NAMES = {
+  block: {
+    found: msg('The name of the block is expected here, not “{found}”.'),
+    end: msg('The name of the block is expected here, not the end of the text.'),
+  },
+  module: {
+    found: msg('The name of the module is expected here, not “{found}”.'),
+    end: msg('The name of the module is expected here, not the end of the text.'),
+  },
+  number: {
+    found: msg('The name of the number is expected here, not “{found}”.'),
+    end: msg('The name of the number is expected here, not the end of the text.'),
+  },
+  port: {
+    found: msg('The name of the port is expected here, not “{found}”.'),
+    end: msg('The name of the port is expected here, not the end of the text.'),
+  },
+  signal: {
+    found: msg('The name of the signal is expected here, not “{found}”.'),
+    end: msg('The name of the signal is expected here, not the end of the text.'),
+  },
+  gate: {
+    found: msg('The name of the gate is expected here, not “{found}”.'),
+    end: msg('The name of the gate is expected here, not the end of the text.'),
+  },
+  used: {
+    found: msg('The name of a module is expected here, not “{found}”.'),
+    end: msg('The name of a module is expected here, not the end of the text.'),
+  },
+  part: {
+    found: msg('The name of the part is expected here, not “{found}”.'),
+    end: msg('The name of the part is expected here, not the end of the text.'),
+  },
+} as const
 
 const RESERVED = new Set([
   ...GATES, ...Object.keys(REFUSED),
@@ -276,26 +317,33 @@ export function parseVerilog(text: string): Module[] {
     index++
     return true
   }
-  const shown = (token: Token): string => (token.kind === 'end' ? 'the end of the text' : `“${token.text}”`)
+  /** `said.found` with the token put in, or `said.end` when the text is over. */
+  const notHere = (
+    token: Token,
+    said: { readonly found: string; readonly end: string },
+    values: Readonly<Record<string, string>> = {},
+  ): string => (token.kind === 'end' ? t(said.end, values) : t(said.found, { ...values, found: token.text }))
+  const EXPECTED = {
+    found: msg('“{wanted}” is expected here, not “{found}”.'),
+    end: msg('“{wanted}” is expected here, not the end of the text.'),
+  }
   const expect = (text: string): Token => {
     if (!is(text)) {
       // What is missing belongs right after what was read last, not before what comes next.
       const last = tokens[index - 1]
       const at = last ? last.at + last.text.length : peek().at
-      throw new VerilogError(`“${text}” is expected here, not ${shown(peek())}.`, at)
+      throw new VerilogError(notHere(peek(), EXPECTED, { wanted: text }), at)
     }
     return next()
   }
   const refuse = (): void => {
     const token = peek()
-    if (token.kind === 'id' && Object.hasOwn(REFUSED, token.text)) throw new VerilogError(REFUSED[token.text], token.at)
+    if (token.kind === 'id' && Object.hasOwn(REFUSED, token.text)) throw new VerilogError(t(REFUSED[token.text]), token.at)
   }
-  const name = (what: string): Token => {
+  const name = (what: keyof typeof NAMES): Token => {
     refuse()
     const token = peek()
-    if (token.kind !== 'id' || RESERVED.has(token.text)) {
-      throw new VerilogError(`The name of ${what} is expected here, not ${shown(token)}.`, token.at)
-    }
+    if (token.kind !== 'id' || RESERVED.has(token.text)) throw new VerilogError(notHere(token, NAMES[what]), token.at)
     return next()
   }
 
@@ -324,7 +372,7 @@ export function parseVerilog(text: string): Module[] {
       return { kind: 'concat', at: token.at, parts }
     }
     if (token.kind === 'id' && !RESERVED.has(token.text)) {
-      if (is('(')) throw new VerilogError('Functions are not read. Write the expression where it is used.', token.at)
+      if (is('(')) throw new VerilogError(t('Functions are not read. Write the expression where it is used.'), token.at)
       if (!take('[')) return { kind: 'id', at: token.at, name: token.text }
       const first = expression()
       let picked: Expr
@@ -334,10 +382,16 @@ export function parseVerilog(text: string): Module[] {
         picked = { kind: 'part', at: token.at, name: token.text, high: first, low: expression(), step }
       } else picked = { kind: 'bit', at: token.at, name: token.text, index: first }
       expect(']')
-      if (is('[')) throw new VerilogError('A memory of several words is not read.', peek().at)
+      if (is('[')) throw new VerilogError(t('A memory of several words is not read.'), peek().at)
       return picked
     }
-    throw new VerilogError(`A value is expected here, not ${shown(token)}.`, token.at)
+    throw new VerilogError(
+      notHere(token, {
+        found: msg('A value is expected here, not “{found}”.'),
+        end: msg('A value is expected here, not the end of the text.'),
+      }),
+      token.at,
+    )
   }
   const unary = (): Expr => {
     const token = peek()
@@ -373,7 +427,7 @@ export function parseVerilog(text: string): Module[] {
       let depth = 1
       while (depth > 0) {
         const token = next()
-        if (token.kind === 'end') throw new VerilogError('This delay is never closed.', token.at)
+        if (token.kind === 'end') throw new VerilogError(t('This delay is never closed.'), token.at)
         if (token.text === '(') depth++
         if (token.text === ')') depth--
       }
@@ -393,10 +447,10 @@ export function parseVerilog(text: string): Module[] {
     refuse()
     const token = peek()
     if (take('begin')) {
-      if (take(':')) name('the block')
+      if (take(':')) name('block')
       const body: Stmt[] = []
       while (!take('end')) {
-        if (peek().kind === 'end') throw new VerilogError('This “begin” has no “end”.', token.at)
+        if (peek().kind === 'end') throw new VerilogError(t('This “begin” has no “end”.'), token.at)
         body.push(statement())
       }
       return { kind: 'block', at: token.at, body }
@@ -417,10 +471,10 @@ export function parseVerilog(text: string): Module[] {
       const arms: { values: Expr[]; body: Stmt }[] = []
       let otherwise: Stmt | undefined
       while (!take('endcase')) {
-        if (peek().kind === 'end') throw new VerilogError('This “case” has no “endcase”.', token.at)
+        if (peek().kind === 'end') throw new VerilogError(t('This “case” has no “endcase”.'), token.at)
         if (take('default')) {
           take(':')
-          if (otherwise) throw new VerilogError('A case has one default.', token.at)
+          if (otherwise) throw new VerilogError(t('A case has one default.'), token.at)
           otherwise = statement()
           continue
         }
@@ -447,7 +501,7 @@ export function parseVerilog(text: string): Module[] {
   // ---- A module ----
   const readModule = (): Module => {
     const start = next()
-    const title = name('the module')
+    const title = name('module')
     const ports: string[] = []
     const decls: Decl[] = []
     const params: Param[] = []
@@ -458,7 +512,7 @@ export function parseVerilog(text: string): Module[] {
       if (!take('parameter')) take('localparam')
       const bounds = range()
       for (;;) {
-        const param = name('the number')
+        const param = name('number')
         expect('=')
         params.push({ at: param.at, name: param.text, value: expression(), ...(bounds ? { range: bounds } : {}) })
         if (!take(',')) break
@@ -492,7 +546,7 @@ export function parseVerilog(text: string): Module[] {
       let said: Omit<Decl, 'name' | 'at'> | undefined
       while (!take(')')) {
         said = kind() ?? said
-        const port = name('the port')
+        const port = name('port')
         ports.push(port.text)
         if (said) decls.push({ ...said, at: port.at, name: port.text })
         if (!is(')')) expect(',')
@@ -502,7 +556,7 @@ export function parseVerilog(text: string): Module[] {
 
     while (!take('endmodule')) {
       const token = peek()
-      if (token.kind === 'end') throw new VerilogError('This module has no “endmodule”.', start.at)
+      if (token.kind === 'end') throw new VerilogError(t('This module has no “endmodule”.'), start.at)
       if (take(';')) continue
       if (is('parameter') || is('localparam')) {
         parameters(';')
@@ -511,8 +565,8 @@ export function parseVerilog(text: string): Module[] {
       const said = kind()
       if (said) {
         for (;;) {
-          const signal = name('the signal')
-          if (is('[')) throw new VerilogError('A memory of several words is not read.', peek().at)
+          const signal = name('signal')
+          if (is('[')) throw new VerilogError(t('A memory of several words is not read.'), peek().at)
           if (take('=')) {
             const value = expression()
             if (said.reg) decls.push({ ...said, at: signal.at, name: signal.text, init: value })
@@ -557,7 +611,7 @@ export function parseVerilog(text: string): Module[] {
             expect(')')
           }
           if (word === 'always_ff' && edges.length === 0) {
-            throw new VerilogError('An always_ff needs the edge of a clock.', token.at)
+            throw new VerilogError(t('An always_ff needs the edge of a clock.'), token.at)
           }
         }
         items.push({ kind: 'always', at: token.at, edges, body: statement() })
@@ -567,7 +621,7 @@ export function parseVerilog(text: string): Module[] {
         next()
         delay()
         for (;;) {
-          const label = peek().kind === 'id' && !is('(') ? name('the gate').text : undefined
+          const label = peek().kind === 'id' && !is('(') ? name('gate').text : undefined
           expect('(')
           const pins = [expression()]
           while (take(',')) pins.push(expression())
@@ -579,17 +633,17 @@ export function parseVerilog(text: string): Module[] {
         continue
       }
       // What is left is another module used as a part.
-      const used = name('a module')
-      if (take('#')) throw new VerilogError('Give a module its numbers where it is written, not where it is used.', used.at)
+      const used = name('used')
+      if (take('#')) throw new VerilogError(t('Give a module its numbers where it is written, not where it is used.'), used.at)
       for (;;) {
-        const label = name('the part')
+        const label = name('part')
         expect('(')
         const named: { at: number; port: string; value?: Expr }[] = []
         const placed: (Expr | undefined)[] = []
         if (is('.')) {
           do {
             const at = expect('.').at
-            const port = name('the port').text
+            const port = name('port').text
             expect('(')
             if (is(')')) named.push({ at, port })
             else named.push({ at, port, value: expression() })
@@ -616,7 +670,7 @@ export function parseVerilog(text: string): Module[] {
   while (peek().kind !== 'end') {
     if (!is('module') && !is('macromodule')) {
       refuse()
-      throw new VerilogError(`“module” is expected here, not ${shown(peek())}.`, peek().at)
+      throw new VerilogError(notHere(peek(), EXPECTED, { wanted: 'module' }), peek().at)
     }
     modules.push(readModule())
   }

@@ -17,12 +17,23 @@ file is now `.bitwise.json`, and `.cedar.json` still opens.
 - `npm run build` — type-check, then build to `dist/`
 - `npm run pictures` — draw the README pictures again (`scripts/readme-pictures.ts`
   into `docs/pictures`); run it after a change to how circuits look
+- `npm run build:e2e`, then `npm run e2e` — the end-to-end tests (Playwright,
+  `e2e/`) against the build for them, in Chromium at desktop and phone size
+- `npm run site-pictures` — after `build:e2e`: the icons of the site and of
+  the desktop app, the share picture (`public/og.png`), and the README's
+  screenshot and film (`docs/pictures/app.png`, `demo.gif`; needs ffmpeg)
+- `npm run build:desktop` — the page for the desktop app, into `dist-desktop`;
+  `npm run tauri build` builds the app itself, which needs Rust
 
-Run lint, test and build before calling a change done. CI runs the same three.
+Run lint, test and build before calling a change done. CI runs the same three,
+and the end-to-end tests besides.
 
-Every push to `main` that passes them is published to GitHub Pages
+Every push to `main` that passes them all is published to GitHub Pages
 (`.github/workflows/pages.yml`), at https://tamirgabgab.github.io/bitwise/.
 The build uses relative paths (`base: './'`), so it works under that folder.
+`.github/workflows/desktop.yml` builds the desktop app for Windows, macOS and
+Linux on the same pushes, and drafts a release for a `v*` tag. Only CI has
+Rust; nothing is built for the desktop locally.
 
 ## Layers
 
@@ -31,6 +42,8 @@ The build uses relative paths (`base: './'`), so it works under that folder.
 - `src/editor` — canvas rendering and interaction. May import `core`.
 - `src/ui` — React panels and app shell. May import `core`, `editor`, `io`.
 - `src/io` — file format, save/load, export. May import `core`.
+- `src/i18n` — the language of the interface. Imports nothing; every layer,
+  `core` included, may import it.
 
 ## Core model
 
@@ -329,6 +342,29 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   only accent color; the other hues are reserved for signal values.
 - Keyboard shortcuts match on `event.code`, so they work on any layout.
 
+## Language
+
+- The interface speaks English and Hebrew. A message is its English text:
+  `t('Delete {name}', { name })` gives it in the open language, and `msg()`
+  marks a constant whose text is said later through `t(value)`. Never build
+  the text of `t` or `msg` from a template string; put the changing part in
+  a `{place}`.
+- The Hebrew lives in `src/i18n/he/`, one dictionary per group of files
+  (`docs/hebrew.md` lists them, with the style and the glossary), and loads
+  as a chunk of its own. `i18n.test.ts` reads the sources and fails on a
+  message without Hebrew, a Hebrew one nothing asks for, a key in two
+  dictionaries, or places that differ. Names of gates (AND, XOR, ...),
+  Verilog and file formats are not translated.
+- `src/ui/language.ts` chooses: the saved choice (`cedar-logic.language`),
+  else the browser's. `speak` loads the dictionary and sets `lang` and `dir`
+  on the page before anything is drawn, and a change draws the app again
+  (`Root.tsx`, keyed by the language); the stores keep the project. The
+  choice is in the settings and the command search.
+- Hebrew mirrors the chrome: `App.css` uses logical properties only
+  (`inline-start`, `padding-inline`, ...), never left and right. The
+  canvases do not turn (`direction: ltr`), and neither do media controls
+  or values.
+
 ## App chrome
 
 - `useChrome` (`src/ui/chrome.ts`) holds what belongs to the app and not to
@@ -352,7 +388,8 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   a value is refused.
 - `paletteModel.ts` decides the palette sections and the search;
   `minimap.ts` the overview map, shown only when part of the drawing is out
-  of sight; `toasts.ts` the short messages; `tour.ts` the steps of the tour
+  of sight; `toasts.ts` the short messages (one that offers a button,
+  `offer`, stays until it is answered); `tour.ts` the steps of the tour
   and where its card goes.
 - `pulses.ts` notes which wires changed and which way a wire carries its
   value. `render.ts` draws the wave only when the scene has `pulse`: never
@@ -415,6 +452,18 @@ The build uses relative paths (`base: './'`), so it works under that folder.
   `MAX_FILE_LENGTH` and the text goes through `parseProject`. It opens as a
   new project of the list (`openLinkInAddress` in `persistence.ts`), and
   the fragment is cleared so a reload does not open it again.
+- The built site works without a network: `src/serviceWorker.ts` is the
+  source of `sw.js`, written by the build with the release's files (a
+  plugin in `vite.config.ts`), and `src/ui/offline.ts` registers it and
+  offers to reload when a new release takes over. The site is an installable
+  app (`public/manifest.webmanifest`, icons in `public/icons`).
+- The build modes: `e2e` adds `window.bitwise` (`src/ui/e2eHook.ts`), which
+  tells the tests where parts and pins are drawn; `desktop` leaves the
+  service worker out, lets the page talk to the app (`DESKTOP_CONTENT_SECURITY_POLICY`)
+  and loads `src/ui/desktop.ts`, which saves and opens through the system's
+  dialogs (`fileHooks` in `src/io/files.ts`). The desktop app (`src-tauri`,
+  Tauri 2) saves a project as `.bitwise` and opens one on a double click;
+  the site opens `.bitwise`, `.bitwise.json` and `.cedar.json`.
 - The windows not needed for the first screen load on first open
   (`LazyOverlays.tsx`), and the libraries are a chunk of their own
   (`vite.config.ts`). A new large window goes there too.

@@ -1,4 +1,5 @@
 import { X, Z } from '../core/index.ts'
+import { t } from '../i18n/index.ts'
 import type { ScopeSignal, ScopeValue } from './scope.ts'
 import type { ScopeScene, ScopeView } from './scopeRender.ts'
 import { renderScope, scopeHeight } from './scopeRender.ts'
@@ -78,7 +79,11 @@ function widthOf(scene: ScopeScene, signal: ScopeSignal, from: number): number {
  */
 export function scopeVcd(scene: ScopeScene, circuit: string, date = new Date()): string | { readonly problem: string } {
   if (scene.radix !== 2) {
-    return { problem: `VCD holds only 0, 1, X and Z, so it is written at radix 2. This project is at radix ${scene.radix}.` }
+    return {
+      problem: t('VCD holds only 0, 1, X and Z, so it is written at radix 2. This project is at radix {radix}.', {
+        radix: scene.radix,
+      }),
+    }
   }
   const { recorder, signals, time } = scene
   // The record starts where the earliest row was first seen.
@@ -87,7 +92,7 @@ export function scopeVcd(scene: ScopeScene, circuit: string, date = new Date()):
     const first = recorder.spans(signal.key, 0, time + 1)[0]
     if (first) start = Math.min(start, first.from)
   }
-  if (start === Number.POSITIVE_INFINITY) return { problem: 'The timing diagram has nothing recorded yet.' }
+  if (start === Number.POSITIVE_INFINITY) return { problem: t('The timing diagram has nothing recorded yet.') }
 
   const used = new Set<string>()
   const rows = signals.map((signal, index) => ({

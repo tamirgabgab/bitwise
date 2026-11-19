@@ -819,6 +819,9 @@ export class CanvasController {
         if (changed) {
           this.probe(hover, event)
           this.requestDraw()
+        } else if (hover !== null && useProbe.getState().at === null) {
+          // A press put the probe away; it comes back as soon as the pointer moves.
+          this.probe(hover, event)
         }
       }
     }

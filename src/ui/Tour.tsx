@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef, useState } from 'react'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { TOUR_STEPS, placeCard } from './tour.ts'
 import type { Box } from './tour.ts'
@@ -74,18 +75,18 @@ function TourSteps() {
         style={spot ? { left: spot.left, top: spot.top } : { visibility: 'hidden' }}
       >
         <p className="tour-count">
-          Step {index + 1} of {TOUR_STEPS.length}
+          {t('Step {step} of {count}', { step: index + 1, count: TOUR_STEPS.length })}
         </p>
-        <h2 id="tour-title">{step.title}</h2>
-        <p id="tour-text">{step.text}</p>
+        <h2 id="tour-title">{t(step.title)}</h2>
+        <p id="tour-text">{t(step.text)}</p>
         <div className="tour-actions">
           <button type="button" className="link" onClick={endTour}>
-            Skip the tour
+            {t('Skip the tour')}
           </button>
           <span className="tour-space" />
           {index > 0 && (
             <button type="button" className="button" onClick={() => setIndex(index - 1)}>
-              Back
+              {t('Back')}
             </button>
           )}
           <button
@@ -96,7 +97,7 @@ function TourSteps() {
             className="button button-main"
             onClick={() => (last ? endTour() : setIndex(index + 1))}
           >
-            {last ? 'Start building' : 'Next'}
+            {last ? t('Start building') : t('Next')}
           </button>
         </div>
       </div>

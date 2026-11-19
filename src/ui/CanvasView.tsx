@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { CanvasController, describeCircuit, useEditor } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { MeterBoard } from './MeterBoard.tsx'
 import { Minimap } from './Minimap.tsx'
@@ -30,30 +31,38 @@ export function CanvasView() {
         ref={ref}
         className="canvas"
         tabIndex={0}
-        aria-label="Circuit canvas"
+        aria-label={t('Circuit canvas')}
         aria-description={description}
       />
       {isEmpty && !isPlacing && (
         <div className="empty-hint">
-          <h2 className="empty-title">This circuit is empty</h2>
+          <h2 className="empty-title">{t('This circuit is empty')}</h2>
           <p className="empty-line">
-            Drag or click a part in the palette,{' '}
-            <button
-              type="button"
-              className="empty-link"
-              onClick={() => useChrome.getState().openCommands('example')}
-            >
-              browse examples
-            </button>{' '}
-            or{' '}
-            <button
-              type="button"
-              className="empty-link"
-              onClick={() => useChrome.getState().openCommands('add ')}
-            >
-              search parts
-            </button>
-            .
+            {t('Drag or click a part in the palette, {examples} or {search}.')
+              .split(/(\{\w+\})/)
+              .map((piece, index) =>
+                piece === '{examples}' ? (
+                  <button
+                    key={index}
+                    type="button"
+                    className="empty-link"
+                    onClick={() => useChrome.getState().openCommands(t('example'))}
+                  >
+                    {t('browse examples')}
+                  </button>
+                ) : piece === '{search}' ? (
+                  <button
+                    key={index}
+                    type="button"
+                    className="empty-link"
+                    onClick={() => useChrome.getState().openCommands(t('add '))}
+                  >
+                    {t('search parts')}
+                  </button>
+                ) : (
+                  piece
+                ),
+              )}
           </p>
         </div>
       )}

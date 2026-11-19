@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { EXAMPLES } from '../editor/index.ts'
 import { MAX_PROJECT_NAME, parseProject, readLocal } from '../io/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { CloseIcon, CopyIcon, DeleteIcon, NewIcon, OpenIcon, RenameIcon } from './icons.tsx'
 import {
@@ -49,18 +50,18 @@ function HomeBox({ close }: { close: () => void }) {
         <div className="home-actions">
           <button type="button" className="button button-main" onClick={then(startNewProject)}>
             <NewIcon />
-            Start a new project
+            {t('Start a new project')}
           </button>
           <button type="button" className="button" onClick={then(openProjectFile)}>
             <OpenIcon />
-            Open a project file
+            {t('Open a project file')}
           </button>
         </div>
         <button
           type="button"
           className="tool home-close"
-          aria-label="Back to the canvas"
-          title="Back to the canvas (Esc)"
+          aria-label={t('Back to the canvas')}
+          title={t('Back to the canvas (Esc)')}
           onClick={close}
         >
           <CloseIcon />
@@ -69,11 +70,11 @@ function HomeBox({ close }: { close: () => void }) {
 
       <section aria-labelledby="home-projects">
         <h2 id="home-projects">
-          Projects in this browser <span className="home-count">{projects.length}</span>
+          {t('Projects in this browser')} <span className="home-count">{projects.length}</span>
         </h2>
         {projects.length === 0 ? (
           <p className="home-note">
-            Nothing is kept yet. The project you have open is added here as soon as you change it.
+            {t('Nothing is kept yet. The project you have open is added here as soon as you change it.')}
           </p>
         ) : (
           <ul className="home-grid">
@@ -96,7 +97,7 @@ function HomeBox({ close }: { close: () => void }) {
                       <>
                         <span className="home-name">{project.name}</span>
                         <span className="home-meta">
-                          {isOpen ? 'Open now' : `Saved ${savedWhen(project.saved, now)}`}
+                          {isOpen ? t('Open now') : t('Saved {when}', { when: savedWhen(project.saved, now) })}
                         </span>
                       </>
                     )}
@@ -104,7 +105,7 @@ function HomeBox({ close }: { close: () => void }) {
                   {renaming === project.id && (
                     <NameInput
                       name={project.name}
-                      label="Project name"
+                      label={t('Project name')}
                       maxLength={MAX_PROJECT_NAME}
                       className="home-name-input"
                       onDone={(name) => {
@@ -114,10 +115,10 @@ function HomeBox({ close }: { close: () => void }) {
                     />
                   )}
                   {deleting === project.id ? (
-                    <div className="home-confirm" role="group" aria-label={`Delete ${project.name}`}>
-                      <p>Delete “{project.name}”? It cannot be brought back.</p>
+                    <div className="home-confirm" role="group" aria-label={t('Delete {name}', { name: project.name })}>
+                      <p>{t('Delete “{name}”? It cannot be brought back.', { name: project.name })}</p>
                       <button type="button" className="button" autoFocus onClick={() => setDeleting(null)}>
-                        Keep it
+                        {t('Keep it')}
                       </button>
                       <button
                         type="button"
@@ -127,7 +128,7 @@ function HomeBox({ close }: { close: () => void }) {
                           void deleteProject(project.id)
                         }}
                       >
-                        Delete project
+                        {t('Delete project')}
                       </button>
                     </div>
                   ) : (
@@ -135,8 +136,8 @@ function HomeBox({ close }: { close: () => void }) {
                       <button
                         type="button"
                         className="tool"
-                        aria-label={`Rename ${project.name}`}
-                        title="Rename"
+                        aria-label={t('Rename {name}', { name: project.name })}
+                        title={t('Rename')}
                         onClick={() => setRenaming(project.id)}
                       >
                         <RenameIcon />
@@ -144,8 +145,8 @@ function HomeBox({ close }: { close: () => void }) {
                       <button
                         type="button"
                         className="tool"
-                        aria-label={`Make a copy of ${project.name}`}
-                        title="Make a copy"
+                        aria-label={t('Make a copy of {name}', { name: project.name })}
+                        title={t('Make a copy')}
                         onClick={() => duplicateProject(project.id)}
                       >
                         <CopyIcon />
@@ -153,8 +154,8 @@ function HomeBox({ close }: { close: () => void }) {
                       <button
                         type="button"
                         className="tool"
-                        aria-label={`Delete ${project.name}`}
-                        title="Delete"
+                        aria-label={t('Delete {name}', { name: project.name })}
+                        title={t('Delete')}
                         onClick={() => setDeleting(project.id)}
                       >
                         <DeleteIcon />
@@ -168,22 +169,22 @@ function HomeBox({ close }: { close: () => void }) {
         )}
         {!ok && (
           <p className="home-note home-warn">
-            This browser is not keeping your projects right now. Save to a file to keep your work.
+            {t('This browser is not keeping your projects right now. Save to a file to keep your work.')}
           </p>
         )}
       </section>
 
       <section aria-labelledby="home-examples">
         <h2 id="home-examples">
-          Examples <span className="home-count">{EXAMPLES.length}</span>
+          {t('Examples')} <span className="home-count">{EXAMPLES.length}</span>
         </h2>
         <ul className="home-grid">
           {EXAMPLES.map((example) => (
             <li key={example.id} className="home-card">
               <button type="button" className="home-open" onClick={then(() => openExample(example))}>
                 <Thumbnail cacheKey={`example:${example.id}`} data={example.build} />
-                <span className="home-name">{example.name}</span>
-                <span className="home-meta">{example.summary}</span>
+                <span className="home-name">{t(example.name)}</span>
+                <span className="home-meta">{t(example.summary)}</span>
               </button>
             </li>
           ))}

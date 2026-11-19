@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import type { PointerEvent as ReactPointerEvent } from 'react'
 import { canvasRuntime, minimapPan, minimapScene, readCanvasTheme, useEditor } from '../editor/index.ts'
 import type { MinimapScene } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 
 const WIDTH = 168
 const HEIGHT = 108
@@ -112,7 +113,7 @@ export function Minimap() {
       hidden
       // The same can be done with the keyboard through "Fit to the screen".
       aria-hidden="true"
-      title="Overview. Drag to move around the circuit"
+      title={t('Overview. Drag to move around the circuit')}
       style={{ width: WIDTH, height: HEIGHT }}
       onPointerDown={(event) => {
         event.currentTarget.setPointerCapture(event.pointerId)

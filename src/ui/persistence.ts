@@ -28,7 +28,8 @@ import {
   unpackShared,
   watchLocal,
 } from '../io/index.ts'
-import type { Library } from '../io/index.ts'
+import type { Library, PickedFile } from '../io/index.ts'
+import { msg, t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { ask } from './dialogs.ts'
 import { latestFirst } from './projectList.ts'
@@ -88,7 +89,7 @@ function forgetPendingSave(): void {
 }
 
 function reasonOf(error: unknown): string {
-  return error instanceof ProjectFileError ? error.message : 'It is not a project file this app can read.'
+  return error instanceof ProjectFileError ? t(error.message) : t('It is not a project file this app can read.')
 }
 
 /**
@@ -107,9 +108,12 @@ export function startPersistence(): void {
       // Kept under another name, so the next save does not wipe it out.
       setAsideLocal()
       void ask({
-        title: 'Your saved project could not be read',
-        body: `${reasonOf(error)}\nYou have a new, empty project now. The copy that could not be read is still kept in this browser.`,
-        confirm: 'Start with the empty project',
+        title: t('Your saved project could not be read'),
+        body: t(
+          '{reason}\nYou have a new, empty project now. The copy that could not be read is still kept in this browser.',
+          { reason: reasonOf(error) },
+        ),
+        confirm: t('Start with the empty project'),
       })
     }
   }
@@ -159,10 +163,10 @@ function mayReplace(withWhat: string): Promise<boolean> {
   if (isBlankProject(useEditor.getState())) return Promise.resolve(true)
   const name = openName()
   return ask({
-    title: `Replace “${name}”?`,
-    body: `${withWhat} takes the place of “${name}”. To keep it, save it to a file first.`,
-    confirm: 'Replace project',
-    cancel: 'Keep this project',
+    title: t('Replace “{name}”?', { name }),
+    body: t('{what} takes the place of “{name}”. To keep it, save it to a file first.', { what: withWhat, name }),
+    confirm: t('Replace project'),
+    cancel: t('Keep this project'),
     danger: true,
   })
 }
@@ -188,12 +192,12 @@ async function openAsNew(base: string, what: string, apply: () => void): Promise
 }
 
 /** The name of an automatic version kept when a project is opened. */
-const OPENED = 'As it was opened'
+const OPENED = msg('As it was opened')
 
 /** Keeps a project as it was when it was opened, so the session can be undone as a whole. */
 function noteOpened(text: string): void {
   const { open } = listLocal()
-  if (open !== null) addVersion(open, text, OPENED, true)
+  if (open !== null) addVersion(open, text, t(OPENED), true)
 }
 
 /**
@@ -204,7 +208,7 @@ export function saveVersion(name: string): boolean {
   saveNow()
   const { open } = listLocal()
   const version = open === null ? null : addVersion(open, projectText(), name, false)
-  if (version) toast(`Saved the version “${version.name}”`)
+  if (version) toast(t('Saved the version “{name}”', { name: version.name }))
   return version !== null
 }
 
@@ -218,23 +222,24 @@ export function goBackTo(versionId: string): boolean {
   if (open === null) return false
   const version = listVersions(open).find((item) => item.id === versionId)
   if (!version) return false
-  addVersion(open, projectText(), `Before going back to ${version.name}`, true)
+  addVersion(open, projectText(), t('Before going back to {name}', { name: version.name }), true)
   try {
     openProjectText(version.text)
   } catch {
-    toast(`The version “${version.name}” could not be read. Your project is unchanged.`)
+    toast(t('The version “{name}” could not be read. Your project is unchanged.', { name: version.name }))
     return false
   }
   saveNow()
-  toast(`Went back to “${version.name}”`)
+  toast(t('Went back to “{name}”', { name: version.name }))
   return true
 }
 
 /** Saves the project as a file on the user's computer. */
 export function saveProjectFile(): void {
   const name = safeFileName(openName(), 'project')
-  downloadText(`${name}.bitwise.json`, projectText(true))
-  toast(`Saved the project as ${name}.bitwise.json`)
+  const file = `${name}.bitwise.json`
+  downloadText(file, projectText(true))
+  toast(t('Saved the project as {name}', { name: file }))
 }
 
 /**
@@ -246,12 +251,12 @@ export async function exportCircuitVerilog(): Promise<void> {
   const { circuits, active, settings } = useEditor.getState()
   const file = circuitVerilog(circuits, active, settings.radix)
   if ('problem' in file) {
-    toast(file.problem)
+    toast(t(file.problem))
     return
   }
   const name = `${safeFileName(circuits[active].name, 'circuit')}.v`
   downloadText(name, file.text, 'text/plain')
-  toast(`Exported the circuit as ${name}`)
+  toast(t('Exported the circuit as {name}', { name }))
 }
 
 /** Saves a picture of the open circuit, as it looks now, as an SVG file. */
@@ -261,31 +266,39 @@ export function exportCircuitSvg(): void {
   const { circuits, active } = useEditor.getState()
   const name = `${safeFileName(circuits[active].name, 'circuit')}.svg`
   downloadText(name, svg, 'image/svg+xml')
-  toast(`Exported the circuit as ${name}`)
+  toast(t('Exported the circuit as {name}', { name }))
 }
 
 /** Lets the user pick a project file and opens it as a new project. */
 export async function openProjectFile(): Promise<void> {
-  const file = await pickTextFile('.json,application/json', MAX_FILE_LENGTH)
-  if (!file) return
+  const file = await pickTextFile('.json,.bitwise,application/json', MAX_FILE_LENGTH)
+  if (file) await openPickedProject(file)
+}
+
+/**
+ * Opens a project file the user picked, or the desktop app was opened with,
+ * as a new project of the list. A file that cannot be read is named, with
+ * the reason, and changes nothing.
+ */
+export async function openPickedProject(file: PickedFile): Promise<void> {
   let data: ProjectData
   try {
     if (file.text === undefined) {
       const size = MAX_FILE_LENGTH / 1_000_000
-      throw new ProjectFileError(`The file is larger than ${size} MB, more than a project can be.`)
+      throw new ProjectFileError(t('The file is larger than {size} MB, more than a project can be.', { size }))
     }
     data = parseProject(file.text)
   } catch (error) {
     await ask({
-      title: `“${file.name}” could not be opened`,
-      body: `${reasonOf(error)}\nYour project is unchanged.`,
-      confirm: 'Close',
+      title: t('“{name}” could not be opened', { name: file.name }),
+      body: t('{reason}\nYour project is unchanged.', { reason: reasonOf(error) }),
+      confirm: t('Close'),
     })
     return
   }
-  const base = file.name.replace(/(\.bitwise|\.cedar)?\.json$/i, '')
-  if (await openAsNew(base, `“${file.name}”`, () => useEditor.getState().loadProject(data))) {
-    toast(`Opened “${file.name}”`)
+  const base = file.name.replace(/(\.bitwise|\.cedar)?\.json$|\.bitwise$/i, '')
+  if (await openAsNew(base, t('“{name}”', { name: file.name }), () => useEditor.getState().loadProject(data))) {
+    toast(t('Opened “{name}”', { name: file.name }))
   }
 }
 
@@ -301,11 +314,17 @@ export async function copyShareLink(): Promise<void> {
   try {
     await navigator.clipboard.writeText(link)
   } catch {
-    toast('The browser did not let the app copy the link. Save the project as a file instead.')
+    toast(t('The browser did not let the app copy the link. Save the project as a file instead.'))
     return
   }
-  const long = link.length > LONG_LINK ? ` It is long (${link.length.toLocaleString('en')} characters), and some apps cut long links; a file is safer.` : ''
-  toast(`Copied a link to “${name}”.${long}`)
+  toast(
+    link.length > LONG_LINK
+      ? t('Copied a link to “{name}”. It is long ({count} characters), and some apps cut long links; a file is safer.', {
+          name,
+          count: link.length.toLocaleString('en'),
+        })
+      : t('Copied a link to “{name}”.', { name }),
+  )
 }
 
 /** Takes the project out of the address, so a reload does not open it again. */
@@ -329,9 +348,9 @@ export async function openLinkInAddress(): Promise<void> {
   } catch (error) {
     clearAddressFragment()
     await ask({
-      title: 'The shared link could not be opened',
-      body: `${reasonOf(error)}\nYour project is unchanged.`,
-      confirm: 'Close',
+      title: t('The shared link could not be opened'),
+      body: t('{reason}\nYour project is unchanged.', { reason: reasonOf(error) }),
+      confirm: t('Close'),
     })
     return
   }
@@ -340,38 +359,39 @@ export async function openLinkInAddress(): Promise<void> {
     data = parseProject(text)
   } catch (error) {
     await ask({
-      title: 'The shared link could not be opened',
-      body: `${reasonOf(error)}\nYour project is unchanged.`,
-      confirm: 'Close',
+      title: t('The shared link could not be opened'),
+      body: t('{reason}\nYour project is unchanged.', { reason: reasonOf(error) }),
+      confirm: t('Close'),
     })
     return
   }
-  const name = shared.name === '' ? 'Shared project' : shared.name
-  if (await openAsNew(name, `The shared project “${name}”`, () => useEditor.getState().loadProject(data))) {
+  const name = shared.name === '' ? t('Shared project') : shared.name
+  if (await openAsNew(name, t('The shared project “{name}”', { name }), () => useEditor.getState().loadProject(data))) {
     noteOpened(projectText())
     // The project is what the visitor came for, not the list of others.
     if (useChrome.getState().overlay === 'home') useChrome.getState().closeOverlay()
-    toast(`Opened the shared project “${name}”`)
+    toast(t('Opened the shared project “{name}”', { name }))
   }
 }
 
 /** Starts a new project with one empty circuit. */
 export async function startNewProject(): Promise<void> {
-  if (await openAsNew('Untitled project', 'A new, empty project', useEditor.getState().newProject)) {
-    toast('Started a new project')
+  if (await openAsNew(t('Untitled project'), t('A new, empty project'), useEditor.getState().newProject)) {
+    toast(t('Started a new project'))
   }
 }
 
 /** Opens an example as a project of its own. */
 export async function openExample(example: Example): Promise<void> {
-  const what = `The example “${example.name}”`
-  if (await openAsNew(example.name, what, () => useEditor.getState().loadProject(example.build()))) {
-    toast(`Opened the example “${example.name}”`)
+  const name = t(example.name)
+  const what = t('The example “{name}”', { name })
+  if (await openAsNew(name, what, () => useEditor.getState().loadProject(example.build()))) {
+    toast(t('Opened the example “{name}”', { name }))
   }
 }
 
 function nameOf(id: string, library = listLocal()): string {
-  return library.projects.find((project) => project.id === id)?.name ?? 'the project'
+  return library.projects.find((project) => project.id === id)?.name ?? t('the project')
 }
 
 /** Opens another project of the browser's list. False if it could not be read. */
@@ -390,14 +410,14 @@ export async function switchProject(id: string): Promise<boolean> {
   } catch (error) {
     if (open !== null) chooseLocal(open)
     await ask({
-      title: `“${name}” could not be opened`,
-      body: `${reasonOf(error)}\nThe project you had open is unchanged.`,
-      confirm: 'Close',
+      title: t('“{name}” could not be opened', { name }),
+      body: t('{reason}\nThe project you had open is unchanged.', { reason: reasonOf(error) }),
+      confirm: t('Close'),
     })
     return false
   }
   noteOpened(text)
-  toast(`Opened “${name}”`)
+  toast(t('Opened “{name}”', { name }))
   return true
 }
 
@@ -410,8 +430,8 @@ export function duplicateProject(id: string): void {
   // The open project's copy should have the latest changes.
   flush()
   const library = listLocal()
-  const copy = freshName(`${nameOf(id, library)} copy`, library.projects)
-  if (duplicateLocal(id, copy) !== null) toast(`Made a copy, “${copy}”`)
+  const copy = freshName(t('{name} copy', { name: nameOf(id, library) }), library.projects)
+  if (duplicateLocal(id, copy) !== null) toast(t('Made a copy, “{name}”', { name: copy }))
 }
 
 /**
@@ -428,10 +448,10 @@ export async function deleteProject(id: string): Promise<void> {
     const { projects } = listLocal()
     const next = latestFirst(projects)[0]
     if (!next || !(await switchProject(next.id))) {
-      createLocal(freshName('Untitled project', projects))
+      createLocal(freshName(t('Untitled project'), projects))
       useEditor.getState().newProject()
       saveNow()
     }
   }
-  toast(`Deleted “${name}”`)
+  toast(t('Deleted “{name}”', { name }))
 }

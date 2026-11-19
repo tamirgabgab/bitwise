@@ -13,6 +13,7 @@ import {
   wordCount,
 } from '../core/index.ts'
 import type { Params, PortSpec, Signal } from '../core/index.ts'
+import { t } from '../i18n/index.ts'
 import { terminalNets } from './connectivity.ts'
 import { NET_PIN, NET_TYPE, SUB_TYPE, isAnnotation, terminalKey } from './document.ts'
 import type { CircuitDoc, DocComponent } from './document.ts'
@@ -154,8 +155,8 @@ function choose(cases: readonly { readonly when: string; readonly then: string }
  * or a message for the user when it cannot be written.
  */
 export function circuitVerilog(circuits: Circuits, top: string, radix: number): VerilogFile | { problem: string } {
-  if (radix !== 2) return { problem: 'Verilog is written only at radix 2, where a digit is a bit.' }
-  if (!Object.hasOwn(circuits, top)) return { problem: 'There is no such circuit.' }
+  if (radix !== 2) return { problem: t('Verilog is written only at radix 2, where a digit is a bit.') }
+  if (!Object.hasOwn(circuits, top)) return { problem: t('There is no such circuit.') }
   const moduleNames = new Names()
   const infos = new Map<string, ModuleInfo>()
   const order: string[] = []
@@ -165,7 +166,7 @@ export function circuitVerilog(circuits: Circuits, top: string, radix: number): 
     const known = infos.get(id)
     if (known) return known
     if (visiting.has(id) || !Object.hasOwn(circuits, id)) {
-      throw new Refusal('A circuit here uses itself or a circuit that is gone, so it cannot be written.')
+      throw new Refusal(t('A circuit here uses itself or a circuit that is gone, so it cannot be written.'))
     }
     visiting.add(id)
     const circuit = circuits[id]
@@ -285,7 +286,10 @@ function moduleText(title: string, doc: CircuitDoc, info: ModuleInfo, infoOf: (i
       if (!net) continue
       if (net.width !== undefined && net.width !== pin.width) {
         throw new Refusal(
-          `In “${title}” a wire at ${nameOfPart(pin.part)} joins pins of different widths. Make the widths the same first.`,
+          t('In “{circuit}” a wire at {part} joins pins of different widths. Make the widths the same first.', {
+            circuit: title,
+            part: nameOfPart(pin.part),
+          }),
         )
       }
       net.width = pin.width
@@ -601,7 +605,7 @@ function moduleText(title: string, doc: CircuitDoc, info: ModuleInfo, infoOf: (i
         return
       }
       default:
-        throw new Refusal(`A part of type “${part.type}” cannot be written as Verilog.`)
+        throw new Refusal(t('A part of type “{type}” cannot be written as Verilog.', { type: part.type }))
     }
   }
 

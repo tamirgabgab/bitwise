@@ -6,9 +6,16 @@ import { create } from 'zustand'
  * themselves; nothing has to be answered.
  */
 
+/** A button on a message, for the one thing it offers to do. */
+export interface ToastAction {
+  readonly action: string
+  readonly run: () => void
+}
+
 export interface Toast {
   readonly id: number
   readonly message: string
+  readonly offer?: ToastAction
 }
 
 /** How many messages are on screen at once. A new one pushes the oldest out. */
@@ -26,12 +33,15 @@ export function dismissToast(id: number): void {
   useToasts.setState((state) => ({ toasts: state.toasts.filter((toast) => toast.id !== id) }))
 }
 
-/** Shows a message for a few seconds. Returns its id. */
-export function toast(message: string): number {
+/**
+ * Shows a message for a few seconds, or, with a button that offers
+ * something, until it is answered or dismissed. Returns its id.
+ */
+export function toast(message: string, offer?: ToastAction): number {
   const id = nextId++
   useToasts.setState((state) => ({
-    toasts: [...state.toasts, { id, message }].slice(-TOAST_LIMIT),
+    toasts: [...state.toasts, { id, message, offer }].slice(-TOAST_LIMIT),
   }))
-  setTimeout(() => dismissToast(id), TOAST_TIME)
+  if (!offer) setTimeout(() => dismissToast(id), TOAST_TIME)
   return id
 }

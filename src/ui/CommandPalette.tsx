@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Point } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { listCommands, searchCommands } from './commands.ts'
 import type { Command } from './commands.ts'
@@ -25,7 +26,7 @@ export function CommandPalette() {
     <dialog
       {...modal}
       className="dialog commands"
-      aria-label={quickAdd ? 'Add a part' : 'Search actions'}
+      aria-label={quickAdd ? t('Add a part') : t('Search actions')}
     >
       {open && <CommandSearch seed={seed} quickAdd={quickAdd} />}
     </dialog>
@@ -50,8 +51,8 @@ function CommandSearch({
   const found = useMemo(() => searchCommands(all, query).slice(0, MAX_ROWS), [all, query])
   const current = Math.min(active, Math.max(found.length - 1, 0))
   const prompt = quickAdd
-    ? 'Search parts to add where the pointer is'
-    : 'Search actions, parts, circuits and examples'
+    ? t('Search parts to add where the pointer is')
+    : t('Search actions, parts, circuits and examples')
 
   useEffect(() => {
     listRef.current?.querySelector('[aria-selected="true"]')?.scrollIntoView({ block: 'nearest' })
@@ -101,12 +102,17 @@ function CommandSearch({
           }}
         />
       </label>
-      <div ref={listRef} id="command-list" className="commands-list" role="listbox" aria-label="Actions">
+      <div ref={listRef} id="command-list" className="commands-list" role="listbox" aria-label={t('Actions')}>
         {found.length === 0 && (
           <p className="commands-empty">
             {quickAdd
-              ? `No part matches “${query.trim()}”. Try a name such as “counter” or “and”.`
-              : `Nothing matches “${query.trim()}”. Try the name of a part, such as “counter”, or an action, such as “save”.`}{' '}
+              ? t('No part matches “{query}”. Try a name such as “counter” or “and”.', {
+                  query: query.trim(),
+                })
+              : t(
+                  'Nothing matches “{query}”. Try the name of a part, such as “counter”, or an action, such as “save”.',
+                  { query: query.trim() },
+                )}{' '}
             <button
               type="button"
               className="link"
@@ -117,7 +123,7 @@ function CommandSearch({
                 event.currentTarget.closest('.commands-box')?.querySelector('input')?.focus()
               }}
             >
-              Clear the search
+              {t('Clear the search')}
             </button>
           </p>
         )}

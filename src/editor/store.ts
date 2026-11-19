@@ -6,6 +6,7 @@ import {
   findPreset,
   presetAvailable,
 } from '../core/index.ts'
+import { msg, t } from '../i18n/index.ts'
 import { alignItems, distributeItems } from './arrange.ts'
 import type { AlignEdge, Axis } from './arrange.ts'
 import {
@@ -81,10 +82,10 @@ export type ThemeChoice = 'system' | 'light' | 'dark'
 export type CanvasLook = 'classic' | 'blueprint' | 'chalk' | 'scope'
 
 export const CANVAS_LOOKS: readonly { readonly id: CanvasLook; readonly name: string }[] = [
-  { id: 'classic', name: 'Classic' },
-  { id: 'blueprint', name: 'Blueprint' },
-  { id: 'chalk', name: 'Chalkboard' },
-  { id: 'scope', name: 'Green scope' },
+  { id: 'classic', name: msg('Classic') },
+  { id: 'blueprint', name: msg('Blueprint') },
+  { id: 'chalk', name: msg('Chalkboard') },
+  { id: 'scope', name: msg('Green scope') },
 ]
 
 /** A part picked from the palette that has not been dropped yet. */
@@ -624,9 +625,9 @@ export const useEditor = create<EditorState>()((set, get) => {
     machineToCircuit(partId) {
       const state = get()
       const machine = state.doc.components[partId]?.machine
-      if (!machine) return { problem: 'This part is not a state machine.' }
+      if (!machine) return { problem: t('This part is not a state machine.') }
       if (state.order.length >= MAX_CIRCUITS) {
-        return { problem: `A project holds at most ${MAX_CIRCUITS} circuits.` }
+        return { problem: t('A project holds at most {most} circuits.', { most: MAX_CIRCUITS }) }
       }
       const doc = machineCircuit(machine, state.settings.radix)
       if (typeof doc === 'string') return { problem: doc }
@@ -635,30 +636,30 @@ export const useEditor = create<EditorState>()((set, get) => {
 
     expressionToCircuit(text, output) {
       const { settings, order } = get()
-      if (order.length >= MAX_CIRCUITS) return { problem: `A project holds at most ${MAX_CIRCUITS} circuits.` }
+      if (order.length >= MAX_CIRCUITS) return { problem: t('A project holds at most {most} circuits.', { most: MAX_CIRCUITS }) }
       const parsed = parseExpression(text, settings.radix)
       if (isExpressionError(parsed)) return { problem: parsed.message, column: parsed.column }
       const name = output.trim().slice(0, MAX_LABEL) || 'F'
       if (parsed.variables.includes(name)) {
-        return { problem: `The output cannot be called “${name}”, like an input.` }
+        return { problem: t('The output cannot be called “{name}”, like an input.', { name }) }
       }
       return addBuiltCircuit(expressionCircuit(parsed, settings.radix, name), name)
     },
 
     addBuiltCircuits(built, open) {
       const state = get()
-      if (built.length === 0) return { problem: 'There is no circuit to add.' }
+      if (built.length === 0) return { problem: t('There is no circuit to add.') }
       if (state.order.length + built.length > MAX_CIRCUITS) {
-        return { problem: `A project holds at most ${MAX_CIRCUITS} circuits.` }
+        return { problem: t('A project holds at most {most} circuits.', { most: MAX_CIRCUITS }) }
       }
       // They were built against the project as it was, each part naming a circuit by its id.
       if (built.some((circuit, index) => circuit.id !== `k${state.nextCircuit + index}`)) {
-        return { problem: 'The project changed while the circuits were built. Build them again.' }
+        return { problem: t('The project changed while the circuits were built. Build them again.') }
       }
       const circuits = { ...state.circuits }
       for (const circuit of built) circuits[circuit.id] = circuit
       if (built.some((circuit) => !withinBounds(circuit.doc)) || largestFlat(circuits) > MAX_FLAT_PARTS) {
-        return { problem: 'These circuits are larger than a project can hold.' }
+        return { problem: t('These circuits are larger than a project can hold.') }
       }
       const ids = built.map((circuit) => circuit.id)
       set({

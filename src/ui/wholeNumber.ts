@@ -1,3 +1,5 @@
+import { t } from '../i18n/index.ts'
+
 /** What came of reading a number the user typed into a stepper. */
 export type WholeNumber =
   | { readonly ok: true; readonly value: number }
@@ -5,7 +7,7 @@ export type WholeNumber =
 
 /** The sentence that names the values a field takes. */
 export function rangeText(min: number, max: number): string {
-  return `Use a whole number from ${min} to ${max}.`
+  return t('Use a whole number from {min} to {max}.', { min, max })
 }
 
 /**

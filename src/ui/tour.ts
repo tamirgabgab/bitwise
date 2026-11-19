@@ -1,5 +1,7 @@
 /* The first-visit tour: what it says, and where its card goes on screen. */
 
+import { msg } from '../i18n/index.ts'
+
 export interface TourStep {
   /** A CSS selector for the piece of the app this step is about. */
   readonly target: string
@@ -10,23 +12,23 @@ export interface TourStep {
 export const TOUR_STEPS: readonly TourStep[] = [
   {
     target: '.palette',
-    title: 'Pick a part',
-    text: 'Drag a part onto the canvas, or click it. The search field finds any part by its name or by what it does.',
+    title: msg('Pick a part'),
+    text: msg('Drag a part onto the canvas, or click it. The search field finds any part by its name or by what it does.'),
   },
   {
     target: '.canvas-wrap',
-    title: 'Wire it up',
-    text: 'Drag from one pin to another to connect them. Click a switch to change its value, and the wires take its color.',
+    title: msg('Wire it up'),
+    text: msg('Drag from one pin to another to connect them. Click a switch to change its value, and the wires take its color.'),
   },
   {
     target: '.run',
-    title: 'Run, pause and step',
-    text: 'The circuit runs while you build it. Pause it to go through time one tick at a time, forward or back.',
+    title: msg('Run, pause and step'),
+    text: msg('The circuit runs while you build it. Pause it to go through time one tick at a time, forward or back.'),
   },
   {
     target: '.search-button',
-    title: 'Find anything',
-    text: 'Ctrl+K searches every action, part and example. The File menu holds the ready-made examples and the list of shortcuts.',
+    title: msg('Find anything'),
+    text: msg('Ctrl+K searches every action, part and example. The File menu holds the ready-made examples and the list of shortcuts.'),
   },
 ]
 

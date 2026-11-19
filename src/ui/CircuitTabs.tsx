@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react'
 import { MAX_CIRCUIT_NAME, useEditor, usersOf } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { ask } from './dialogs.ts'
 import { CloseIcon, PlusIcon } from './icons.tsx'
 import { NameInput } from './NameInput.tsx'
@@ -8,7 +9,10 @@ import { NameInput } from './NameInput.tsx'
 /** "A", "A and B", "A, B and C". */
 function listOf(names: readonly string[]): string {
   if (names.length <= 1) return names.join('')
-  return `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
+  return t('{list} and {last}', {
+    list: names.slice(0, -1).join(', '),
+    last: names[names.length - 1],
+  })
 }
 
 let measure: CanvasRenderingContext2D | null | undefined
@@ -29,16 +33,19 @@ function tabTextWidth(text: string): number {
 async function deleteCircuit(id: string): Promise<void> {
   const { circuits } = useEditor.getState()
   const circuit = circuits[id]
-  const users = usersOf(circuits, id).map((user) => `“${circuits[user].name}”`)
+  const users = usersOf(circuits, id).map((user) => t('“{name}”', { name: circuits[user].name }))
   const hasParts = Object.keys(circuit.doc.components).length > 0
   if (hasParts || users.length > 0) {
-    const used =
-      users.length > 0 ? `\nIt is used in ${listOf(users)}. Those parts are removed with it.` : ''
+    const gone = t('The circuit and everything drawn in it will be gone. This cannot be undone.')
+    const used = t('It is used in {circuits}. Those parts are removed with it.', {
+      circuits: listOf(users),
+    })
     const agreed = await ask({
-      title: `Delete “${circuit.name}”?`,
-      body: `The circuit and everything drawn in it will be gone. This cannot be undone.${used}`,
-      confirm: 'Delete circuit',
-      cancel: 'Keep it',
+      title: t('Delete “{name}”?', { name: circuit.name }),
+      // One paragraph per line.
+      body: users.length > 0 ? `${gone}\n${used}` : gone,
+      confirm: t('Delete circuit'),
+      cancel: t('Keep it'),
       danger: true,
     })
     if (!agreed) return
@@ -82,7 +89,7 @@ export function CircuitTabs() {
   }
 
   return (
-    <nav ref={bar} className="tabs" aria-label="Circuits">
+    <nav ref={bar} className="tabs" aria-label={t('Circuits')}>
       {order.map((id) => {
         const { name } = circuits[id]
         const open = id === active
@@ -91,7 +98,7 @@ export function CircuitTabs() {
             {renaming === id ? (
               <NameInput
                 name={name}
-                label="Circuit name"
+                label={t('Circuit name')}
                 maxLength={MAX_CIRCUIT_NAME}
                 className="tab-input"
                 // As wide as the name, so the tab keeps its size while typing starts.
@@ -110,7 +117,11 @@ export function CircuitTabs() {
                 data-circuit={id}
                 aria-current={open ? 'page' : undefined}
                 aria-keyshortcuts="F2"
-                title={open ? `${name}. Double-click or press F2 to rename` : `Open ${name}`}
+                title={
+                  open
+                    ? t('{name}. Double-click or press F2 to rename', { name })
+                    : t('Open {name}', { name })
+                }
                 onClick={() => selectCircuit(id)}
                 onDoubleClick={() => setRenaming(id)}
                 onKeyDown={(event) => onKey(event, id)}
@@ -125,8 +136,8 @@ export function CircuitTabs() {
                 className="tab-close"
                 style={renaming === id ? { visibility: 'hidden' } : undefined}
                 tabIndex={renaming === id ? -1 : undefined}
-                aria-label={`Delete circuit ${name}`}
-                title={`Delete ${name}`}
+                aria-label={t('Delete circuit {name}', { name })}
+                title={t('Delete {name}', { name })}
                 onClick={() => void deleteCircuit(id)}
               >
                 <CloseIcon />
@@ -138,8 +149,8 @@ export function CircuitTabs() {
       <button
         type="button"
         className="tool tab-add"
-        aria-label="Add a circuit"
-        title="Add a circuit"
+        aria-label={t('Add a circuit')}
+        title={t('Add a circuit')}
         onClick={() => setRenaming(addCircuit())}
       >
         <PlusIcon />

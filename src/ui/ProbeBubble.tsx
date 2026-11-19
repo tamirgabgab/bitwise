@@ -9,6 +9,7 @@ import {
   useSim,
 } from '../editor/index.ts'
 import type { ProbedPin, ProjectSettings } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { partTitle, pinName, portLabel } from './probeText.ts'
 
 /** The bubble is this wide at most, so it knows when to open to the left. */
@@ -45,7 +46,11 @@ function PinLine({
   return (
     <p className="probe-pin-line">
       <span>
-        {owner}, {way} {name}
+        {way === 'input'
+          ? t('{part}, input {pin}', { part: owner, pin: name })
+          : way === 'output'
+            ? t('{part}, output {pin}', { part: owner, pin: name })
+            : t('{part}, pin {pin}', { part: owner, pin: name })}
       </span>
       {here && <span className="probe-pin-value">{signalText(here.signal, settings)}</span>}
     </p>
@@ -84,12 +89,12 @@ export function ProbeBubble() {
         <span className="probe-value">{signalText(info.signal, settings)}</span>
         <span className="probe-name">{info.name}</span>
       </p>
-      {info.conflict && <p className="probe-conflict">Conflict: its outputs disagree</p>}
+      {info.conflict && <p className="probe-conflict">{t('Conflict: its outputs disagree')}</p>}
       {info.mixed && (
-        <p className="probe-conflict">Pins of different widths are wired together here</p>
+        <p className="probe-conflict">{t('Pins of different widths are wired together here')}</p>
       )}
       {info.drivers.length === 0 ? (
-        <p className="probe-note">Nothing drives this wire, so it floats.</p>
+        <p className="probe-note">{t('Nothing drives this wire, so it floats.')}</p>
       ) : (
         drivers.length > 0 && (
           <ul className="probe-pins">

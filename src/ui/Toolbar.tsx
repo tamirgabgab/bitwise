@@ -14,6 +14,7 @@ import {
   useSim,
 } from '../editor/index.ts'
 import type { SimSpeed } from '../editor/index.ts'
+import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
 import { fitToScreen, zoomAroundCenter } from './commands.ts'
 import { startPresenting } from './presentation.ts'
@@ -78,8 +79,8 @@ function ToolButton({ label, shortcut, disabled, onClick, children }: ToolButton
 }
 
 function speedLabel(speed: SimSpeed): string {
-  if (speed === 'max') return 'Full speed'
-  return speed === 1 ? '1 tick/s' : `${speed} ticks/s`
+  if (speed === 'max') return t('Full speed')
+  return speed === 1 ? t('1 tick/s') : t('{speed} ticks/s', { speed })
 }
 
 function SimControls() {
@@ -90,48 +91,48 @@ function SimControls() {
   const { setRunning, setSpeed } = useSim.getState()
 
   return (
-    <div className="tool-group transport" role="group" aria-label="Simulation">
+    <div className="tool-group transport" role="group" aria-label={t('Simulation')}>
       <button
         type="button"
         className={running ? 'run run-on' : 'run'}
-        title={running ? 'Pause the simulation' : 'Run the simulation'}
+        title={running ? t('Pause the simulation') : t('Run the simulation')}
         onClick={() => setRunning(!running)}
       >
         {running ? <PauseIcon /> : <PlayIcon />}
-        {running ? 'Pause' : 'Run'}
+        {running ? t('Pause') : t('Run')}
       </button>
       <ToolButton
         label={
           canStepBack || running
-            ? 'Step back one tick'
-            : 'Step back one tick (nothing to go back to yet)'
+            ? t('Step back one tick')
+            : t('Step back one tick (nothing to go back to yet)')
         }
         disabled={running || !canStepBack}
         onClick={stepBack}
       >
         <StepBackIcon />
       </ToolButton>
-      <ToolButton label="Step one tick" disabled={running} onClick={stepSimulation}>
+      <ToolButton label={t('Step one tick')} disabled={running} onClick={stepSimulation}>
         <StepIcon />
       </ToolButton>
       <ToolButton
         label={
           hasClock
-            ? 'Step to the next rising edge of the clock'
-            : 'Step to the next clock edge (this circuit has no clock)'
+            ? t('Step to the next rising edge of the clock')
+            : t('Step to the next clock edge (this circuit has no clock)')
         }
         disabled={running || !hasClock}
         onClick={stepToClockEdge}
       >
         <StepEdgeIcon />
       </ToolButton>
-      <ToolButton label="Restart the circuit from time 0" onClick={restartSimulation}>
+      <ToolButton label={t('Restart the circuit from time 0')} onClick={restartSimulation}>
         <RestartIcon />
       </ToolButton>
       <select
         className="speed"
-        aria-label="Simulation speed"
-        title="Simulation speed"
+        aria-label={t('Simulation speed')}
+        title={t('Simulation speed')}
         value={String(speed)}
         onChange={(event) => {
           const value = event.target.value
@@ -159,9 +160,9 @@ function PanelToggles() {
       <button
         type="button"
         className="tool"
-        aria-label="Timing diagram"
+        aria-label={t('Timing diagram')}
         aria-pressed={scopeOpen}
-        title={scopeOpen ? 'Hide the timing diagram' : 'Show the timing diagram'}
+        title={scopeOpen ? t('Hide the timing diagram') : t('Show the timing diagram')}
         onClick={() => setScopeOpen(!scopeOpen)}
       >
         <TimingIcon />
@@ -169,9 +170,9 @@ function PanelToggles() {
       <button
         type="button"
         className="tool"
-        aria-label="Presentation steps"
+        aria-label={t('Presentation steps')}
         aria-pressed={stepsOpen}
-        title={stepsOpen ? 'Hide the presentation steps' : 'Show the presentation steps'}
+        title={stepsOpen ? t('Hide the presentation steps') : t('Show the presentation steps')}
         onClick={() => useEditor.getState().setStepsOpen(!stepsOpen)}
       >
         <StepsIcon />
@@ -179,8 +180,8 @@ function PanelToggles() {
       <button
         type="button"
         className="tool"
-        aria-label="Present full screen"
-        title="Present full screen: only the canvas and the steps (Esc to leave)"
+        aria-label={t('Present full screen')}
+        title={t('Present full screen: only the canvas and the steps (Esc to leave)')}
         onClick={startPresenting}
       >
         <PresentIcon />
@@ -258,7 +259,7 @@ function FileMenu() {
         className="tool menu-button"
         aria-haspopup="menu"
         aria-expanded={open}
-        title="Project files, examples and shortcuts"
+        title={t('Project files, examples and shortcuts')}
         onClick={() => {
           // The bar can scroll sideways on a phone, so the menu is placed on
           // the screen and not inside the bar.
@@ -266,7 +267,7 @@ function FileMenu() {
           setLeft(open || !rect ? null : Math.max(8, Math.min(rect.left, window.innerWidth - 328)))
         }}
       >
-        File
+        {t('File')}
         <ChevronIcon />
       </button>
       {open && (
@@ -274,7 +275,7 @@ function FileMenu() {
           ref={menu}
           className="menu"
           role="menu"
-          aria-label="File"
+          aria-label={t('File')}
           style={{ left }}
           onKeyDown={(event) => {
             if (event.code === 'ArrowDown') step(1)
@@ -283,73 +284,73 @@ function FileMenu() {
             event.preventDefault()
           }}
         >
-          <MenuRow name="Start a new project" onPick={pick(() => void startNewProject())} />
+          <MenuRow name={t('Start a new project')} onPick={pick(() => void startNewProject())} />
           <MenuRow
-            name="Home"
-            summary="Your projects and the examples, with pictures"
+            name={t('Home')}
+            summary={t('Your projects and the examples, with pictures')}
             onPick={pick(useChrome.getState().openHome)}
           />
           <MenuRow
-            name="Versions of this project"
-            summary="Save a version, or go back to one"
+            name={t('Versions of this project')}
+            summary={t('Save a version, or go back to one')}
             onPick={pick(useChrome.getState().openVersions)}
           />
           <MenuRow
-            name="Open a project file"
+            name={t('Open a project file')}
             shortcut="Ctrl+O"
             onPick={pick(() => void openProjectFile())}
           />
-          <MenuRow name="Save the project as a file" shortcut="Ctrl+S" onPick={pick(saveProjectFile)} />
-          <MenuRow name="Copy a link to this project" onPick={pick(() => void copyShareLink())} />
-          <MenuRow name="Export this circuit as an SVG picture" onPick={pick(exportCircuitSvg)} />
+          <MenuRow name={t('Save the project as a file')} shortcut="Ctrl+S" onPick={pick(saveProjectFile)} />
+          <MenuRow name={t('Copy a link to this project')} onPick={pick(() => void copyShareLink())} />
+          <MenuRow name={t('Export this circuit as an SVG picture')} onPick={pick(exportCircuitSvg)} />
           <MenuRow
-            name="Export this circuit as Verilog"
-            summary="A .v file, at radix 2"
+            name={t('Export this circuit as Verilog')}
+            summary={t('A .v file, at radix 2')}
             onPick={pick(() => void exportCircuitVerilog())}
           />
           <MenuRow
-            name="Build circuits from Verilog"
-            summary="Paste code or open a .v file"
+            name={t('Build circuits from Verilog')}
+            summary={t('Paste code or open a .v file')}
             onPick={pick(useChrome.getState().openVerilog)}
           />
           <div className="menu-heading" role="separator">
-            Open an example as a new project
+            {t('Open an example as a new project')}
           </div>
           {EXAMPLES.map((example) => (
             <MenuRow
               key={example.id}
-              name={example.name}
-              summary={example.summary}
+              name={t(example.name)}
+              summary={t(example.summary)}
               onPick={pick(() => void openExample(example))}
             />
           ))}
           <div className="menu-rule" role="separator" />
           <MenuRow
-            name="Show keyboard shortcuts"
+            name={t('Show keyboard shortcuts')}
             shortcut="?"
             onPick={pick(useChrome.getState().openShortcuts)}
           />
           <MenuRow
-            name="Show the edit history"
-            summary="Go back to any edit by name"
+            name={t('Show the edit history')}
+            summary={t('Go back to any edit by name')}
             onPick={pick(useChrome.getState().openHistory)}
           />
           <MenuRow
-            name="Arrange the circuit"
-            summary="Left to right by depth, as one edit"
+            name={t('Arrange the circuit')}
+            summary={t('Left to right by depth, as one edit')}
             onPick={pick(() => useEditor.getState().arrangeAll())}
           />
           <MenuRow
-            name="Describe the circuit in words"
-            summary="What it is made of and what each output depends on"
+            name={t('Describe the circuit in words')}
+            summary={t('What it is made of and what each output depends on')}
             onPick={pick(useChrome.getState().openDescribe)}
           />
           <MenuRow
-            name="Open the base calculator"
-            summary="Base n, decimal and balanced"
+            name={t('Open the base calculator')}
+            summary={t('Base n, decimal and balanced')}
             onPick={pick(useChrome.getState().openCalculator)}
           />
-          <MenuRow name="Take the tour" onPick={pick(useChrome.getState().startTour)} />
+          <MenuRow name={t('Take the tour')} onPick={pick(useChrome.getState().startTour)} />
         </div>
       )}
     </>
@@ -373,7 +374,7 @@ export function Toolbar() {
   const sandbox = useEditor((state) => state.settings.sandbox)
   const theme = useResolvedTheme()
   const { undo, redo, rotateSelection, deleteSelection, setTheme } = useEditor.getState()
-  const kit = sandbox ? 'Sandbox' : (findPreset(presetId)?.name ?? '')
+  const kit = sandbox ? t('Sandbox') : t(findPreset(presetId)?.name ?? '')
 
   return (
     <header className="topbar">
@@ -387,20 +388,20 @@ export function Toolbar() {
       </div>
 
       <div className="tool-group">
-        <ToolButton label="Undo" shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo}>
+        <ToolButton label={t('Undo')} shortcut="Ctrl+Z" disabled={!canUndo} onClick={undo}>
           <UndoIcon />
         </ToolButton>
-        <ToolButton label="Redo" shortcut="Ctrl+Y" disabled={!canRedo} onClick={redo}>
+        <ToolButton label={t('Redo')} shortcut="Ctrl+Y" disabled={!canRedo} onClick={redo}>
           <RedoIcon />
         </ToolButton>
       </div>
 
       <div className="tool-group">
-        <ToolButton label="Rotate" shortcut="R" disabled={!canRotate} onClick={rotateSelection}>
+        <ToolButton label={t('Rotate')} shortcut="R" disabled={!canRotate} onClick={rotateSelection}>
           <RotateIcon />
         </ToolButton>
         <ToolButton
-          label="Delete"
+          label={t('Delete')}
           shortcut="Delete"
           disabled={!hasSelection}
           onClick={deleteSelection}
@@ -418,13 +419,13 @@ export function Toolbar() {
         <button
           type="button"
           className="tool search-button"
-          aria-label="Search actions"
+          aria-label={t('Search actions')}
           aria-keyshortcuts="Control+K"
-          title="Search actions, parts, circuits and examples (Ctrl+K)"
+          title={t('Search actions, parts, circuits and examples (Ctrl+K)')}
           onClick={() => useChrome.getState().openCommands()}
         >
           <SearchIcon />
-          <span className="search-label">Search</span>
+          <span className="search-label">{t('Search')}</span>
           <Keys combo="Ctrl+K" />
         </button>
         <button
@@ -432,17 +433,17 @@ export function Toolbar() {
           className="tool logic-button"
           aria-expanded={settingsOpen}
           aria-controls="logic-settings"
-          title="Logic settings: values per wire, gate kit and colors"
+          title={t('Logic settings: values per wire, gate kit and colors')}
           onClick={() => useChrome.getState().setSettingsOpen(!settingsOpen)}
         >
-          <span className="logic-radix">Radix {radix}</span>
+          <span className="logic-radix">{t('Radix {radix}', { radix })}</span>
           <span className="logic-kit">{kit}</span>
         </button>
       </div>
 
       <div className="tool-group zoom-group">
         <ToolButton
-          label="Zoom out"
+          label={t('Zoom out')}
           disabled={zoom <= MIN_ZOOM}
           onClick={() => zoomAroundCenter(1 / 1.25)}
         >
@@ -451,31 +452,31 @@ export function Toolbar() {
         <button
           type="button"
           className="tool zoom-readout"
-          title="Reset zoom to 100%"
-          aria-label={`Zoom ${Math.round(zoom * 100)}%. Reset to 100%`}
+          title={t('Reset zoom to 100%')}
+          aria-label={t('Zoom {percent}%. Reset to 100%', { percent: Math.round(zoom * 100) })}
           onClick={() => zoomAroundCenter(1 / zoom)}
         >
           {Math.round(zoom * 100)}%
         </button>
         <ToolButton
-          label="Zoom in"
+          label={t('Zoom in')}
           disabled={zoom >= MAX_ZOOM}
           onClick={() => zoomAroundCenter(1.25)}
         >
           <ZoomInIcon />
         </ToolButton>
-        <ToolButton label="Fit the circuit to the screen" onClick={fitToScreen}>
+        <ToolButton label={t('Fit the circuit to the screen')} onClick={fitToScreen}>
           <FitIcon />
         </ToolButton>
       </div>
 
       <div className="tool-group">
         {theme === 'dark' ? (
-          <ToolButton label="Switch to light theme" onClick={() => setTheme('light')}>
+          <ToolButton label={t('Switch to light theme')} onClick={() => setTheme('light')}>
             <SunIcon />
           </ToolButton>
         ) : (
-          <ToolButton label="Switch to dark theme" onClick={() => setTheme('dark')}>
+          <ToolButton label={t('Switch to dark theme')} onClick={() => setTheme('dark')}>
             <MoonIcon />
           </ToolButton>
         )}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CONTENT_SECURITY_POLICY } from './csp.ts'
+import { CONTENT_SECURITY_POLICY, DESKTOP_CONTENT_SECURITY_POLICY } from './csp.ts'
 
 /** The sources one directive of the policy allows. */
 function sources(directive: string): string[] {
@@ -26,5 +26,13 @@ describe('the content security policy', () => {
 
   it('lets the thumbnails show as data URLs', () => {
     expect(sources('img-src')).toContain('data:')
+  })
+})
+
+describe('the content security policy of the desktop app', () => {
+  it('adds only the addresses of the native side', () => {
+    const connect = DESKTOP_CONTENT_SECURITY_POLICY.split('; ').find((part) => part.startsWith('connect-src '))
+    expect(connect).toBe("connect-src 'self' ipc: http://ipc.localhost")
+    expect(DESKTOP_CONTENT_SECURITY_POLICY.replace(connect!, "connect-src 'self'")).toBe(CONTENT_SECURITY_POLICY)
   })
 })
