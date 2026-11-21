@@ -22,7 +22,7 @@ import { drawWire, dropPart, newProject, onCanvas, partAt, pinAt, visit } from '
 const PORT = 4181
 const SITE = `http://localhost:${PORT}/`
 const INK = '#121a17'
-/** A half adder: XOR for the sum, AND for the carry. The same drawing as `public/favicon.svg`. */
+/** A half adder: XOR for the sum, AND for the carry. The same drawing as `public/logo.svg`. */
 const GLYPH = `<g transform="translate(16 16) scale(0.88) translate(-16 -16)" fill="none" stroke-linecap="round" stroke-linejoin="round">
   <path d="M2.5 6.5h10.65M2.5 11.5h10.65M5.5 6.5v14H15M9 11.5v14h6M25 9h4.5M25 23h4.5" stroke="#7d8c87" stroke-width="1.2" />
   <circle cx="5.5" cy="6.5" r="1.3" fill="#7d8c87" /><circle cx="9" cy="11.5" r="1.3" fill="#7d8c87" />

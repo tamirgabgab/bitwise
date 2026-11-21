@@ -8,7 +8,7 @@ describe('the files a release keeps for use without a network', () => {
         'assets/index-a1.js',
         'assets/index-a1.js.map',
         'assets/index-b2.css',
-        'favicon.svg',
+        'logo.svg',
         'icons/icon-192.png',
         'manifest.webmanifest',
         'assets/ibm-plex-sans-latin-400-normal-c3.woff2',
@@ -22,8 +22,8 @@ describe('the files a release keeps for use without a network', () => {
       'assets/ibm-plex-sans-latin-400-normal-c3.woff2',
       'assets/index-a1.js',
       'assets/index-b2.css',
-      'favicon.svg',
       'icons/icon-192.png',
+      'logo.svg',
       'manifest.webmanifest',
     ])
   })

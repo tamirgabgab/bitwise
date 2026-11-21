@@ -178,7 +178,7 @@ export const ChipIcon = () => (
 
 /**
  * The half adder that stands for the app itself: XOR gives the sum, AND the
- * carry. The wires are fainter than the gates, as in `public/favicon.svg`.
+ * carry. The wires are fainter than the gates, as in `public/logo.svg`.
  */
 export const BrandMark = () => (
   <svg
