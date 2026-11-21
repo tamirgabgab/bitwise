@@ -27,6 +27,7 @@ import {
   takesKey,
   toggleMeter,
   toggleWatch,
+  bendChain,
   useEditor,
   useTapConnect,
   useSim,
@@ -607,6 +608,7 @@ function WirePanel({ terminal, wire }: { terminal: Terminal; wire?: string }) {
   const formatId = useId()
   const info = describeNode(terminal)
   const format = formatAt(doc, terminal)
+  const bent = wire !== undefined && (bendChain(doc, wire)?.junctions.length ?? 0) > 0
 
   return (
     <InspectorSheet
@@ -614,17 +616,32 @@ function WirePanel({ terminal, wire }: { terminal: Terminal; wire?: string }) {
       title={t('Wire')}
       action={
         wire && (
-          <button
-            type="button"
-            className="button connect-button"
-            title={t('Disconnect: take this wire away')}
-            onClick={(event) => {
-              event.stopPropagation()
-              useEditor.getState().disconnect(wire)
-            }}
-          >
-            {t('Disconnect')}
-          </button>
+          <>
+            {bent && (
+              <button
+                type="button"
+                className="button connect-button"
+                title={t('Automatic route: take out the bends you made, so the wire finds its own way')}
+                onClick={(event) => {
+                  event.stopPropagation()
+                  useEditor.getState().unbendWire(wire)
+                }}
+              >
+                {t('Automatic route')}
+              </button>
+            )}
+            <button
+              type="button"
+              className="button connect-button"
+              title={t('Disconnect: take this wire away')}
+              onClick={(event) => {
+                event.stopPropagation()
+                useEditor.getState().disconnect(wire)
+              }}
+            >
+              {t('Disconnect')}
+            </button>
+          </>
         )
       }
     >

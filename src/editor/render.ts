@@ -31,6 +31,8 @@ export interface Scene {
   readonly view: View
   /** A pin, junction or wire point to ring, because a wire can attach there. */
   readonly highlight: Point | null
+  /** Where the selected wire can be dragged by: the middle of each straight stretch. */
+  readonly handles?: readonly Point[]
   /** The wire being drawn right now. */
   readonly wirePreview: readonly Point[] | null
   readonly marquee: Rect | null
@@ -678,6 +680,16 @@ export function renderScene(
     tracePath(ctx, scene.wirePreview)
     ctx.strokeStyle = theme.accent
     ctx.lineWidth = WIRE_STROKE
+    ctx.stroke()
+  }
+
+  for (const handle of scene.handles ?? []) {
+    ctx.beginPath()
+    ctx.arc(handle.x, handle.y, 0.3, 0, Math.PI * 2)
+    ctx.fillStyle = theme.accent
+    ctx.fill()
+    ctx.strokeStyle = theme.background
+    ctx.lineWidth = 0.1
     ctx.stroke()
   }
 

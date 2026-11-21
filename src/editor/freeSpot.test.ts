@@ -16,8 +16,9 @@ describe('freeSpot', () => {
     const [a, b] = Object.keys(doc.components).map((id) => componentBounds(doc, id)!)
     const apart = a.x1 < b.x0 || b.x1 < a.x0 || a.y1 < b.y0 || b.y1 < a.y0
     expect(apart).toBe(true)
-    // Below or above, not far to the side.
-    expect(spot.x).toBe(0)
+    // Beside it, to the right, as a circuit reads.
+    expect(spot.y).toBe(0)
+    expect(spot.x).toBeGreaterThan(0)
   })
 
   it('finds room for each of several parts added at the same point', () => {

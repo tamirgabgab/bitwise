@@ -224,7 +224,13 @@ keeps text files LF in the repository.
   a tap lands near the middle where it covers no other (`freeSpot.ts`).
 - Dragging a selected wire moves the straight stretch under the pointer
   (`runAt` in `wireLayout.ts`): `bendWire` puts a junction at each end of
-  it and moves them, so the file format has no bends of its own.
+  it and moves them, so the file format has no bends of its own. The one
+  selected wire shows a handle in the middle of each straight stretch
+  (`wireHandles` in `wireShape.ts`, `handles` in the scene), and after a
+  bend the stretch that moved stays selected. Automatic route
+  (`unbendWire`) drops the junctions that only bend it (`bendChain`: on
+  through every junction with just two wires) and joins its ends again. A
+  finger reaches pins, junctions and wires further (`slack` in `hitTest`).
 - ROM and RAM (`components/memory.ts`) hold up to `MAX_WORDS` words of up
   to `MAX_WORD_WIDTH` digits, in the parameters `m0` to `m255`, written for
   radix 16 like a table gate. The address pin is `address` digits wide; an

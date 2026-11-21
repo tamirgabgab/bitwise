@@ -82,10 +82,13 @@ export function docBounds(doc: CircuitDoc): Rect | undefined {
 /**
  * Finds what lies under a world position. Small targets win over the larger
  * things they sit on: junctions and pins first, then wires, then parts.
+ *
+ * `slack` widens the reach of pins, junctions and wires, in grid units, for
+ * a finger, which covers far more than a mouse pointer.
  */
-export function hitTest(doc: CircuitDoc, p: Point): Hit | null {
+export function hitTest(doc: CircuitDoc, p: Point, slack = 0): Hit | null {
   for (const junction of Object.values(doc.junctions)) {
-    if (distance(p, junction.pos) <= JUNCTION_REACH) {
+    if (distance(p, junction.pos) <= JUNCTION_REACH + slack) {
       return { kind: 'junction', id: junction.id, pos: junction.pos }
     }
   }
@@ -94,7 +97,7 @@ export function hitTest(doc: CircuitDoc, p: Point): Hit | null {
     for (const pin of symbol.pins) {
       const terminal: Terminal = { kind: 'pin', component: component.id, port: pin.name }
       const end = terminalEnd(doc, terminal)
-      if (end && distance(p, end.pos) <= PIN_REACH) {
+      if (end && distance(p, end.pos) <= PIN_REACH + slack) {
         return { kind: 'pin', terminal, pos: end.pos }
       }
     }
@@ -103,7 +106,7 @@ export function hitTest(doc: CircuitDoc, p: Point): Hit | null {
     const path = wirePath(doc, wire)
     if (!path) continue
     const nearest = closestOnPolyline(p, path)
-    if (distance(p, nearest) <= WIRE_REACH) {
+    if (distance(p, nearest) <= WIRE_REACH + slack) {
       return { kind: 'wire', id: wire.id, pos: snapPoint(nearest) }
     }
   }

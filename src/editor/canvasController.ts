@@ -51,6 +51,7 @@ import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
 import { UNIT, keepInSight, pinchView, screenToWorld, wheelZoomFactor } from './view.ts'
 import { bendPoints, wirePath } from './wireLayout.ts'
+import { wireHandles } from './wireShape.ts'
 import { influenceCone } from './cone.ts'
 import type { ConeMarks } from './cone.ts'
 import { WheelSteps, digitOfKey, typedBusValue } from './digitKeys.ts'
@@ -405,6 +406,7 @@ export class CanvasController {
       selection: state.selection,
       view: state.view,
       highlight,
+      handles: mode.kind === 'idle' ? this.handlesOf(doc, state.selection) : undefined,
       wirePreview,
       marquee: mode.kind === 'marquee' ? rectFromPoints(mode.start, mode.current) : null,
       ghost: this.ghostOf(state),
@@ -556,6 +558,29 @@ export class CanvasController {
     return undefined
   }
 
+  /** How much further a finger reaches than a mouse, in grid units at the present zoom. */
+  private fingerSlack(): number {
+    return Math.max(0, FINGER_REACH / (UNIT * useEditor.getState().view.zoom) - 0.55)
+  }
+
+  /** The handles of the one selected wire, where it can be dragged by (`wireShape.ts`). */
+  private handlesOf(doc: CircuitDoc, selection: ReadonlySet<string>): Point[] {
+    if (selection.size !== 1) return []
+    const [id] = selection
+    const wire = doc.wires[id]
+    const path = wire && wirePath(doc, wire)
+    return path ? wireHandles(path).map((handle) => handle.pos) : []
+  }
+
+  /** A handle of the selected wire under the pointer, as a press on the wire there. */
+  private handleAt(doc: CircuitDoc, selection: ReadonlySet<string>, world: Point, touch: boolean): Hit | undefined {
+    const reach = touch ? FINGER_REACH / (UNIT * useEditor.getState().view.zoom) : 0.5
+    const handle = this.handlesOf(doc, selection).find((pos) => Math.hypot(pos.x - world.x, pos.y - world.y) <= reach)
+    if (!handle) return undefined
+    const [id] = selection
+    return { kind: 'wire', id, pos: handle }
+  }
+
   /** A pin a finger is on, found a little way off, since a finger covers far more than a pin. */
   private fingerPin(doc: CircuitDoc, world: Point): Hit | undefined {
     const near = pinNear(doc, world, FINGER_REACH / (UNIT * useEditor.getState().view.zoom))
@@ -574,7 +599,7 @@ export class CanvasController {
       return false
     }
     const state = useEditor.getState()
-    const hit = (touch ? this.fingerPin(doc, world) : undefined) ?? hitTest(doc, world)
+    const hit = (touch ? this.fingerPin(doc, world) : undefined) ?? hitTest(doc, world, touch ? this.fingerSlack() : 0)
     const done = (): boolean => {
       this.mode = { kind: 'idle' }
       this.requestDraw()
@@ -764,7 +789,10 @@ export class CanvasController {
       return
     }
 
-    const hit = (touch ? this.fingerPin(state.doc, world) : undefined) ?? hitTest(state.doc, world)
+    const hit =
+      this.handleAt(state.doc, state.selection, world, touch) ??
+      (touch ? this.fingerPin(state.doc, world) : undefined) ??
+      hitTest(state.doc, world, touch ? this.fingerSlack() : 0)
 
     if (hit?.kind === 'pin') {
       const fromEnd = terminalEnd(state.doc, hit.terminal)

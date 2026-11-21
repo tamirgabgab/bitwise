@@ -354,6 +354,9 @@ export const parts: Dictionary = {
   'Disconnect {pin}': 'ניתוק מ{pin}',
   Disconnect: 'ניתוק',
   'Disconnect: take this wire away': 'ניתוק: הסרת החוט הזה',
+  'Automatic route': 'מסלול אוטומטי',
+  'Automatic route: take out the bends you made, so the wire finds its own way':
+    'מסלול אוטומטי: הסרת הכיפופים שעשית, כדי שהחוט ימצא את הדרך בעצמו',
   Connect: 'חיבור',
   'Connect this part: then tap the part to connect it to': 'חיבור הרכיב הזה: אחר כך לוחצים על הרכיב שאליו הוא יתחבר',
   // The head of the inspector's sheet on a phone (src/ui/InspectorSheet.tsx).

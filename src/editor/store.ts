@@ -68,6 +68,7 @@ import type { Circuit, Circuits } from './subcircuit.ts'
 import { DEFAULT_PALETTE } from './valueStyle.ts'
 import { DEFAULT_VIEW, fitView, zoomAt } from './view.ts'
 import type { View } from './view.ts'
+import { unbendWire } from './wireShape.ts'
 
 export { DEFAULT_SETTINGS }
 export type { ProjectSettings }
@@ -243,6 +244,8 @@ export interface EditorState {
   deleteSelection(): void
   /** Takes one wire away, whatever is selected. */
   disconnect(wireId: string): void
+  /** Takes the bends out of a wire, so it is routed again by itself; selects it. */
+  unbendWire(wireId: string): void
   /** Changes parameters of one part, such as its number of inputs. */
   setParams(id: string, changes: Readonly<Record<string, number>>): void
   /** Names a part. A blank label takes the name away. */
@@ -545,7 +548,13 @@ export const useEditor = create<EditorState>()((set, get) => {
     bendWire(wireId, at, dx, dy) {
       if (dx === 0 && dy === 0) return
       const bent = bendWire(get().doc, wireId, at, dx, dy)
-      if (bent) commit(bent.doc, bent.junctions)
+      if (!bent) return
+      // The stretch that moved stays selected, with its handles, to drag on or set back.
+      const moved = new Set(bent.junctions)
+      const onBend = (end: Terminal): boolean => end.kind === 'junction' && moved.has(end.junction)
+      const pieces = Object.values(bent.doc.wires).filter((wire) => onBend(wire.from) || onBend(wire.to))
+      const stretch = pieces.find((wire) => onBend(wire.from) && onBend(wire.to)) ?? pieces[0]
+      commit(bent.doc, stretch ? [stretch.id] : bent.junctions)
     },
 
     duplicateSelection(dx, dy) {
@@ -611,6 +620,11 @@ export const useEditor = create<EditorState>()((set, get) => {
     disconnect(wireId) {
       const { doc } = get()
       if (doc.wires[wireId]) commit(deleteItems(doc, [wireId]))
+    },
+
+    unbendWire(wireId) {
+      const straight = unbendWire(get().doc, wireId)
+      if (straight) commit(straight.doc, [straight.wire])
     },
 
     setParams(id, changes) {

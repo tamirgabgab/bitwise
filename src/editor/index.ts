@@ -7,6 +7,7 @@
 export { CanvasController } from './canvasController.ts'
 export { attached, useTapConnect, wireBetween } from './tapConnect.ts'
 export { freeSpot } from './freeSpot.ts'
+export { bendChain } from './wireShape.ts'
 export { placementParams } from './placement.ts'
 export type { Armed, Link } from './tapConnect.ts'
 export { canvasHooks, canvasRuntime } from './runtime.ts'
