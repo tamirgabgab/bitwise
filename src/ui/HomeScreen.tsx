@@ -47,8 +47,10 @@ function HomeBox({ close }: { close: () => void }) {
     <div className="home-page">
       <header className="home-head">
         <h1 id="home-title">
-          <BrandMark />
-          Bitwise
+          <span className="wordmark">
+            <BrandMark />
+            Bitwise
+          </span>
         </h1>
         <div className="home-actions">
           <button type="button" className="button button-main" onClick={then(startNewProject)}>

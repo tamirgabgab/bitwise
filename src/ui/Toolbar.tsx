@@ -379,8 +379,10 @@ export function Toolbar() {
   return (
     <header className="topbar">
       <h1 className="brand">
-        <BrandMark />
-        <span className="brand-name">Bitwise</span>
+        <span className="wordmark">
+          <BrandMark />
+          <span className="brand-name">Bitwise</span>
+        </span>
       </h1>
 
       <div className="tool-group">
