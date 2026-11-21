@@ -7,7 +7,7 @@
   "scope": "./",
   "display": "standalone",
   "background_color": "#fcfdfc",
-  "theme_color": "#14181f",
+  "theme_color": "#121a17",
   "categories": ["education", "developer", "utilities"],
   "icons": [
     { "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml" },
