@@ -11,7 +11,7 @@
  * ffmpeg, which must be on the PATH.
  */
 import { execFileSync, execSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readdirSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { chromium } from '@playwright/test'
@@ -73,17 +73,26 @@ async function readmeShot(browser: Browser): Promise<void> {
   await page.close()
 }
 
-/** A short film: two switches, an XOR gate and a light, wired and played with. */
+/**
+ * A short film: two switches, an XOR gate and a light, wired and played with.
+ * The page is filmed through Chromium's screencast, so no recorder beyond
+ * the system's ffmpeg is needed; each frame lasts until the next one came.
+ * The window is wide enough for the top bar to show the name of the app.
+ */
 async function film(browser: Browser): Promise<void> {
   const folder = mkdtempSync(join(tmpdir(), 'bitwise-film-'))
-  const context = await browser.newContext({
-    viewport: { width: 960, height: 600 },
-    colorScheme: 'light',
-    baseURL: SITE,
-    recordVideo: { dir: folder, size: { width: 960, height: 600 } },
-  })
-  const page = await context.newPage()
+  const page = await browser.newPage({ viewport: { width: 1280, height: 800 }, colorScheme: 'light', baseURL: SITE })
   await newProject(page)
+  const frames: { file: string; at: number }[] = []
+  const cast = await page.context().newCDPSession(page)
+  cast.on('Page.screencastFrame', (frame) => {
+    const file = join(folder, `frame-${String(frames.length).padStart(5, '0')}.png`)
+    writeFileSync(file, Buffer.from(frame.data, 'base64'))
+    frames.push({ file, at: frame.metadata.timestamp ?? Date.now() / 1000 })
+    void cast.send('Page.screencastFrameAck', { sessionId: frame.sessionId })
+  })
+  await cast.send('Page.startScreencast', { format: 'png', maxWidth: 1280, maxHeight: 800 })
+  await page.waitForTimeout(500)
   const a = await dropPart(page, 'Input', await onCanvas(page, -220, -60))
   const b = await dropPart(page, 'Input', await onCanvas(page, -220, 60))
   const gate = await dropPart(page, 'XOR', await onCanvas(page, 0, 0))
@@ -99,16 +108,28 @@ async function film(browser: Browser): Promise<void> {
     await page.mouse.move(10, 10)
   }
   await page.waitForTimeout(900)
-  await context.close()
-  const video = readdirSync(folder).find((file) => file.endsWith('.webm'))!
+  const end = Date.now() / 1000
+  await cast.send('Page.stopScreencast')
+  await page.close()
+  // ffmpeg's concat list: every frame with how long it stays, the last one named again.
+  const list = frames.map((frame, i) => {
+    const until = frames[i + 1]?.at ?? Math.max(end, frame.at + 0.5)
+    return `file '${frame.file}'\nduration ${Math.max(until - frame.at, 0.01).toFixed(3)}`
+  })
+  list.push(`file '${frames.at(-1)!.file}'`)
+  writeFileSync(join(folder, 'frames.txt'), list.join('\n') + '\n')
   execFileSync('ffmpeg', [
     '-y',
     '-loglevel',
     'error',
+    '-f',
+    'concat',
+    '-safe',
+    '0',
     '-i',
-    join(folder, video),
+    join(folder, 'frames.txt'),
     '-vf',
-    'fps=12,scale=720:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse',
+    'fps=12,scale=960:-1:flags=lanczos,split[a][b];[a]palettegen=max_colors=64[p];[b][p]paletteuse',
     '-loop',
     '0',
     'docs/pictures/demo.gif',
