@@ -3,7 +3,7 @@ import { EXAMPLES } from '../editor/index.ts'
 import { MAX_PROJECT_NAME, parseProject, readLocal } from '../io/index.ts'
 import { t } from '../i18n/index.ts'
 import { useChrome } from './chrome.ts'
-import { CloseIcon, CopyIcon, DeleteIcon, NewIcon, OpenIcon, RenameIcon } from './icons.tsx'
+import { BrandMark, CloseIcon, CopyIcon, DeleteIcon, NewIcon, OpenIcon, RenameIcon } from './icons.tsx'
 import {
   deleteProject,
   duplicateProject,
@@ -46,7 +46,10 @@ function HomeBox({ close }: { close: () => void }) {
   return (
     <div className="home-page">
       <header className="home-head">
-        <h1 id="home-title">Bitwise</h1>
+        <h1 id="home-title">
+          <BrandMark />
+          Bitwise
+        </h1>
         <div className="home-actions">
           <button type="button" className="button button-main" onClick={then(startNewProject)}>
             <NewIcon />

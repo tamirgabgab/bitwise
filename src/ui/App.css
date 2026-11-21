@@ -1889,13 +1889,15 @@ label.swatch:focus-within {
   }
 }
 
-/* ---- A smaller laptop: the name of the kit and of the app give way ---- */
+/* ---- A smaller laptop: the name of the kit gives way, then the app's ---- */
 
 @media (max-width: 1320px) {
   .logic-kit {
     display: none;
   }
+}
 
+@media (max-width: 1240px) {
   /* Out of sight to make room for the tools, still read out as the heading. */
   .brand-name {
     position: absolute;
@@ -2331,7 +2333,10 @@ label.swatch:focus-within {
 }
 
 .home-head h1 {
+  display: flex;
   flex: 1;
+  align-items: center;
+  gap: 8px;
   margin: 0;
   font-size: var(--text-xl);
   font-weight: 600;
