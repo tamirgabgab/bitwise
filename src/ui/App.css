@@ -169,7 +169,8 @@
 .menu {
   position: fixed;
   top: 46px;
-  z-index: 20;
+  /* Over the short messages too: an open menu is what the user is looking at. */
+  z-index: 40;
   width: 320px;
   max-width: calc(100vw - 16px);
   max-height: calc(100vh - 56px);
@@ -629,8 +630,10 @@ kbd {
   background: transparent;
   font-size: var(--text-sm);
   cursor: grab;
-  touch-action: none;
+  /* A finger swipes the palette; it picks a part up only after resting on it (placing.ts). */
+  touch-action: pan-x pan-y;
   user-select: none;
+  -webkit-touch-callout: none;
 }
 
 .part:hover {
@@ -856,6 +859,15 @@ kbd {
   inset-inline-end: 264px;
 }
 
+/* The head of the sheet a phone shows (InspectorSheet.tsx); elsewhere just the heading. */
+.sheet-head {
+  display: contents;
+}
+
+.sheet-toggle {
+  display: none;
+}
+
 /* ---- Overview map in the corner of the canvas ---- */
 
 .minimap {
@@ -1041,6 +1053,13 @@ kbd {
   box-shadow: var(--shadow-float);
   pointer-events: none;
   animation: probe-in 0.01s 0.35s both;
+}
+
+/* The table is a hover tip; a finger that taps a part would leave it standing over the strip. */
+@media (hover: none) {
+  .gate-table {
+    display: none;
+  }
 }
 
 .gate-table-title {
@@ -1998,11 +2017,91 @@ label.swatch:focus-within {
     animation-name: sheet-in;
   }
 
+  /* Low until it is opened: only what is selected, so the canvas stays in sight. */
+  .inspector:not(.open) {
+    padding-bottom: 10px;
+  }
+
+  .inspector:not(.open) > :not(.sheet-head) {
+    display: none;
+  }
+
+  .inspector.open {
+    max-height: 60%;
+  }
+
+  .sheet-head {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding-top: 8px;
+    cursor: pointer;
+    /* A swipe on the head opens or closes the sheet instead of scrolling it. */
+    touch-action: none;
+  }
+
+  /* The grip that says the sheet can be pulled. */
+  .sheet-head::before {
+    position: absolute;
+    top: -6px;
+    inset-inline: 0;
+    width: 32px;
+    height: 4px;
+    margin-inline: auto;
+    border-radius: 2px;
+    background: var(--border);
+    content: '';
+  }
+
+  .inspector:not(.open) .sheet-head h2 {
+    margin: 0;
+  }
+
+  .sheet-head h2 {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .sheet-toggle {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    height: 32px;
+    padding: 0 10px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--canvas-bg);
+    color: var(--text);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  /* Up while it can open, down once it is open. */
+  .sheet-toggle[aria-expanded='false'] .chevron {
+    transform: rotate(180deg);
+  }
+
   .workspace:has(> .inspector) .settings {
     inset-inline-end: 8px;
   }
 
   .minimap {
+    display: none;
+  }
+
+  /* Short messages drop from the top: at the bottom they would cover the sheet of a selected part. */
+  .toasts {
+    top: 60px;
+    bottom: auto;
+  }
+
+  /* Without headings the parts used lately would only show some parts twice. */
+  .palette section:has(> #palette-recent) {
     display: none;
   }
 
@@ -3405,7 +3504,8 @@ label.swatch:focus-within {
 @media (pointer: coarse) {
   .problems-row,
   .status-button,
-  .meter-close {
+  .meter-close,
+  .sheet-toggle {
     min-height: 40px;
   }
 

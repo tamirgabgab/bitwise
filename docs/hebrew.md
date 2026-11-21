@@ -141,10 +141,10 @@ only.
   `CanvasView`, `Minimap`, `NameInput`, `useModal`, `panelSize`, `icons`,
   `language`.
 - **parts:** parts and their properties: `src/ui/` `parts`, `Palette`,
-  `paletteModel`, `Inspector`, `GateTable`, `TableEditor`, `MemoryEditor`,
-  `memoryWords`, `TruthTablePanel`, `tableAnswers`, `MachineSummary`,
-  `wholeNumber`, `probeText`, `ProbeBubble`, `placing`, `swatch`,
-  `ValueLegend`; and `src/core`.
+  `paletteModel`, `Inspector`, `InspectorSheet`, `GateTable`, `TableEditor`,
+  `MemoryEditor`, `memoryWords`, `TruthTablePanel`, `tableAnswers`,
+  `MachineSummary`, `wholeNumber`, `probeText`, `ProbeBubble`, `placing`,
+  `swatch`, `ValueLegend`; and `src/core`.
 - **panels:** panels and windows in `src/ui`: `SettingsPanel`,
   `TimingPanel`, `StepsPanel`, `ProblemsPanel`, `MeterBoard`,
   `HomeScreen`, `Thumbnail`, `VersionsDialog`, `HistoryDialog`,

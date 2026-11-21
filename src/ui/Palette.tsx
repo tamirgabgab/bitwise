@@ -14,7 +14,7 @@ import { ChevronIcon, ChipIcon, SearchIcon } from './icons.tsx'
 import { matchesQuery, paletteSections, recentIn, searchSections } from './paletteModel.ts'
 import { msg, t } from '../i18n/index.ts'
 import { hasGateTable, inputCount, outputCount, partHint, partName } from './parts.ts'
-import { beginPlacing, placeAtCenter } from './placing.ts'
+import { beginPlacing, placeAtCenter, tapAdds } from './placing.ts'
 import { useResolvedTheme } from './useResolvedTheme.ts'
 
 /** The gate whose table is on show, and where its button is. */
@@ -122,7 +122,7 @@ function CircuitParts({ query }: { query: string }) {
                   if (allowed) beginPlacing(SUB_TYPE, event, id)
                 }}
                 onClick={() => {
-                  if (allowed) placeAtCenter(SUB_TYPE, id)
+                  if (allowed && tapAdds()) placeAtCenter(SUB_TYPE, id)
                 }}
               >
                 <ChipIcon />
@@ -153,7 +153,9 @@ function PartButton({ type, radix, onShowTable, onHideTable }: PartButtonProps) 
         onHideTable()
         beginPlacing(type, event)
       }}
-      onClick={() => placeAtCenter(type)}
+      onClick={() => {
+        if (tapAdds()) placeAtCenter(type)
+      }}
       onPointerEnter={(event) => onShowTable(type, event.currentTarget)}
       onPointerLeave={onHideTable}
       onFocus={(event) => onShowTable(type, event.currentTarget)}

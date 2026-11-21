@@ -136,7 +136,13 @@ keeps text files LF in the repository.
   in `view.ts`) and drop whatever the first one began. A finger that rests
   for `LONG_PRESS` does what a right click does (`secondary`), and on empty
   canvas starts the selection box instead. A finger needs `TOUCH_SLOP`
-  pixels before a press is a drag.
+  pixels before a press is a drag. The first finger down (`isPrimary`)
+  forgets any finger the canvas never heard lift.
+- On the palette a finger swipes the strip (`touch-action: pan-x pan-y`)
+  and a tap adds the part mid-canvas; it picks a part up only after resting
+  on it for `PICK_UP` (`placing.ts`), and the click that follows adds nothing.
+  The phone end-to-end tests move a real finger through Chromium's touch
+  events (`e2e/phone.spec.ts`).
 - Project settings (radix, gate kit, sandbox, value colors) live in the
   `useEditor` store next to the document. They are not part of undo.
 - A project holds several circuits (`circuits`, `order`, `active`). The open
@@ -392,7 +398,10 @@ keeps text files LF in the repository.
   through `useModal` (`src/ui/useModal.ts`). The
   canvas ignores keys whose target is inside a dialog.
 - The inspector is docked on the right and is there only while something
-  is selected. On a phone it is a bottom sheet. Its numbers are `Stepper`s:
+  is selected. On a phone it is a bottom sheet (`InspectorSheet.tsx`) that
+  comes up low, with only what is selected, and opens to the settings with
+  a tap or a swipe up (`sheet.ts`); short messages drop from the top there,
+  so they never cover it. Its numbers are `Stepper`s:
   a typed field between − and +, checked by `readWholeNumber`
   (`wholeNumber.ts`) against the range, with a note naming the range when
   a value is refused.

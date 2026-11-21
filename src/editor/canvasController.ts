@@ -202,6 +202,15 @@ export class CanvasController {
     this.listen(window, 'pointermove', (event: PointerEvent) => {
       this.pointerAt = { x: event.clientX, y: event.clientY }
     })
+    // A finger lifted where the canvas does not hear it, as when it lost the capture, is gone all the same.
+    for (const type of ['pointerup', 'pointercancel'] as const) {
+      this.listen(window, type, (event: PointerEvent) => {
+        if (event.target !== this.canvas && this.touches.delete(event.pointerId) && this.touches.size === 0) {
+          this.endLongPress()
+          if (this.mode.kind === 'pinch') this.finish()
+        }
+      })
+    }
     this.listen(document.documentElement, 'pointerleave', () => {
       this.pointerAt = null
     })
@@ -636,6 +645,8 @@ export class CanvasController {
     this.canvas.focus()
     this.probe(null)
     if (event.pointerType === 'touch') {
+      // The first finger down: no other is on the glass, whatever was missed of the ones before.
+      if (event.isPrimary) this.forgetTouches()
       this.touches.set(event.pointerId, this.onCanvas(event))
       if (this.touches.size > 2) return
       if (this.touches.size === 2) {
@@ -933,6 +944,15 @@ export class CanvasController {
     this.hover = touch ? null : hitTest(useEditor.getState().doc, world)
     this.hoverPoke = this.pokeTarget(useEditor.getState().doc, this.hover, world) !== null
     this.finish()
+  }
+
+  /** Forgets fingers that left without the canvas hearing of it, and what they were doing. */
+  private forgetTouches(): void {
+    if (this.touches.size === 0) return
+    this.touches.clear()
+    this.endLongPress()
+    if (this.mode.kind === 'hold') holdButton(this.mode.id, false)
+    if (this.mode.kind !== 'idle') this.finish()
   }
 
   private readonly onPointerCancel = (event: PointerEvent): void => {

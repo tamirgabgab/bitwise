@@ -290,6 +290,9 @@ export const parts: Dictionary = {
   'Whatever lies wholly inside moves with it.': 'כל מה שנמצא כולו בתוכה זז איתה.',
   'Drag its lower right corner to resize it.': 'גוררים את הפינה הימנית התחתונה כדי לשנות את גודלה.',
   'Net label settings': 'הגדרות תווית רשת',
+  // The head of the inspector's sheet on a phone (src/ui/InspectorSheet.tsx).
+  'Show settings': 'הצגת ההגדרות',
+  'Hide settings': 'הסתרת ההגדרות',
   'Net name': 'שם הרשת',
   'No other label is named {name} yet.': 'עדיין אין תווית אחרת בשם "{name}".',
   'Give one the same name to connect them.': 'נותנים לתווית אחרת אותו שם כדי לחבר ביניהן.',

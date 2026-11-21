@@ -1,5 +1,40 @@
 import { expect, test } from '@playwright/test'
-import { dropPart, newProject, onCanvas, partAt } from './helpers.ts'
+import type { CDPSession, Page } from '@playwright/test'
+import { dropPart, newProject, onCanvas, partAt, parts } from './helpers.ts'
+import type { Point } from './helpers.ts'
+
+/*
+ * A phone is used with fingers. Playwright's touchscreen only taps, so a
+ * finger that moves is sent through Chromium's own touch events: they come
+ * to the page as a real finger's would, with the browser's scrolling and
+ * the `touch-action` of what is under it.
+ */
+
+async function finger(page: Page): Promise<CDPSession> {
+  return page.context().newCDPSession(page)
+}
+
+/** A finger that comes down at `from`, rests for `rest` ms, slides to `to` and lifts. */
+async function slide(cdp: CDPSession, page: Page, from: Point, to: Point, rest = 0): Promise<void> {
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [from] })
+  if (rest > 0) await page.waitForTimeout(rest)
+  const steps = 10
+  for (let i = 1; i <= steps; i++) {
+    const at = { x: from.x + ((to.x - from.x) * i) / steps, y: from.y + ((to.y - from.y) * i) / steps }
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [at] })
+    await page.waitForTimeout(16)
+  }
+  await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] })
+}
+
+/** The middle of a palette item, by its name. */
+async function item(page: Page, name: string): Promise<Point> {
+  const button = page.getByRole('navigation', { name: 'Parts' }).getByRole('button', { name, exact: true }).last()
+  await button.scrollIntoViewIfNeeded()
+  const box = await button.boundingBox()
+  expect(box, `palette item ${name}`).not.toBeNull()
+  return { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 }
+}
 
 test('the page fits the width of a phone', async ({ page }) => {
   await newProject(page)
@@ -9,12 +44,77 @@ test('the page fits the width of a phone', async ({ page }) => {
 
 test('a tap on a switch turns it on', async ({ page }) => {
   await newProject(page)
-  // High on the canvas: the inspector of a selected part is a sheet over its lower half.
   const input = await dropPart(page, 'Input', await onCanvas(page, 0, -160))
-  // A phone has no pointer to rest on a wire; the inspector of the switch says what it gives.
+  // The sheet of a selected part comes up low; opened, it says what the switch gives.
+  await page.getByRole('button', { name: 'Show settings' }).tap()
   const pins = page.locator('.inspector .probe-pins')
   await expect(pins).toHaveText(/0$/)
   const face = await partAt(page, input)
   await page.touchscreen.tap(face.x, face.y)
   await expect(pins).toHaveText(/1$/)
+})
+
+test('a swipe scrolls the palette and adds nothing', async ({ page }) => {
+  await newProject(page)
+  const cdp = await finger(page)
+  const strip = page.getByRole('navigation', { name: 'Parts' })
+  const box = (await strip.boundingBox())!
+  const y = box.y + box.height / 2
+  const before = await strip.evaluate((element) => element.scrollLeft)
+  // The page is in English: the strip goes on to the right, so the finger moves left.
+  await slide(cdp, page, { x: box.x + box.width * 0.8, y }, { x: box.x + box.width * 0.2, y })
+  await expect.poll(() => strip.evaluate((element) => element.scrollLeft)).not.toBe(before)
+  expect(await parts(page)).toHaveLength(0)
+})
+
+test('a tap on the palette adds the part where it can be seen', async ({ page }) => {
+  await newProject(page)
+  const and = await item(page, 'AND')
+  await page.touchscreen.tap(and.x, and.y)
+  await expect.poll(async () => (await parts(page)).length).toBe(1)
+  const [added] = await parts(page)
+  const at = await partAt(page, added.id)
+  const canvas = (await page.locator('canvas.canvas').boundingBox())!
+  const sheet = (await page.locator('.inspector').boundingBox())!
+  expect(at.y).toBeGreaterThan(canvas.y)
+  expect(at.y).toBeLessThan(sheet.y)
+})
+
+test('a finger that rests on a palette item carries the part', async ({ page }) => {
+  await newProject(page)
+  const cdp = await finger(page)
+  const to = await onCanvas(page, -80, -120)
+  await slide(cdp, page, await item(page, 'OR'), to, 600)
+  await expect.poll(async () => (await parts(page)).length).toBe(1)
+  const [or] = await parts(page)
+  const at = await partAt(page, or.id)
+  expect(Math.abs(at.x - to.x)).toBeLessThan(24)
+  expect(Math.abs(at.y - to.y)).toBeLessThan(24)
+})
+
+test('one finger on empty canvas moves the view', async ({ page }) => {
+  await newProject(page)
+  const input = await dropPart(page, 'Input', await onCanvas(page, 0, -160))
+  await page.keyboard.press('Escape')
+  const before = await partAt(page, input)
+  const cdp = await finger(page)
+  const from = await onCanvas(page, 60, 120)
+  await slide(cdp, page, from, { x: from.x - 90, y: from.y - 60 })
+  await expect.poll(async () => (await partAt(page, input)).x).toBeCloseTo(before.x - 90, -1)
+  expect((await partAt(page, input)).y).toBeCloseTo(before.y - 60, -1)
+})
+
+test('the sheet of a selected part opens with a swipe up and closes with a swipe down', async ({ page }) => {
+  await newProject(page)
+  await dropPart(page, 'AND', await onCanvas(page, 0, -160))
+  const sheet = page.locator('.inspector')
+  await expect(sheet).not.toHaveClass(/open/)
+  const cdp = await finger(page)
+  const head = (await page.locator('.sheet-head').boundingBox())!
+  const x = head.x + head.width / 2
+  await slide(cdp, page, { x, y: head.y + head.height / 2 }, { x, y: head.y - 100 })
+  await expect(sheet).toHaveClass(/open/)
+  const opened = (await page.locator('.sheet-head').boundingBox())!
+  await slide(cdp, page, { x, y: opened.y + opened.height / 2 }, { x, y: opened.y + 160 })
+  await expect(sheet).not.toHaveClass(/open/)
 })

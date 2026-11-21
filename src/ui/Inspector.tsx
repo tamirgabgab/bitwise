@@ -53,6 +53,8 @@ import { TableEditor } from './TableEditor.tsx'
 import { MemoryEditor } from './MemoryEditor.tsx'
 import { MachineSummary } from './MachineSummary.tsx'
 import { TruthTablePanel } from './TruthTablePanel.tsx'
+import { InspectorSheet } from './InspectorSheet.tsx'
+import { useSheet } from './sheet.ts'
 
 interface Field {
   /** The parameter this field changes. */
@@ -606,8 +608,7 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   const format = formatAt(doc, terminal)
 
   return (
-    <aside className="inspector" aria-label={t('Wire')}>
-      <h2>{t('Wire')}</h2>
+    <InspectorSheet label={t('Wire')} title={t('Wire')}>
       <p className="wire-reading">
         <span className="wire-value">{signalText(info.signal, settings, format)}</span>
         <span>{info.conflict ? t('{name}, in conflict', { name: info.name }) : info.name}</span>
@@ -672,7 +673,7 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
         {t('Pin to the meter board')}
       </label>
       <ConeCheck />
-    </aside>
+    </InspectorSheet>
   )
 }
 
@@ -767,8 +768,7 @@ function ArrangePanel() {
   const { alignSelection, distributeSelection, selectionToCircuit, frameSelection } = useEditor.getState()
 
   return (
-    <aside className="inspector" aria-label={t('Selected parts')}>
-      <h2>{parts === 1 ? t('1 part') : t('{count} parts', { count: parts })}</h2>
+    <InspectorSheet label={t('Selected parts')} title={parts === 1 ? t('1 part') : t('{count} parts', { count: parts })}>
       <div className="arrange" role="group" aria-label={t('Line up')}>
         {ALIGNMENTS.map(({ edge, label, icon: AlignIcon }) => (
           <button
@@ -826,7 +826,7 @@ function ArrangePanel() {
         {t('Add a frame')}
       </button>
       <ConeCheck />
-    </aside>
+    </InspectorSheet>
   )
 }
 
@@ -842,6 +842,11 @@ export function Inspector() {
     return id
   })
   const several = useEditor((state) => state.selection.size > 1)
+  const nothing = useEditor((state) => state.selection.size === 0)
+  // With nothing selected the sheet goes away; the next selection brings it up low again.
+  useEffect(() => {
+    if (nothing) useSheet.getState().setOpen(false)
+  }, [nothing])
   const doc = useEditor((state) => state.doc)
   const settings = useEditor((state) => state.settings)
   const active = useEditor((state) => state.active)
@@ -859,8 +864,7 @@ export function Inspector() {
   if (component.type === TEXT_TYPE) {
     const text = component.text ?? ''
     return (
-      <aside className="inspector" aria-label={t('Text settings')}>
-        <h2>{t('Text')}</h2>
+      <InspectorSheet label={t('Text settings')} title={t('Text')}>
         <NameField
           key={`${active}:${component.id}:${text}`}
           id={component.id}
@@ -869,15 +873,14 @@ export function Inspector() {
           writing
         />
         <p className="note">{t('Writing on the canvas. It is not part of the circuit.')}</p>
-      </aside>
+      </InspectorSheet>
     )
   }
 
   if (component.type === FRAME_TYPE) {
     const title = component.text ?? ''
     return (
-      <aside className="inspector" aria-label={t('Frame settings')}>
-        <h2>{t('Frame')}</h2>
+      <InspectorSheet label={t('Frame settings')} title={t('Frame')}>
         <NameField
           key={`${active}:${component.id}:${title}`}
           id={component.id}
@@ -890,7 +893,7 @@ export function Inspector() {
           {t('Not part of the circuit.')} {t('Whatever lies wholly inside moves with it.')}{' '}
           {t('Drag its lower right corner to resize it.')}
         </p>
-      </aside>
+      </InspectorSheet>
     )
   }
 
@@ -900,8 +903,7 @@ export function Inspector() {
       (part) => part.type === NET_TYPE && part.id !== component.id && part.label === name,
     ).length
     return (
-      <aside className="inspector" aria-label={t('Net label settings')}>
-        <h2>{t('Net label')}</h2>
+      <InspectorSheet label={t('Net label settings')} title={t('Net label')}>
         <NameField
           key={`${active}:${component.id}:${name}`}
           id={component.id}
@@ -920,7 +922,7 @@ export function Inspector() {
                 })}
         </p>
         <ConeCheck />
-      </aside>
+      </InspectorSheet>
     )
   }
 
@@ -928,8 +930,7 @@ export function Inspector() {
     const sub = component.sub
     if (!sub) return null
     return (
-      <aside className="inspector" aria-label={t('{name} circuit', { name: sub.name })}>
-        <h2>{sub.name}</h2>
+      <InspectorSheet label={t('{name} circuit', { name: sub.name })} title={sub.name}>
         <p className="note">
           {t('{inputs}, {outputs}', { inputs: inputCount(sub.inputs.length), outputs: outputCount(sub.outputs.length) })}
         </p>
@@ -943,7 +944,7 @@ export function Inspector() {
         </button>
         <TruthTablePanel part={component} />
         <ConeCheck />
-      </aside>
+      </InspectorSheet>
     )
   }
 
@@ -960,8 +961,7 @@ export function Inspector() {
   const { setParams, setDelay } = useEditor.getState()
 
   return (
-    <aside className="inspector" aria-label={t('{name} settings', { name: partName(component.type) })}>
-      <h2>{partName(component.type)}</h2>
+    <InspectorSheet label={t('{name} settings', { name: partName(component.type) })} title={partName(component.type)}>
       <p className="note part-hint">{partHint(component.type, settings.radix)}</p>
       <NameField
         // A new field for another part, and after undo changed the name.
@@ -1032,6 +1032,6 @@ export function Inspector() {
       <PartValues id={component.id} />
       <TruthTablePanel part={component} />
       <ConeCheck />
-    </aside>
+    </InspectorSheet>
   )
 }
