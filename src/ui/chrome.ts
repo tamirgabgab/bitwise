@@ -22,6 +22,7 @@ export type Overlay =
   | 'machine'
   | 'expression'
   | 'verilog'
+  | 'parts'
 
 interface ChromeState {
   readonly overlay: Overlay | null
@@ -64,6 +65,8 @@ interface ChromeState {
   openExpression(): void
   /** Opens the window that builds circuits from Verilog text. */
   openVerilog(): void
+  /** The window with every part, to search and add one. */
+  openParts(): void
   /** Opens the machine editor on a state machine part of the open circuit. */
   openMachine(part: string): void
   startTour(): void
@@ -154,6 +157,9 @@ export const useChrome = create<ChromeState>()((set, get) => ({
   },
   openVerilog() {
     set({ overlay: 'verilog' })
+  },
+  openParts() {
+    set({ overlay: 'parts' })
   },
   openMachine(part) {
     set({ overlay: 'machine', machinePart: part })

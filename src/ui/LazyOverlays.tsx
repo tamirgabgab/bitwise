@@ -27,6 +27,7 @@ const WINDOWS: readonly (readonly [Overlay, LazyExoticComponent<ComponentType>])
   ['machine', deferred(() => import('./MachineEditor.tsx'), 'MachineEditor')],
   ['expression', deferred(() => import('./ExpressionDialog.tsx'), 'ExpressionDialog')],
   ['verilog', deferred(() => import('./VerilogDialog.tsx'), 'VerilogDialog')],
+  ['parts', deferred(() => import('./PartPicker.tsx'), 'PartPicker')],
 ]
 
 export function LazyOverlays() {

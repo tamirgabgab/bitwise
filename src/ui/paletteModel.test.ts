@@ -46,6 +46,24 @@ describe('matchesQuery', () => {
   it('takes a blank query for a match', () => {
     expect(matchesQuery('  ', 'anything')).toBe(true)
   })
+
+  it('forgives one slip in a word of four letters or more', () => {
+    expect(matchesQuery('conter', 'Counter')).toBe(true)
+    expect(matchesQuery('multplier', 'Multiplier')).toBe(true)
+    expect(matchesQuery('regsiter', 'Register')).toBe(true)
+    expect(matchesQuery('rgister', 'Register')).toBe(true)
+    // Two slips are too many, and the first letter must be right.
+    expect(matchesQuery('rgsiter', 'Register')).toBe(false)
+    expect(matchesQuery('mounter', 'Counter')).toBe(false)
+    // A short word must be right: "nad" is not NAND.
+    expect(matchesQuery('nad', 'NAND gate')).toBe(false)
+  })
+
+  it('forgives in Hebrew as in English', () => {
+    expect(matchesQuery('מונא', 'מונה ספירה')).toBe(true)
+    expect(matchesQuery('זכרון', 'זיכרון קריאה')).toBe(true)
+    expect(matchesQuery('מונה', 'אי זוגי שונה')).toBe(false)
+  })
 })
 
 describe('matchRank', () => {
@@ -72,6 +90,13 @@ describe('searchSections', () => {
   it('finds parts by what they do', () => {
     const types = searchSections(sections, 'carry', 2).flatMap((section) => section.types)
     expect(types).toContain('adder')
+  })
+
+  it('finds parts by the words people call them', () => {
+    const large = paletteSections({ radix: 2, preset: 'classic', sandbox: false })
+    const types = searchSections(large, 'memory', 2).flatMap((section) => section.types)
+    expect(types).toEqual(expect.arrayContaining(['ram', 'rom', 'register', 'dff']))
+    expect(searchSections(large, 'selector', 2).flatMap((section) => section.types)).toContain('mux')
   })
 
   it('finds a whole section by its title', () => {

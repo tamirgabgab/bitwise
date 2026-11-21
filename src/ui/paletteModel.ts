@@ -55,10 +55,62 @@ function wordsOf(query: string): string[] {
   return query.toLowerCase().split(/\s+/).filter(Boolean)
 }
 
-/** True when every word of the query is somewhere in the text. */
+/** The shortest word a slip of one letter is forgiven in. */
+const FORGIVING_LENGTH = 4
+
+/** Whether two words differ by at most one letter added, dropped or changed, or two swapped. */
+function oneEditApart(a: string, b: string): boolean {
+  if (Math.abs(a.length - b.length) > 1) return false
+  let i = 0
+  let j = 0
+  let edits = 0
+  while (i < a.length && j < b.length) {
+    if (a[i] === b[j]) {
+      i++
+      j++
+      continue
+    }
+    if (++edits > 1) return false
+    if (a.length > b.length) i++
+    else if (a.length < b.length) j++
+    else if (a[i] === b[j + 1] && a[i + 1] === b[j]) {
+      // Two letters typed the wrong way round.
+      i += 2
+      j += 2
+    } else {
+      i++
+      j++
+    }
+  }
+  return edits + (a.length - i) + (b.length - j) <= 1
+}
+
+/**
+ * Whether a word of the query is in the text: anywhere inside it, or, for a
+ * word of four letters or more, as the start of one of its words with one
+ * slip after the first letter ("conter" and "cuonter" find "counter").
+ */
+function wordIn(word: string, hay: string, words: readonly string[]): boolean {
+  if (hay.includes(word)) return true
+  if (word.length < FORGIVING_LENGTH) return false
+  // The first letter must be right: "מונה" is not "שונה".
+  return words.some(
+    (each) =>
+      each[0] === word[0] &&
+      (oneEditApart(word, each.slice(0, word.length)) ||
+      oneEditApart(word, each.slice(0, word.length + 1)) ||
+        oneEditApart(word, each.slice(0, word.length - 1))),
+  )
+}
+
+/**
+ * True when every word of the query is in the text, letters of any script,
+ * forgiving one wrong letter in a longer word.
+ */
 export function matchesQuery(query: string, text: string): boolean {
   const hay = text.toLowerCase()
-  return wordsOf(query).every((word) => hay.includes(word))
+  const words = hay.split(/[^\p{L}\p{N}]+/u).filter(Boolean)
+  return wordsOf(query).every((word) => wordIn(word, hay, words))
 }
 
 /**

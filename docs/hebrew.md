@@ -141,7 +141,8 @@ only.
   `CanvasView`, `Minimap`, `NameInput`, `useModal`, `panelSize`, `icons`,
   `language`.
 - **parts:** parts and their properties: `src/ui/` `parts`, `Palette`,
-  `paletteModel`, `Inspector`, `InspectorSheet`, `GateTable`, `TableEditor`,
+  `paletteModel`, `PartPicker`, `Inspector`, `InspectorSheet`, `GateTable`,
+  `TableEditor`,
   `MemoryEditor`, `memoryWords`, `TruthTablePanel`, `tableAnswers`,
   `MachineSummary`, `wholeNumber`, `probeText`, `ProbeBubble`, `placing`,
   `swatch`, `ValueLegend`; and `src/core`.

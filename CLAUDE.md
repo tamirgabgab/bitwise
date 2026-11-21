@@ -405,6 +405,12 @@ keeps text files LF in the repository.
   a typed field between − and +, checked by `readWholeNumber`
   (`wholeNumber.ts`) against the range, with a note naming the range when
   a value is refused.
+- `paletteModel.ts` decides the palette sections and the search: every
+  word of the query in a part's words (`partWords`: name, hint and
+  `KEYWORDS`, in the open language and in English), one slip forgiven after
+  the first letter of a word of four letters or more. On a phone the search
+  sits at the start of the strip with a button to `PartPicker.tsx`, a
+  window of every part.
 - `paletteModel.ts` decides the palette sections and the search;
   `minimap.ts` the overview map, shown only when part of the drawing is out
   of sight; `toasts.ts` the short messages (one that offers a button,

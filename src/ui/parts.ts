@@ -227,12 +227,67 @@ export function partHint(type: string, radix: number): string {
 }
 
 /**
- * Everything a search may find a part by: its name and what it does, in the
- * language of the interface and in English, so both languages find it.
+ * Other words a part is looked for by, beyond its name: what it is for and
+ * what people call it. Translated like the names, so a search in Hebrew
+ * finds it by Hebrew words too.
+ */
+const KEYWORDS: Readonly<Record<string, string>> = {
+  and: msg('both all conjunction'),
+  or: msg('either any disjunction'),
+  not: msg('invert inverter negate'),
+  nand: msg('not and universal'),
+  nor: msg('not or universal'),
+  xor: msg('exclusive odd parity different'),
+  xnor: msg('equal same equivalence'),
+  buffer: msg('repeater delay'),
+  shift: msg('rotate step'),
+  add: msg('sum plus'),
+  mul: msg('product times'),
+  is: msg('equals detect'),
+  table: msg('truth table custom function'),
+  const: msg('fixed value'),
+  input: msg('switch toggle source'),
+  button: msg('push press momentary'),
+  output: msg('light lamp led probe'),
+  display: msg('number digits hex decimal'),
+  clock: msg('tick pulse oscillator timer'),
+  sr: msg('latch set reset memory'),
+  dff: msg('flip-flop memory register'),
+  tff: msg('flip-flop toggle memory'),
+  jkff: msg('flip-flop memory'),
+  cycle: msg('sequence steps'),
+  tobits: msg('bus bits binary'),
+  frombits: msg('bus bits binary'),
+  split: msg('bus wires apart'),
+  merge: msg('bus wires join'),
+  mux: msg('select selector choose'),
+  demux: msg('route distribute'),
+  decoder: msg('address one hot select'),
+  adder: msg('sum plus addition carry'),
+  subtractor: msg('minus difference borrow'),
+  multiplier: msg('times product multiply'),
+  shifter: msg('shift rotate'),
+  compare: msg('equal greater less'),
+  alu: msg('arithmetic logic unit'),
+  register: msg('store memory word'),
+  counter: msg('count up increment'),
+  rom: msg('memory read only'),
+  ram: msg('memory read write'),
+  fsm: msg('states automaton'),
+  text: msg('label note comment'),
+  frame: msg('box group'),
+  net: msg('name tag'),
+}
+
+/**
+ * Everything a search may find a part by: its name, what it does and the
+ * words people call it by, in the language of the interface and in English,
+ * so both languages find it.
  */
 export function partWords(type: string, radix: number): string {
-  const shown = `${partName(type)} ${partHint(type, radix)}`
-  const english = `${englishName(type)} ${englishHint(type, radix)}`
+  const keywords = Object.hasOwn(KEYWORDS, type) ? KEYWORDS[type] : ''
+  const shown = `${partName(type)} ${partHint(type, radix)} ${keywords === '' ? '' : t(keywords)}`
+  const english = `${englishName(type)} ${englishHint(type, radix)} ${keywords}`
   return shown === english ? shown : `${shown} ${english}`
 }
 

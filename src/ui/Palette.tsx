@@ -10,7 +10,7 @@ import {
 } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 import { GateTable } from './GateTable.tsx'
-import { ChevronIcon, ChipIcon, SearchIcon } from './icons.tsx'
+import { ChevronIcon, ChipIcon, PartsIcon, SearchIcon } from './icons.tsx'
 import { matchesQuery, paletteSections, recentIn, searchSections } from './paletteModel.ts'
 import { msg, t } from '../i18n/index.ts'
 import { hasGateTable, inputCount, outputCount, partHint, partName } from './parts.ts'
@@ -27,7 +27,8 @@ interface TableTip {
 const ICON_WIDTH = 64
 const ICON_HEIGHT = 40
 
-function SymbolIcon({ type }: { type: string }) {
+/** The symbol of a part, drawn as the canvas draws it. */
+export function SymbolIcon({ type }: { type: string }) {
   const ref = useRef<HTMLCanvasElement>(null)
   const theme = useResolvedTheme()
   const gates = useEditor((state) => state.gateStyle)
@@ -192,27 +193,38 @@ export function Palette() {
 
   return (
     <nav className="palette" aria-label={t('Parts')}>
-      <label className="palette-search">
-        <SearchIcon />
-        <span className="visually-hidden">{t('Search parts')}</span>
-        <input
-          type="search"
-          placeholder={t('Search parts')}
-          autoComplete="off"
-          spellCheck={false}
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.code === 'Escape' && query !== '') {
-              setQuery('')
-              event.stopPropagation()
-            } else if (event.code === 'Enter' && searching && sections.length > 0) {
-              // Enter adds the first part the search found.
-              placeAtCenter(sections[0].types[0])
-            }
-          }}
-        />
-      </label>
+      <div className="palette-find">
+        <label className="palette-search">
+          <SearchIcon />
+          <span className="visually-hidden">{t('Search parts')}</span>
+          <input
+            type="search"
+            placeholder={t('Search parts')}
+            autoComplete="off"
+            spellCheck={false}
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.code === 'Escape' && query !== '') {
+                setQuery('')
+                event.stopPropagation()
+              } else if (event.code === 'Enter' && searching && sections.length > 0) {
+                // Enter adds the first part the search found.
+                placeAtCenter(sections[0].types[0])
+              }
+            }}
+          />
+        </label>
+        <button
+          type="button"
+          className="tool parts-button"
+          title={t('All parts')}
+          onClick={() => useChrome.getState().openParts()}
+        >
+          <PartsIcon />
+          <span>{t('All parts')}</span>
+        </button>
+      </div>
       {sections.map((section) => {
         const folded = !searching && collapsed.includes(section.id)
         return (

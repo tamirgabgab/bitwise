@@ -286,6 +286,13 @@ export const SearchIcon = () => (
   </Icon>
 )
 
+/** Every part at once: the picker of all parts. */
+export const PartsIcon = () => (
+  <Icon>
+    <path d="M3 3h4.5v4.5H3zM10.5 3H15v4.5h-4.5zM3 10.5h4.5V15H3zM10.5 10.5H15V15h-4.5z" />
+  </Icon>
+)
+
 /** Points down; a folded section turns it to point right. */
 export const ChevronIcon = () => (
   <svg

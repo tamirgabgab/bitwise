@@ -118,3 +118,21 @@ test('the sheet of a selected part opens with a swipe up and closes with a swipe
   await slide(cdp, page, { x, y: opened.y + opened.height / 2 }, { x, y: opened.y + 160 })
   await expect(sheet).not.toHaveClass(/open/)
 })
+
+test('the search above the strip finds parts by what people call them', async ({ page }) => {
+  await newProject(page)
+  const strip = page.getByRole('navigation', { name: 'Parts' })
+  await strip.getByPlaceholder('Search parts').fill('memry')
+  await expect(strip.getByRole('button', { name: 'RAM', exact: true })).toBeVisible()
+  await expect(strip.getByRole('button', { name: 'AND', exact: true })).toHaveCount(0)
+})
+
+test('the window of all parts adds the part tapped', async ({ page }) => {
+  await newProject(page)
+  await page.getByRole('button', { name: 'All parts' }).tap()
+  const picker = page.getByRole('dialog', { name: 'All parts' })
+  await picker.getByPlaceholder('Search parts').fill('counter')
+  await picker.getByRole('button', { name: 'Counter', exact: true }).tap()
+  await expect(picker).toBeHidden()
+  await expect.poll(async () => (await parts(page)).map((part) => part.type)).toEqual(['counter'])
+})

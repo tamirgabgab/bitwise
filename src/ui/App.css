@@ -859,6 +859,44 @@ kbd {
   inset-inline-end: 264px;
 }
 
+/* The search of the palette; on a phone it holds a button for every part as well. */
+.palette-find {
+  display: contents;
+}
+
+.parts-button {
+  display: none;
+}
+
+/* ---- Every part in one window (PartPicker.tsx) ---- */
+
+.part-picker {
+  width: min(560px, calc(100vw - 16px));
+}
+
+.part-picker-search {
+  margin: 12px 16px 4px;
+}
+
+.part-picker-list {
+  max-height: min(70vh, 620px);
+  padding: 4px 16px 16px;
+  overflow-y: auto;
+}
+
+.part-picker-list h3 {
+  margin: 12px 0 6px;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.part-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
+  gap: 4px;
+}
+
 /* The head of the sheet a phone shows (InspectorSheet.tsx); elsewhere just the heading. */
 .sheet-head {
   display: contents;
@@ -1997,9 +2035,44 @@ label.swatch:focus-within {
     border-bottom: 1px solid var(--border);
   }
 
-  .palette h2,
-  .palette-search {
+  .palette h2 {
     display: none;
+  }
+
+  /* The search stays at the start of the strip while the parts scroll past it. */
+  .palette-find {
+    position: sticky;
+    inset-inline-start: -12px;
+    z-index: 1;
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    width: 128px;
+    margin-block: -8px;
+    margin-inline-start: -12px;
+    padding-block: 8px;
+    padding-inline: 12px 6px;
+    background: var(--surface);
+    border-inline-end: 1px solid var(--border);
+  }
+
+  .palette-find .palette-search {
+    margin-bottom: 0;
+  }
+
+  .parts-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    width: 100%;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-control);
+    background: var(--canvas-bg);
+    font-weight: 500;
+    white-space: nowrap;
   }
 
   .inspector {
