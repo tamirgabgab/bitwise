@@ -176,21 +176,31 @@ export const ChipIcon = () => (
   </Icon>
 )
 
-/** The AND gate that stands for the app itself. */
+/**
+ * The half adder that stands for the app itself: XOR gives the sum, AND the
+ * carry. The wires are fainter than the gates, as in `public/favicon.svg`.
+ */
 export const BrandMark = () => (
   <svg
-    width="22"
-    height="18"
-    viewBox="0 0 22 18"
+    width="24"
+    height="22"
+    viewBox="1.5 3 29 26.5"
     fill="none"
     stroke="currentColor"
-    strokeWidth="1.7"
     strokeLinecap="round"
     strokeLinejoin="round"
     aria-hidden="true"
   >
-    <path d="M6 2.5h4.5a6.5 6.5 0 0 1 0 13H6Z" />
-    <path d="M1.5 6H6M1.5 12H6M17 9h3.5" />
+    <g opacity="0.55" strokeWidth="1.4">
+      <path d="M2.5 6.5h10.65M2.5 11.5h10.65M5.5 6.5v14H15M9 11.5v14h6M25 9h4.5M25 23h4.5" />
+      <circle cx="5.5" cy="6.5" r="1.4" fill="currentColor" stroke="none" />
+      <circle cx="9" cy="11.5" r="1.4" fill="currentColor" stroke="none" />
+    </g>
+    <g strokeWidth="1.6">
+      <path d="M15 4h2.5c3 0 5.5 2 7.5 5c-2 3-4.5 5-7.5 5H15c1.5-1.5 2.4-3 2.4-5S16.5 5.5 15 4z" />
+      <path d="M11.4 4c1.5 1.5 2.4 3 2.4 5s-.9 3.5-2.4 5" />
+      <path d="M15 18h5a5 5 0 0 1 0 10h-5z" />
+    </g>
   </svg>
 )
 

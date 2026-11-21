@@ -21,14 +21,19 @@ import { drawWire, dropPart, newProject, onCanvas, partAt, pinAt, visit } from '
 
 const PORT = 4181
 const SITE = `http://localhost:${PORT}/`
-const INK = '#14181f'
-const GLYPH = `<g fill="none" stroke="#e5484d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-  <path d="M10 8h6a8 8 0 0 1 0 16h-6z" /><path d="M4 12h6M4 20h6M24 16h4" /></g>`
+const INK = '#121a17'
+/** A half adder: XOR for the sum, AND for the carry. The same drawing as `public/favicon.svg`. */
+const GLYPH = `<g transform="translate(16 16) scale(0.88) translate(-16 -16)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+  <path d="M2.5 6.5h10.65M2.5 11.5h10.65M5.5 6.5v14H15M9 11.5v14h6M25 9h4.5M25 23h4.5" stroke="#7d8c87" stroke-width="1.2" />
+  <circle cx="5.5" cy="6.5" r="1.3" fill="#7d8c87" /><circle cx="9" cy="11.5" r="1.3" fill="#7d8c87" />
+  <g stroke="#d0dbd7" stroke-width="1.35">
+    <path d="M15 4h2.5c3 0 5.5 2 7.5 5c-2 3-4.5 5-7.5 5H15c1.5-1.5 2.4-3 2.4-5S16.5 5.5 15 4z" />
+    <path d="M11.4 4c1.5 1.5 2.4 3 2.4 5s-.9 3.5-2.4 5" /><path d="M15 18h5a5 5 0 0 1 0 10h-5z" /></g></g>`
 
 /** The icon on a square of its own color, the glyph at `scale` of the square. */
 function squareIcon(scale: number, rounded: boolean): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
-  <rect width="32" height="32" rx="${rounded ? 6 : 0}" fill="${INK}" />
+  <rect width="32" height="32" rx="${rounded ? 7 : 0}" fill="${INK}" />
   <g transform="translate(16 16) scale(${scale}) translate(-16 -16)">${GLYPH}</g></svg>`
 }
 
