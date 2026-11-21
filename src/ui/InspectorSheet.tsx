@@ -10,6 +10,8 @@ const SWIPE = 24
 interface InspectorSheetProps {
   label: string
   title: ReactNode
+  /** A button kept in sight even while the sheet is low, such as connecting the part. */
+  action?: ReactNode
   children: ReactNode
 }
 
@@ -17,7 +19,7 @@ interface InspectorSheetProps {
  * The frame of every inspector panel. On a phone only its head shows until
  * it is opened (`sheet.ts`); on a larger screen the head is a plain heading.
  */
-export function InspectorSheet({ label, title, children }: InspectorSheetProps) {
+export function InspectorSheet({ label, title, action, children }: InspectorSheetProps) {
   const open = useSheet((state) => state.open)
   const setOpen = useSheet((state) => state.setOpen)
   const start = useRef<number | null>(null)
@@ -44,6 +46,7 @@ export function InspectorSheet({ label, title, children }: InspectorSheetProps) 
         }}
       >
         <h2>{title}</h2>
+        {action}
         <button
           type="button"
           className="sheet-toggle"

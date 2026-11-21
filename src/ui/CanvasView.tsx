@@ -8,6 +8,7 @@ import { ProbeBubble } from './ProbeBubble.tsx'
 import { LaserPointer } from './LaserPointer.tsx'
 import { problemName } from './parts.ts'
 import { ValueLegend } from './ValueLegend.tsx'
+import { TapConnectBar } from './TapConnectBar.tsx'
 
 export function CanvasView() {
   const ref = useRef<HTMLCanvasElement>(null)
@@ -34,6 +35,7 @@ export function CanvasView() {
         aria-label={t('Circuit canvas')}
         aria-description={description}
       />
+      <TapConnectBar />
       {isEmpty && !isPlacing && (
         <div className="empty-hint">
           <h2 className="empty-title">{t('This circuit is empty')}</h2>

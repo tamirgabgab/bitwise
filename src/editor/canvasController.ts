@@ -1,6 +1,7 @@
 import {
   bendWire,
   duplicateItems,
+  isAnnotation,
   isSwitchKey,
   resizeFrame,
   sameTerminal,
@@ -36,6 +37,8 @@ import {
   switchValue,
   toggleWatch,
 } from './session.ts'
+import { linksBetweenParts, linksFromPin, pinNear, useTapConnect, wireBetween } from './tapConnect.ts'
+import type { Link } from './tapConnect.ts'
 import { useSim } from './simStore.ts'
 import { useEditor } from './store.ts'
 import type { EditorState, Placing, ProjectSettings } from './store.ts'
@@ -46,7 +49,7 @@ import { readCanvasTheme } from './theme.ts'
 import type { CanvasTheme } from './theme.ts'
 import { makeValueStyle } from './valueStyle.ts'
 import type { ValueStyle } from './valueStyle.ts'
-import { keepInSight, pinchView, screenToWorld, wheelZoomFactor } from './view.ts'
+import { UNIT, keepInSight, pinchView, screenToWorld, wheelZoomFactor } from './view.ts'
 import { bendPoints, wirePath } from './wireLayout.ts'
 import { influenceCone } from './cone.ts'
 import type { ConeMarks } from './cone.ts'
@@ -62,6 +65,10 @@ const DRAG_THRESHOLD = 4
 const TOUCH_SLOP = 10
 /** How long a finger rests, in milliseconds, before it means what a right click does. */
 const LONG_PRESS = 500
+/** How far from a pin a press may end and still be a tap on it, which arms a connection, in grid units. */
+const TAP_REACH = 0.8
+/** How far a finger finds a pin, in screen pixels. */
+const FINGER_REACH = 18
 
 /** At this many ticks a second or fewer, the eye can follow a change spreading. */
 const SLOW_SPEED = 5
@@ -243,9 +250,12 @@ export class CanvasController {
           this.probe(null)
           this.setCursor()
           this.frameCircuit()
+          useTapConnect.getState().cancel()
         }
         this.requestDraw()
       }),
+      // A pin chosen by a tap is ringed until the second tap.
+      useTapConnect.subscribe(() => this.requestDraw()),
       // The simulator moved: wires and lamps may show new values.
       useSim.subscribe((state, previous) => {
         if (
@@ -385,6 +395,9 @@ export class CanvasController {
     } else if (mode.kind === 'idle' && this.hover && this.hover.kind !== 'component') {
       highlight = this.hover.pos
     }
+    // The pin a tap chose, waiting for the second tap.
+    const armed = useTapConnect.getState().armed
+    if (armed?.kind === 'pin' && mode.kind === 'idle') highlight = terminalEnd(doc, armed.terminal)?.pos ?? highlight
 
     const live = readLiveValues(doc, currentBridge())
     renderScene(this.ctx, this.width, this.height, this.pixelRatio, this.theme, {
@@ -543,6 +556,74 @@ export class CanvasController {
     return undefined
   }
 
+  /** A pin a finger is on, found a little way off, since a finger covers far more than a pin. */
+  private fingerPin(doc: CircuitDoc, world: Point): Hit | undefined {
+    const near = pinNear(doc, world, FINGER_REACH / (UNIT * useEditor.getState().view.zoom))
+    return near ? { kind: 'pin', terminal: near.terminal, pos: near.pos } : undefined
+  }
+
+  /**
+   * The second tap of a connection made by taps (`tapConnect.ts`). True when
+   * it took the press; a press anywhere else lets the first tap go.
+   */
+  private connectByTap(doc: CircuitDoc, world: Point, touch: boolean): boolean {
+    const tap = useTapConnect.getState()
+    const armed = tap.armed
+    if (!armed) {
+      if (tap.choices || tap.nothing) tap.cancel()
+      return false
+    }
+    const state = useEditor.getState()
+    const hit = (touch ? this.fingerPin(doc, world) : undefined) ?? hitTest(doc, world)
+    const done = (): boolean => {
+      this.mode = { kind: 'idle' }
+      this.requestDraw()
+      return true
+    }
+    if (hit?.kind === 'pin' && hit.terminal.kind === 'pin') {
+      if (armed.kind === 'pin') {
+        tap.cancel()
+        if (sameTerminal(armed.terminal, hit.terminal)) return done()
+        // Two pins a wire joins already: tapping them again takes it away.
+        const joined = wireBetween(doc, armed.terminal, hit.terminal)
+        if (joined) state.disconnect(joined)
+        else state.connect({ kind: 'terminal', terminal: armed.terminal }, { kind: 'terminal', terminal: hit.terminal })
+        return done()
+      }
+      this.settleLinks(linksFromPin(doc, hit.terminal, armed.id))
+      return done()
+    }
+    if (hit?.kind === 'component' && !isAnnotation(doc.components[hit.id]?.type ?? '')) {
+      if (armed.kind === 'part' && armed.id === hit.id) {
+        tap.cancel()
+        return done()
+      }
+      this.settleLinks(
+        armed.kind === 'pin' ? linksFromPin(doc, armed.terminal, hit.id) : linksBetweenParts(doc, armed.id, hit.id),
+      )
+      return done()
+    }
+    if (armed.kind === 'pin' && (hit?.kind === 'wire' || hit?.kind === 'junction')) {
+      const to = this.wireEndOfHit(hit)
+      tap.cancel()
+      if (to) state.connect({ kind: 'terminal', terminal: armed.terminal }, to)
+      return done()
+    }
+    tap.cancel()
+    this.requestDraw()
+    return false
+  }
+
+  /** Makes the one way to connect, or asks which when there are several. */
+  private settleLinks(links: readonly Link[]): void {
+    const tap = useTapConnect.getState()
+    if (links.length === 0) tap.failed()
+    else if (links.length === 1) {
+      tap.cancel()
+      useEditor.getState().connect({ kind: 'terminal', terminal: links[0].from }, { kind: 'terminal', terminal: links[0].to })
+    } else tap.offer(links)
+  }
+
   private wireEndOfHit(hit: Hit): WireEnd | undefined {
     if (hit.kind === 'pin') return { kind: 'terminal', terminal: hit.terminal }
     if (hit.kind === 'junction') {
@@ -671,6 +752,9 @@ export class CanvasController {
 
     const state = useEditor.getState()
     const world = this.toWorld(event)
+    const touch = event.pointerType === 'touch'
+
+    if (this.connectByTap(state.doc, world, touch)) return
 
     const resized = frameHandleAt(state.doc, state.selection, world)
     if (resized !== undefined) {
@@ -680,7 +764,7 @@ export class CanvasController {
       return
     }
 
-    const hit = hitTest(state.doc, world)
+    const hit = (touch ? this.fingerPin(state.doc, world) : undefined) ?? hitTest(state.doc, world)
 
     if (hit?.kind === 'pin') {
       const fromEnd = terminalEnd(state.doc, hit.terminal)
@@ -934,6 +1018,14 @@ export class CanvasController {
       case 'wire': {
         const to = mode.target ? this.wireEndOfHit(mode.target) : undefined
         if (to) state.connect(mode.from, to)
+        else if (
+          mode.from.kind === 'terminal' &&
+          mode.from.terminal.kind === 'pin' &&
+          Math.hypot(mode.current.x - mode.fromEnd.pos.x, mode.current.y - mode.fromEnd.pos.y) <= TAP_REACH
+        ) {
+          // A tap on a pin, not a drag from it: the next tap says where the wire goes.
+          useTapConnect.getState().arm({ kind: 'pin', terminal: mode.from.terminal })
+        }
         break
       }
       default:
@@ -1015,6 +1107,12 @@ export class CanvasController {
 
   private readonly onKeyDown = (event: KeyboardEvent): void => {
     if (isTypingTarget(event.target)) return
+    const tap = useTapConnect.getState()
+    if (event.code === 'Escape' && (tap.armed || tap.choices)) {
+      tap.cancel()
+      this.requestDraw()
+      return
+    }
     const state = useEditor.getState()
     const command = event.ctrlKey || event.metaKey
     // `code` names the physical key, so shortcuts work on any keyboard layout.

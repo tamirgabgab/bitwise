@@ -697,6 +697,60 @@ kbd {
   min-width: 0;
 }
 
+/* ---- Connecting by taps: what the second tap will do (TapConnectBar.tsx) ---- */
+
+.tap-connect {
+  position: absolute;
+  top: 8px;
+  inset-inline: 8px;
+  z-index: 3;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+  max-width: 560px;
+  margin-inline: auto;
+  padding-block: 6px;
+  padding-inline: 12px 6px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--surface);
+  box-shadow: var(--shadow-float);
+}
+
+.tap-connect p {
+  flex: 1;
+  min-width: 180px;
+  margin: 0;
+}
+
+.tap-connect-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  order: 1;
+}
+
+/* The wires of a chosen pin, short, so the bar covers little of the drawing. */
+.tap-connect-wires {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  order: 1;
+}
+
+.tap-connect-wire {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding-inline: 10px 6px;
+}
+
 .canvas {
   position: absolute;
   inset: 0;
@@ -895,6 +949,11 @@ kbd {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(84px, 1fr));
   gap: 4px;
+}
+
+/* A button beside the title: connecting a part, disconnecting a wire. */
+.inspector .connect-button {
+  margin-bottom: 8px;
 }
 
 /* The head of the sheet a phone shows (InspectorSheet.tsx); elsewhere just the heading. */
@@ -2137,6 +2196,12 @@ label.swatch:focus-within {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+  }
+
+  .sheet-head .connect-button {
+    flex: none;
+    height: 32px;
+    margin-bottom: 0;
   }
 
   .sheet-toggle {
@@ -3578,7 +3643,8 @@ label.swatch:focus-within {
   .problems-row,
   .status-button,
   .meter-close,
-  .sheet-toggle {
+  .sheet-toggle,
+  .sheet-head .connect-button {
     min-height: 40px;
   }
 

@@ -211,6 +211,17 @@ keeps text files LF in the repository.
 - The longest path (`criticalPath` in `core/cost.ts`) is marked on the
   canvas while `useSim.criticalShown` is on. `criticalMarks` in
   `session.ts` maps it to parts and wires, cached until the next edit.
+- Connecting by taps (`tapConnect.ts`, `TapConnectBar.tsx`): a click or tap
+  on a pin without a drag arms it (`useTapConnect`), and the next press on a
+  pin, part, wire or junction makes the wire; on the same two pins a wire
+  joins already, it takes that wire away. The inspector's Connect button
+  arms a whole part: the next part gets the first output that fits to its
+  first free input (`linksBetweenParts`, the other way round when the first
+  has none), and several outputs are offered to choose from. The bar over
+  the canvas says what the next tap does and lists the wires of an armed
+  pin, each to disconnect; a selected wire has a Disconnect button. A
+  finger finds a pin `FINGER_REACH` pixels off (`pinNear`). A part added by
+  a tap lands near the middle where it covers no other (`freeSpot.ts`).
 - Dragging a selected wire moves the straight stretch under the pointer
   (`runAt` in `wireLayout.ts`): `bendWire` puts a junction at each end of
   it and moves them, so the file format has no bends of its own.

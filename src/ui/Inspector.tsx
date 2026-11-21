@@ -28,6 +28,7 @@ import {
   toggleMeter,
   toggleWatch,
   useEditor,
+  useTapConnect,
   useSim,
   valueText,
 } from '../editor/index.ts'
@@ -596,7 +597,7 @@ export function BreakField({ terminal, width, format }: { terminal: Terminal; wi
  * What the selected wire carries and what drives it, and the breakpoint
  * that pauses the run when the wire does something.
  */
-function WirePanel({ terminal }: { terminal: Terminal }) {
+function WirePanel({ terminal, wire }: { terminal: Terminal; wire?: string }) {
   const settings = useEditor((state) => state.settings)
   // The reading follows the simulator, and the choice follows the breakpoints.
   useSim((state) => state.revision)
@@ -608,7 +609,25 @@ function WirePanel({ terminal }: { terminal: Terminal }) {
   const format = formatAt(doc, terminal)
 
   return (
-    <InspectorSheet label={t('Wire')} title={t('Wire')}>
+    <InspectorSheet
+      label={t('Wire')}
+      title={t('Wire')}
+      action={
+        wire && (
+          <button
+            type="button"
+            className="button connect-button"
+            title={t('Disconnect: take this wire away')}
+            onClick={(event) => {
+              event.stopPropagation()
+              useEditor.getState().disconnect(wire)
+            }}
+          >
+            {t('Disconnect')}
+          </button>
+        )
+      }
+    >
       <p className="wire-reading">
         <span className="wire-value">{signalText(info.signal, settings, format)}</span>
         <span>{info.conflict ? t('{name}, in conflict', { name: info.name }) : info.name}</span>
@@ -835,6 +854,24 @@ function ArrangePanel() {
  * delay, the value a constant gives, the name and the key of a switch, the
  * breakpoint of a wire. Hidden when there is nothing to set.
  */
+/** Starts connecting a part by taps: the next part tapped is the other end (`tapConnect.ts`). */
+function ConnectButton({ id }: { id: string }) {
+  return (
+    <button
+      type="button"
+      className="button connect-button"
+      title={t('Connect this part: then tap the part to connect it to')}
+      onClick={(event) => {
+        // On a phone the button sits on the head of the sheet, which opens on a tap.
+        event.stopPropagation()
+        useTapConnect.getState().arm({ kind: 'part', id })
+      }}
+    >
+      {t('Connect')}
+    </button>
+  )
+}
+
 export function Inspector() {
   const selected = useEditor((state) => {
     if (state.selection.size !== 1) return null
@@ -854,7 +891,7 @@ export function Inspector() {
   if (selected === null) return null
 
   const wire = doc.wires[selected]
-  if (wire) return <WirePanel key={selected} terminal={wire.from} />
+  if (wire) return <WirePanel key={selected} terminal={wire.from} wire={selected} />
   if (doc.junctions[selected]) {
     return <WirePanel key={selected} terminal={{ kind: 'junction', junction: selected }} />
   }
@@ -930,7 +967,11 @@ export function Inspector() {
     const sub = component.sub
     if (!sub) return null
     return (
-      <InspectorSheet label={t('{name} circuit', { name: sub.name })} title={sub.name}>
+      <InspectorSheet
+        label={t('{name} circuit', { name: sub.name })}
+        title={sub.name}
+        action={<ConnectButton id={component.id} />}
+      >
         <p className="note">
           {t('{inputs}, {outputs}', { inputs: inputCount(sub.inputs.length), outputs: outputCount(sub.outputs.length) })}
         </p>
@@ -961,7 +1002,11 @@ export function Inspector() {
   const { setParams, setDelay } = useEditor.getState()
 
   return (
-    <InspectorSheet label={t('{name} settings', { name: partName(component.type) })} title={partName(component.type)}>
+    <InspectorSheet
+      label={t('{name} settings', { name: partName(component.type) })}
+      title={partName(component.type)}
+      action={<ConnectButton id={component.id} />}
+    >
       <p className="note part-hint">{partHint(component.type, settings.radix)}</p>
       <NameField
         // A new field for another part, and after undo changed the name.

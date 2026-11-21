@@ -23,6 +23,8 @@ interface Point {
 export interface E2EHook {
   /** The parts of the open circuit, in the order they were added. */
   parts(): PartSeen[]
+  /** The wires of the open circuit, each as the keys of its two ends, `c1:out`. */
+  wires(): string[][]
   /** Where a part's position is on the page, in CSS pixels. */
   part(id: string): Point | null
   /** Where a pin of a part is on the page, in CSS pixels. */
@@ -51,6 +53,10 @@ export function installE2EHook(): void {
         type: part.type,
         label: part.label,
       })),
+    wires: () =>
+      Object.values(useEditor.getState().doc.wires).map((wire) =>
+        [wire.from, wire.to].map((end) => (end.kind === 'pin' ? `${end.component}:${end.port}` : end.junction)),
+      ),
     part(id) {
       const part = useEditor.getState().doc.components[id]
       return part ? onPage(part.pos) : null

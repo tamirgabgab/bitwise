@@ -6,6 +6,7 @@ declare global {
     /** Where parts are drawn: only in the build for these tests (`src/ui/e2eHook.ts`). */
     bitwise?: {
       parts(): { id: string; type: string; label?: string }[]
+      wires(): string[][]
       part(id: string): Point | null
       pin(id: string, port: string): Point | null
     }
@@ -44,6 +45,12 @@ async function hooked(page: Page): Promise<void> {
 export async function parts(page: Page): Promise<{ id: string; type: string; label?: string }[]> {
   await hooked(page)
   return page.evaluate(() => window.bitwise!.parts())
+}
+
+/** The wires of the open circuit, each as its two ends, `c1:out`, sorted. */
+export async function wires(page: Page): Promise<string[][]> {
+  await hooked(page)
+  return page.evaluate(() => window.bitwise!.wires().map((ends) => [...ends].sort()))
 }
 
 /** Where a part sits on the page. */

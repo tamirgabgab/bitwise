@@ -5,6 +5,10 @@
  */
 
 export { CanvasController } from './canvasController.ts'
+export { attached, useTapConnect, wireBetween } from './tapConnect.ts'
+export { freeSpot } from './freeSpot.ts'
+export { placementParams } from './placement.ts'
+export type { Armed, Link } from './tapConnect.ts'
 export { canvasHooks, canvasRuntime } from './runtime.ts'
 export { minimapPan, minimapScene } from './minimap.ts'
 export type { MinimapScene } from './minimap.ts'
@@ -26,7 +30,7 @@ export {
 } from './document.ts'
 export type { AlignEdge, Axis } from './arrange.ts'
 export { extractable } from './extract.ts'
-export type { DocComponent, Terminal } from './document.ts'
+export type { CircuitDoc, DocComponent, Terminal } from './document.ts'
 export { digitOfKey } from './digitKeys.ts'
 export { describeEdit } from './editNames.ts'
 export { MAX_TRUTH_ROWS, rowOf, truthTable } from './truthTable.ts'

@@ -1,5 +1,5 @@
 import type { PointerEvent as ReactPointerEvent } from 'react'
-import { SUB_TYPE, canvasRuntime, useEditor } from '../editor/index.ts'
+import { SUB_TYPE, canvasRuntime, freeSpot, placementParams, useEditor } from '../editor/index.ts'
 import type { Point } from '../editor/index.ts'
 import { useChrome } from './chrome.ts'
 
@@ -111,10 +111,15 @@ function carry(type: string, circuit: string | undefined, done?: () => void): vo
   window.addEventListener('pointercancel', stop)
 }
 
-/** Drops a part at a grid point, or mid-canvas when there is none. */
+/**
+ * Drops a part at a grid point, or, when there is none, near the middle of
+ * the canvas where it covers no other part, so taps add parts side by side.
+ */
 export function placeAt(type: string, pos: Point | null, circuit?: string): void {
-  const at = pos ?? canvasRuntime.current?.gridCenter() ?? { x: 0, y: 0 }
-  useEditor.getState().addComponent(type, at, circuit)
+  const state = useEditor.getState()
+  const middle = canvasRuntime.current?.gridCenter() ?? { x: 0, y: 0 }
+  const at = pos ?? freeSpot(state.doc, type, placementParams(type, state.settings.radix), middle)
+  state.addComponent(type, at, circuit)
   added(type)
 }
 

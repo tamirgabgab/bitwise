@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test'
 import type { CDPSession, Page } from '@playwright/test'
-import { dropPart, newProject, onCanvas, partAt, parts } from './helpers.ts'
+import { dropPart, newProject, onCanvas, partAt, parts, pinAt, wires } from './helpers.ts'
 import type { Point } from './helpers.ts'
 
 /*
@@ -135,4 +135,43 @@ test('the window of all parts adds the part tapped', async ({ page }) => {
   await picker.getByRole('button', { name: 'Counter', exact: true }).tap()
   await expect(picker).toBeHidden()
   await expect.poll(async () => (await parts(page)).map((part) => part.type)).toEqual(['counter'])
+})
+
+test('taps connect: a part then a part, a pin then a pin, and the same pins again disconnect', async ({ page }) => {
+  await newProject(page)
+  // Low enough that the bar over the top of the canvas leaves the pins free.
+  const input = await dropPart(page, 'Input', await onCanvas(page, -100, -60))
+  const gate = await dropPart(page, 'AND', await onCanvas(page, 60, -60))
+  // A tap on a switch flips it, so the gate is chosen first: the order does not matter.
+  const body = await partAt(page, gate)
+  await page.touchscreen.tap(body.x, body.y)
+  await page.getByRole('button', { name: 'Connect', exact: true }).tap()
+  const face = await partAt(page, input)
+  await page.touchscreen.tap(face.x, face.y)
+  await expect.poll(() => wires(page)).toEqual([[`${input}:out`, `${gate}:in0`]])
+
+  const out = await pinAt(page, input, 'out')
+  const in1 = await pinAt(page, gate, 'in1')
+  await page.touchscreen.tap(out.x, out.y)
+  await expect(page.getByRole('group', { name: 'Connecting' })).toBeVisible()
+  await page.touchscreen.tap(in1.x, in1.y)
+  await expect.poll(async () => (await wires(page)).length).toBe(2)
+
+  await page.touchscreen.tap(out.x, out.y)
+  await page.touchscreen.tap(in1.x, in1.y)
+  await expect.poll(() => wires(page)).toEqual([[`${input}:out`, `${gate}:in0`]])
+})
+
+test('a chosen pin lists its wires, each to disconnect', async ({ page }) => {
+  await newProject(page)
+  const input = await dropPart(page, 'Input', await onCanvas(page, -100, -160))
+  const output = await dropPart(page, 'Output', await onCanvas(page, 80, -160))
+  const out = await pinAt(page, input, 'out')
+  const into = await pinAt(page, output, 'in')
+  await page.touchscreen.tap(out.x, out.y)
+  await page.touchscreen.tap(into.x, into.y)
+  await expect.poll(async () => (await wires(page)).length).toBe(1)
+  await page.touchscreen.tap(out.x, out.y)
+  await page.getByRole('list', { name: 'Wires on this pin' }).getByRole('button', { name: /^Disconnect/ }).tap()
+  await expect.poll(async () => (await wires(page)).length).toBe(0)
 })

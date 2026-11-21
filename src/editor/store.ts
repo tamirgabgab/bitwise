@@ -241,6 +241,8 @@ export interface EditorState {
   selectionToCircuit(): string | null
   rotateSelection(): void
   deleteSelection(): void
+  /** Takes one wire away, whatever is selected. */
+  disconnect(wireId: string): void
   /** Changes parameters of one part, such as its number of inputs. */
   setParams(id: string, changes: Readonly<Record<string, number>>): void
   /** Names a part. A blank label takes the name away. */
@@ -604,6 +606,11 @@ export const useEditor = create<EditorState>()((set, get) => {
     deleteSelection() {
       const { doc, selection } = get()
       commit(deleteItems(doc, selection))
+    },
+
+    disconnect(wireId) {
+      const { doc } = get()
+      if (doc.wires[wireId]) commit(deleteItems(doc, [wireId]))
     },
 
     setParams(id, changes) {
